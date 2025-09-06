@@ -59,3 +59,23 @@ server/
     │	└─infra/                      // DB, Redis, logging… (để sau)
     └─ config/
         └─ ServerConfig.java       // cổng, TPS, HZ, kích thước map…
+        
+### fix bug 
+
+	The import com.fasterxml cannot be resolved 
+	JsonInclude cannot be resolved to a type 
+	JsonInclude cannot be resolved to a variable
+	
+	=> rd /s /q server\build
+	=> rd /s /q common\build
+	
+	Xoá tay build/ và bin/ (hoặc chạy ./gradlew clean).
+	Eclipse: Project → Clean…
+	Gradle → Refresh Project
+	
+### chạy server
+	Xoá tay build/ và bin/ (hoặc chạy ./gradlew clean).
+	Eclipse: Project → Clean…
+	Gradle → Refresh Project
+	
+	./gradlew :server:run hoặc run as tại class MainServer

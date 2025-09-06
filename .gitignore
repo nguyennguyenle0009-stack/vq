@@ -1,30 +1,23 @@
 # Gradle
 .gradle/
-**/build/
-**/out/
+build/
+!gradle/wrapper/gradle-wrapper.jar
 
 # Eclipse
-.project
 .classpath
+.project
 .settings/
+bin/
 
-# IntelliJ (phòng khi bạn mở bằng IDEA)
+# IntelliJ IDEA
 .idea/
 *.iml
+*.iws
+out/
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs & dumps
-logs/
+# Logs
 *.log
 
-# Java
-*.class
-
-# Keep Gradle wrapper
-!gradlew
-!gradlew.bat
-!gradle/wrapper/gradle-wrapper.jar
-!gradle/wrapper/gradle-wrapper.properties
+# OS junk
+.DS_Store
+Thumbs.db
