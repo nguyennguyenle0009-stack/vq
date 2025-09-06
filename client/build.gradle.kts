@@ -3,6 +3,7 @@ plugins {
     application
 }
 repositories { mavenCentral() }
-dependencies { implementation(project(":lib")) }
+dependencies { 
+}
 application { mainClass.set("rt.client.MainClient") }
 java { toolchain { languageVersion.set(JavaLanguageVersion.of(17)) } }
