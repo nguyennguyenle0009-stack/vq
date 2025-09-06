@@ -32,3 +32,30 @@ Mỗi module đều theo chuẩn:
       ├─ java/       # test tự động (không bắt buộc lúc đầu)
       └─ resources/  # tài nguyên dùng riêng cho test
       
+<Module server>/
+server/
+ └─ src/main/java/rt/server/
+    ├─ main/
+    │	├─ MainServer.java             // Điểm vào duy nhất
+    ├─ websocket/
+    │   ├─ WsServer.java           // bootstrap Netty
+    │   ├─ WsInitializer.java      // pipeline
+    │   └─ WsTextHandler.java      // xử lý text frames
+    ├─ game/
+    │	└─loop/
+    │   	├─ GameLoop.java           // 60 TPS
+    │   	├─ SnapshotStreamer.java   // 10–15 Hz đẩy state
+    │   	└─ SnapshotBuffer.java
+    ├─ world/
+    │   └─ World.java              // game state, step(dt), capture(tick)
+    ├─ session/
+    │   └─ SessionRegistry.java    // quản lý kết nối + send JSON
+    ├─ input/
+    │   └─ InputQueue.java         // hàng đợi InputEvent (record)
+    ├─ game/
+    │	└─model/                      // nếu cần tách player, entity, map...
+    │   	└─ PlayerState.java
+    ├─ game/
+    │	└─infra/                      // DB, Redis, logging… (để sau)
+    └─ config/
+        └─ ServerConfig.java       // cổng, TPS, HZ, kích thước map…

@@ -1,4 +1,4 @@
-package rt.server.game.world;
+package rt.server.game.loop;
 
 import rt.server.session.SessionRegistry;
 import vq.common.Packets;

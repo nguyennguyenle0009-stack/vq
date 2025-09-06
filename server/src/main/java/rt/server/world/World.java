@@ -1,4 +1,4 @@
-package rt.server.game.world;
+package rt.server.world;
 
 import vq.common.Packets;
 import rt.server.InputEvent;
@@ -18,7 +18,7 @@ public class World {
     public World(SessionRegistry sessions){ this.sessions = sessions; }
 
     /** Áp dụng input batch cho tick hiện tại (set hướng di chuyển). */
-    void applyInputs(Iterable<InputEvent> batch){
+    public void applyInputs(Iterable<InputEvent> batch){
         for (var e : batch){
             var p = players.computeIfAbsent(e.playerId(), id -> new Player());
             p.ax = e.ax(); p.ay = e.ay(); p.lastSeq = e.seq();
@@ -26,7 +26,7 @@ public class World {
     }
 
     /** Bước mô phỏng: v = a*speed; x += v*dt; clamp biên; cập nhật về Session. */
-    void step(double dt){
+    public void step(double dt){
         // đảm bảo có Player tương ứng cho mọi Session
         for (var s : sessions.all()){
             players.computeIfAbsent(s.playerId, id -> new Player()).syncFromSession(s);
@@ -49,7 +49,7 @@ public class World {
     }
 
     /** Lấy snapshot gửi cho client. */
-    Snapshot capture(long tick){
+    public Snapshot capture(long tick){
         var ents = new HashMap<String, Packets.S2CState.Player>();
         for (var s : sessions.all()){
             var p = new Packets.S2CState.Player();
@@ -65,6 +65,6 @@ public class World {
     }
 
     /** Gói ảnh chụp thế giới (đơn giản). */
-    record Snapshot(long tick, Map<String, Packets.S2CState.Player> ents) {}
+    public record Snapshot(long tick, Map<String, Packets.S2CState.Player> ents) {}
 }
 

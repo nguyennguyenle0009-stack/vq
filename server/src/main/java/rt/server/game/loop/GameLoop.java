@@ -1,6 +1,7 @@
-package rt.server.game.world;
+package rt.server.game.loop;
 
-import rt.server.session.InputQueue;
+import rt.server.input.InputQueue;
+import rt.server.world.World;
 
 /** Vòng lặp tick cố định 60 TPS: luôn chạy đều đặn, không phụ thuộc FPS client. */
 public class GameLoop implements Runnable {

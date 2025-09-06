@@ -1,4 +1,4 @@
-package rt.server.session;
+package rt.server.input;
 
 import rt.server.*;
 import java.util.*;

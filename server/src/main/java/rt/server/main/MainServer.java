@@ -1,12 +1,12 @@
 package rt.server.main;
 
-import rt.server.game.world.GameLoop;
-import rt.server.game.world.SnapshotBuffer;
-import rt.server.game.world.SnapshotStreamer;
-import rt.server.session.InputQueue;
+import rt.server.game.loop.GameLoop;
+import rt.server.game.loop.SnapshotBuffer;
+import rt.server.game.loop.SnapshotStreamer;
+import rt.server.input.InputQueue;
 import rt.server.session.SessionRegistry;
 import rt.server.websocket.WsServer;
-import rt.server.game.world.World;
+import rt.server.world.World;
 
 public class MainServer {
     public static void main(String[] args) throws Exception {

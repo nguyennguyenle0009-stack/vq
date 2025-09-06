@@ -10,7 +10,7 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
-import rt.server.session.InputQueue;
+import rt.server.input.InputQueue;
 import rt.server.session.SessionRegistry;
 
 public class WsServer {

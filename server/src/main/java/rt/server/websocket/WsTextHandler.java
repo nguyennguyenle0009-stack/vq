@@ -6,7 +6,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import rt.server.InputEvent;
-import rt.server.session.InputQueue;
+import rt.server.input.InputQueue;
 import rt.server.session.SessionRegistry;
 
 import java.util.Map;
