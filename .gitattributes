@@ -1,0 +1,13 @@
+* text=auto eol=lf
+*.bat text eol=crlf
+
+# Nhị phân
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ogg binary
+*.mp3 binary
+*.wav binary
+*.ttf binary
+*.otf binary
