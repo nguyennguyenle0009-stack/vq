@@ -20,7 +20,7 @@ public class MainServer {
 	    System.out.println("Server started at ws://localhost:8080/ws");
 
 	    Thread loop = new Thread(new GameLoop(world, inputs, snaps, 60.0), "loop-60tps");
-	    Thread stream = new Thread(new SnapshotStreamer(sessions, snaps, 12), "stream-12hz");
+	    Thread stream = new Thread(new SnapshotStreamer(sessions, snaps, 20), "stream-12hz");
 	    loop.start(); stream.start();
 
 	    // Tắt êm khi IDE/Gradle bấm Stop

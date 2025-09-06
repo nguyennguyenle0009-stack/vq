@@ -1,0 +1,53 @@
+Kết nối
+
+Client mở WebSocket tới ws://<server-host>:8080/ws.
+
+Sau khi kết nối thành công, server sẽ gửi gói hello với playerId.
+
+Gửi dữ liệu (Client → Server)
+
+Client chỉ cần gửi input (phím bấm).
+
+Packet JSON mẫu:
+
+{
+  "op": "input",
+  "seq": 1,
+  "press": { "up": true, "down": false, "left": false, "right": true }
+}
+
+
+seq: số thứ tự gói để server ack.
+
+press: map trạng thái phím.
+
+Nhận dữ liệu (Server → Client)
+
+ack: xác nhận đã nhận input
+
+{ "op": "ack", "seq": 1, "serverTime": 1692300000 }
+
+
+state: snapshot game loop (60 TPS)
+
+{
+  "op": "state",
+  "tick": 123,
+  "you": { "x": 100.0, "y": 200.0, "vx": 1.0, "vy": 0.0 },
+  "ents": {
+    "otherPlayerId": { "x": 150.0, "y": 220.0, "vx": 0.0, "vy": -1.0 }
+  }
+}
+
+
+Luồng cơ bản
+
+Client connect → nhận hello.
+
+Client bắt đầu gửi input đều đặn (khi có thay đổi).
+
+Server trả ack và đẩy liên tục state mỗi tick.
+
+Client render dựa trên state
+
+=> “Client chỉ cần mở WebSocket tới ws://localhost:8080/ws, gửi JSON dạng {op:'input', seq, press:{...}} khi có input. Server sẽ trả về {op:'ack',...} để xác nhận và gói {op:'state', tick, you, ents} 60 lần/giây để client vẽ game.”

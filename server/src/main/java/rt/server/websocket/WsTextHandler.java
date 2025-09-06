@@ -25,19 +25,22 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
         this.sessions = sessions; this.inputs = inputs;
     }
 
-    @Override public void handlerAdded(ChannelHandlerContext ctx) {
+    @Override 
+    public void handlerAdded(ChannelHandlerContext ctx) {
         sess = new SessionRegistry.Session(ctx.channel(), UUID.randomUUID().toString());
         sessions.attach(sess);
         sess.send(new Packets.S2CHello(sess.playerId)); // chào client
         System.out.println("Client connected: " + sess.playerId);
     }
 
-    @Override public void handlerRemoved(ChannelHandlerContext ctx) {
+    @Override 
+    public void handlerRemoved(ChannelHandlerContext ctx) {
         System.out.println("Client disconnected: " + sess.playerId);
         sessions.detach(ctx.channel());
     }
 
-    @Override protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame msg) throws Exception {
+    @Override 
+    protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame msg) throws Exception {
         var node = OM.readTree(msg.text());
         var op = node.path("op").asText("");
         if ("input".equals(op)) {

@@ -6,7 +6,7 @@ Tách thành 3 module để dễ quản lý và đóng gói độc lập:
 gamevq/
 ├─ client/   # Game client (UI, input, networking)
 ├─ server/   # Game server (DB, logic authoritative)
-└─ lib/      # Mã dùng chung (model, DTO, rule tính chỉ số, v.v.)
+└─ common/   # Mã dùng chung (model, DTO, rule tính chỉ số, v.v.)
 
 
 JDK: 17 • Build: Gradle (Kotlin DSL) • IDE: Eclipse
