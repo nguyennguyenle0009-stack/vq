@@ -13,13 +13,14 @@ public class MainServer {
 	    var sessions = new SessionRegistry();
 	    var inputs   = new InputQueue();
 	    var world    = new World(sessions);
-
-	    var ws = new WsServer(8080, sessions, inputs);
-	    ws.start();
+	    
 	    var cfg = ServerConfig.load();
-	    org.slf4j.LoggerFactory.getLogger("rt.server").info("Starting with {}", cfg);
+	    
+	    var ws = new WsServer(cfg.port(), sessions, inputs);
+	    ws.start();
 
-	    System.out.println("Server started at ws://localhost:8080/ws");
+	    org.slf4j.LoggerFactory.getLogger("rt.server").info("Starting with {}", cfg);
+	    System.out.println("Server started at ws://localhost:" + cfg.port() +"/ws");
 
 	    Thread loop   = new Thread(new GameLoop(world, inputs, cfg.tps()), "loop-" + cfg.tps() + "tps");
 	    Thread stream = new Thread(new SnapshotStreamer(sessions, world, cfg.snapshotHz()), "stream-" + cfg.snapshotHz() + "hz");

@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 
 public class ClientApp {
     public static void main(String[] args) {
-        String url = "ws://localhost:8080/ws";
+        String url = "ws://localhost:8090/ws";
         String name = args.length > 0 ? args[0] : "Player";
 
         WorldModel model = new WorldModel();

@@ -88,4 +88,10 @@ server/
 
 	Client: render + bắt phím + gửi input
 	Server: snapshot + ping
+	
+# FixBug
+
+	“unknown type pong” → do server chưa xử lý pong.
+	Log lỗi dài khi client đóng → bắt và nuốt Connection reset/ClosedChannel.
+	Dòng “Server started at ws://localhost:8080/ws” lệch cổng.
 
