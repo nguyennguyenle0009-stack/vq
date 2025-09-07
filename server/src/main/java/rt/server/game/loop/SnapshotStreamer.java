@@ -1,38 +1,50 @@
 package rt.server.game.loop;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import rt.server.session.SessionRegistry;
-import vq.common.Packets;
+import rt.server.session.SessionRegistry.Session;
+import rt.server.world.World;
 
-/** Gửi state ra client theo tần số thấp hơn (ví dụ 12 Hz) để tiết kiệm băng thông. */
+import java.util.HashMap;
+import java.util.Map;
+
+/** Periodically send state snapshots to all sessions. */
 public class SnapshotStreamer implements Runnable {
-    private final SessionRegistry sessions; private final SnapshotBuffer snaps; private final int hz;
-    public SnapshotStreamer(SessionRegistry s, SnapshotBuffer b, int hz){ this.sessions=s; this.snaps=b; this.hz=hz; }
+    private static final Logger log = LoggerFactory.getLogger(SnapshotStreamer.class);
+
+    private final SessionRegistry sessions;
+    private final World world;
+    private final int hz;
+
+    private long tick = 0;
+
+    public SnapshotStreamer(SessionRegistry sessions, World world, int hz) {
+        this.sessions = sessions; this.world = world; this.hz = hz;
+    }
 
     @Override public void run() {
-        long interval = 1000L / hz;
-        while (true){
-            var snap = snaps.latest();
-            for (var s : sessions.all()) {
-                var pkt = new vq.common.Packets.S2CState();
-                pkt.op   = "state";
-                pkt.tick = snap.tick();
+        long periodMs = 1000L / Math.max(1, hz);
+        while (!Thread.currentThread().isInterrupted()) {
+            try {
+                Map<String, Map<String, Object>> ents = new HashMap<>();
+                world.copyForNetwork(ents);
 
-                // 1) clone map rồi mới remove chính mình (KHÔNG sửa trực tiếp snap.ents())
-                var ents = new java.util.HashMap<String, vq.common.Packets.S2CState.Player>(snap.ents());
-                ents.remove(s.playerId);     // bỏ “bóng”
-                pkt.ents = ents;
+                Map<String,Object> state = Map.of(
+                    "type", "state",
+                    "tick", ++tick,
+                    "ts", System.currentTimeMillis(),
+                    "ents", ents
+                );
 
-                // 2) luôn set “you”
-                var me = snap.ents().get(s.playerId);
-                if (me == null) {            // phòng khi map snapshot thiếu key
-                    me = new vq.common.Packets.S2CState.Player();
-                    me.x = s.x; me.y = s.y;  // lấy từ Session (server authoritative)
-                }
-                pkt.you = me;
+                for (Session s : sessions.all()) s.send(state);
 
-                s.send(pkt);
+                Thread.sleep(periodMs);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                log.error("snapshot error", e);
             }
-            try { Thread.sleep(interval); } catch (InterruptedException ignored) {}
         }
     }
 }

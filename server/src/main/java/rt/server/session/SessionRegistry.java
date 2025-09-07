@@ -14,7 +14,7 @@ public class SessionRegistry {
 
     public void attach(Session s){ byCh.put(s.ch, s); byId.put(s.playerId, s); }
     public void detach(Channel ch){ var s = byCh.remove(ch); if (s!=null) byId.remove(s.playerId); }
-    Session byChannel(Channel ch){ return byCh.get(ch); }
+    public Session byChannel(Channel ch){ return byCh.get(ch); }
     public Iterable<Session> all(){ return byId.values(); }
 
     public static class Session {

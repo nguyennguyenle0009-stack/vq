@@ -1,70 +1,74 @@
 package rt.server.world;
 
-import vq.common.Packets;
-import rt.server.InputEvent;
 import rt.server.session.SessionRegistry;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-/** Trạng thái game ở server. Chỉ server được quyền cập nhật. */
+/** Server-side authoritative world. */
 public class World {
     private final SessionRegistry sessions;
-    private final Map<String, Player> players = new HashMap<>();
 
-    private final double speed = 120.0; // px/s (tăng/giảm để cảm giác mượt)
-    private final int W = 1280, H = 720; // ranh giới tạm
+    private static final double SPEED = 120.0; // pixels per second
+    private static final double W = 800, H = 600;
 
-    public World(SessionRegistry sessions){ this.sessions = sessions; }
+    /** Simple state per player. You can expand later. */
+    private static final class P { double x, y; }
+    private final Map<String, P> players = new ConcurrentHashMap<>();
 
-    /** Áp dụng input batch cho tick hiện tại (set hướng di chuyển). */
-    public void applyInputs(Iterable<InputEvent> batch){
-        for (var e : batch){
-            var p = players.computeIfAbsent(e.playerId(), id -> new Player());
-            p.ax = e.ax(); p.ay = e.ay(); p.lastSeq = e.seq();
-        }
+    public World(SessionRegistry sessions) {
+        this.sessions = sessions;
     }
 
-    /** Bước mô phỏng: v = a*speed; x += v*dt; clamp biên; cập nhật về Session. */
-    public void step(double dt){
-        // đảm bảo có Player tương ứng cho mọi Session
-        for (var s : sessions.all()){
-            players.computeIfAbsent(s.playerId, id -> new Player()).syncFromSession(s);
-        }
-        for (var ent : players.entrySet()){
-            var st = ent.getValue();
-            st.vx = st.ax * speed;
-            st.vy = st.ay * speed;
-            st.x += st.vx * dt;
-            st.y += st.vy * dt;
-            // va biên đơn giản
-            if (st.x < 0) st.x = 0; if (st.y < 0) st.y = 0;
-            if (st.x > W) st.x = W; if (st.y > H) st.y = H;
-        }
-        // copy “sự thật” về Session (để streamer push cho client)
-        for (var s : sessions.all()){
-            var st = players.get(s.playerId);
-            if (st!=null){ s.x = st.x; s.y = st.y; }
-        }
+    /** Ensure player exists; called before applying inputs. */
+    private P ensure(String id) {
+        return players.computeIfAbsent(id, k -> {
+            P p = new P();
+            p.x = 100; p.y = 100;
+            return p;
+        });
     }
 
-    /** Lấy snapshot gửi cho client. */
-    public Snapshot capture(long tick){
-        var ents = new HashMap<String, Packets.S2CState.Player>();
-        for (var s : sessions.all()){
-            var p = new Packets.S2CState.Player();
-            p.x = s.x; p.y = s.y; // những người khác: chỉ cần x,y
-            ents.put(s.playerId, p);
-        }
-        return new Snapshot(tick, ents);
+    /** Apply a directional input for one player. */
+    public void applyInput(String playerId, boolean up, boolean down, boolean left, boolean right) {
+        P p = ensure(playerId);
+        // store desired direction on the fly by setting velocity now (stateless approach)
+        double vx = (right ? 1 : 0) - (left ? 1 : 0);
+        double vy = (down  ? 1 : 0) - (up   ? 1 : 0);
+        // normalize (optional)
+        double len = Math.hypot(vx, vy);
+        if (len > 0) { vx /= len; vy /= len; }
+        // stash velocity in x/y delta using SPEED on next step (we do it directly in step by dt)
+        // Here we just store as a temporary "impulse" by placing on a thread-local—simpler: update position immediately by small dt? No, do it in step: mark vel
+        // For simplicity: cache velocities into a map (attach to P)
+        // To keep P minimal, we update position immediately in step using lastInput map:
+        lastInput.put(playerId, new Dir(vx, vy));
     }
 
-    static class Player {
-        double x=100, y=100, vx, vy; int ax, ay, lastSeq;
-        void syncFromSession(SessionRegistry.Session s){ this.x = s.x; this.y = s.y; }
+    private static final class Dir { final double x, y; Dir(double x,double y){ this.x=x; this.y=y; } }
+    private final Map<String, Dir> lastInput = new ConcurrentHashMap<>();
+
+    /** Advance physics by dt seconds. */
+    public void step(double dt) {
+        // apply last inputs
+        lastInput.forEach((id, dir) -> {
+            P p = ensure(id);
+            p.x += dir.x * SPEED * dt;
+            p.y += dir.y * SPEED * dt;
+            // clamp
+            if (p.x < 0) p.x = 0; if (p.y < 0) p.y = 0;
+            if (p.x > W) p.x = W; if (p.y > H) p.y = H;
+        });
     }
 
-    /** Gói ảnh chụp thế giới (đơn giản). */
-    public record Snapshot(long tick, Map<String, Packets.S2CState.Player> ents) {}
+    /** Fill a network map: id -> {x:..., y:...} */
+    public void copyForNetwork(Map<String, Map<String, Object>> out) {
+        players.forEach((id, p) -> {
+            out.put(id, Map.of("x", p.x, "y", p.y));
+        });
+        // ensure sessions also exist in players (new joiners)
+        sessions.all().forEach(s -> players.computeIfAbsent(s.playerId, k -> {
+            P p = new P(); p.x = 100; p.y = 100; return p;
+        }));
+    }
 }
-

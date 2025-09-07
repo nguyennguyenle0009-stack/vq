@@ -2,7 +2,6 @@ package rt.server.main;
 
 import rt.server.config.ServerConfig;
 import rt.server.game.loop.GameLoop;
-import rt.server.game.loop.SnapshotBuffer;
 import rt.server.game.loop.SnapshotStreamer;
 import rt.server.input.InputQueue;
 import rt.server.session.SessionRegistry;
@@ -13,7 +12,6 @@ public class MainServer {
 	public static void main(String[] args) throws Exception {
 	    var sessions = new SessionRegistry();
 	    var inputs   = new InputQueue();
-	    var snaps    = new SnapshotBuffer();
 	    var world    = new World(sessions);
 
 	    var ws = new WsServer(8080, sessions, inputs);
@@ -23,8 +21,8 @@ public class MainServer {
 
 	    System.out.println("Server started at ws://localhost:8080/ws");
 
-	    Thread loop = new Thread(new GameLoop(world, inputs, snaps, 60.0), "loop-60tps");
-	    Thread stream = new Thread(new SnapshotStreamer(sessions, snaps, 20), "stream-12hz");
+	    Thread loop   = new Thread(new GameLoop(world, inputs, cfg.tps()), "loop-" + cfg.tps() + "tps");
+	    Thread stream = new Thread(new SnapshotStreamer(sessions, world, cfg.snapshotHz()), "stream-" + cfg.snapshotHz() + "hz");
 	    loop.start(); stream.start();
 
 	    // Tắt êm khi IDE/Gradle bấm Stop

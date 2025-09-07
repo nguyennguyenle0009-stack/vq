@@ -1,33 +1,57 @@
 package rt.server.game.loop;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import rt.server.input.InputQueue;
+import rt.server.input.InputQueue.InputEvent;
 import rt.server.world.World;
 
-/** Vòng lặp tick cố định 60 TPS: luôn chạy đều đặn, không phụ thuộc FPS client. */
+import java.util.ArrayList;
+import java.util.List;
+
+/** Fixed-timestep loop at given TPS. */
 public class GameLoop implements Runnable {
-    private final World world; 
-    private final InputQueue inputs; 
-    private final SnapshotBuffer snaps;
-    private final double dt; // thời gian mỗi tick (s)
-    
-    public GameLoop(World w, InputQueue iq, SnapshotBuffer sb, double tps){
-        this.world=w; this.inputs=iq; this.snaps=sb; this.dt = 1.0 / tps;
+    private static final Logger log = LoggerFactory.getLogger(GameLoop.class);
+
+    private final World world;
+    private final InputQueue inputs;
+    private final double tps;
+    private final double dt; // seconds
+
+    private final List<InputEvent> batch = new ArrayList<>(128);
+
+    public GameLoop(World world, InputQueue inputs, double tps) {
+        this.world = world;
+        this.inputs = inputs;
+        this.tps = tps;
+        this.dt = 1.0 / tps;
     }
-    
+
     @Override public void run() {
-        long prev = System.nanoTime();
-        double acc = 0, ns = 1_000_000_000.0 * dt; long tick = 0;
-        while (true){
-            long now = System.nanoTime(); acc += (now - prev) / ns; prev = now;
-            while (acc >= 1.0){
-                var batch = inputs.drain();   // 1) hút input đã nhận
-                world.applyInputs(batch);     // 2) áp dụng vào state
-                world.step(dt);               // 3) mô phỏng 1 tick
-                snaps.write(world.capture(tick++)); // 4) lưu snapshot cho streamer
-                acc -= 1.0;
+        long nsPerTick = (long) (1_000_000_000L / tps);
+        long next = System.nanoTime();
+
+        while (!Thread.currentThread().isInterrupted()) {
+            // 1) Process inputs
+            batch.clear();
+            inputs.drainAllTo(batch);
+            for (InputEvent e : batch) {
+                world.applyInput(e.playerId, e.up, e.down, e.left, e.right);
             }
-            try { Thread.sleep(1); } catch (InterruptedException ignored) {}
+
+            // 2) Step world
+            world.step(dt);
+
+            // 3) Sleep until next tick
+            next += nsPerTick;
+            long sleep = next - System.nanoTime();
+            if (sleep > 0) {
+                try { Thread.sleep(sleep / 1_000_000L, (int)(sleep % 1_000_000L)); }
+                catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+            } else {
+                // behind schedule; catch up
+                next = System.nanoTime();
+            }
         }
     }
 }
-

@@ -79,3 +79,23 @@ server/
 	Gradle → Refresh Project
 	
 	./gradlew :server:run hoặc run as tại class MainServer
+	
+	# vq — Multiplayer 2D (WIP)
+
+**Phiên bản này (Giai đoạn 2)** đã có:
+- Hạ tầng Gradle multi-module: `server`, `client`, `common`
+- WS server bằng Netty, handler text JSON
+- Protocol tối giản: `hello`, `input`, `ack`, `state`
+- Game loop 60 TPS + snapshot streamer 12 Hz
+- Hàng đợi input thread-safe, lọc gói cũ/trùng
+- Cấu hình tách rời (`application.properties`)
+- Logback/SLF4J
+
+---
+
+## Yêu cầu hệ thống
+
+- JDK 17/21 (khuyên 17).  
+- Gradle wrapper đi kèm repo.
+
+**Windows**: nếu thấy cảnh báo JDK 24 *native access*, có thể bỏ qua hoặc thêm vào `gradle.properties`:

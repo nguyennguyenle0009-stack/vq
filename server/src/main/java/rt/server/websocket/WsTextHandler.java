@@ -1,69 +1,70 @@
 package rt.server.websocket;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
-import rt.server.InputEvent;
-import rt.server.input.InputQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import rt.server.session.SessionRegistry;
+import rt.server.session.SessionRegistry.Session;
+import rt.server.input.InputQueue;
 
 import java.util.Map;
-import java.util.UUID;
-
-import vq.common.Packets;
 
 public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
+    private static final Logger log = LoggerFactory.getLogger(WsTextHandler.class);
     private static final ObjectMapper OM = new ObjectMapper();
 
     private final SessionRegistry sessions;
     private final InputQueue inputs;
-    private SessionRegistry.Session sess;
 
-    public WsTextHandler(SessionRegistry sessions, InputQueue inputs){
-        this.sessions = sessions; this.inputs = inputs;
+    public WsTextHandler(SessionRegistry sessions, InputQueue inputs) {
+        this.sessions = sessions;
+        this.inputs = inputs;
     }
 
-    @Override 
+    @Override
     public void handlerAdded(ChannelHandlerContext ctx) {
-        sess = new SessionRegistry.Session(ctx.channel(), UUID.randomUUID().toString());
-        sessions.attach(sess);
-        sess.send(new Packets.S2CHello(sess.playerId)); // chào client
-        System.out.println("Client connected: " + sess.playerId);
+        String id = ctx.channel().id().asShortText();
+        Session s = new Session(ctx.channel(), id);
+        sessions.attach(s);
+        log.info("channel added {}", id);
+        s.send(Map.of("type", "hello", "you", id)); // client biết "you"
     }
 
-    @Override 
-    public void handlerRemoved(ChannelHandlerContext ctx) {
-        System.out.println("Client disconnected: " + sess.playerId);
-        sessions.detach(ctx.channel());
-    }
+    @Override
+    protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame frame) throws Exception {
+        String text = frame.text();
+        Map<String, Object> root = OM.readValue(text, new TypeReference<Map<String, Object>>(){});
+        Object to = root.get("type");
+        if (!(to instanceof String type)) { log.warn("missing type"); return; }
 
-    @Override 
-    protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame msg) throws Exception {
-        var node = OM.readTree(msg.text());
-        var op = node.path("op").asText("");
-        if ("input".equals(op)) {
-            int seq = node.path("seq").asInt();
-            // press -> ax,ay   (right-left, down-up)
-            Map<String,Boolean> press = OM.convertValue(node.path("press"),
-                    new TypeReference<Map<String,Boolean>>() {});
-            int ax = (isTrue(press,"right")?1:0) - (isTrue(press,"left")?1:0);
-            int ay = (isTrue(press,"down")?1:0) - (isTrue(press,"up")?1:0);
+        Session s = sessions.byChannel(ctx.channel());
+        if (s == null) { log.warn("no session for channel"); return; }
 
-            // đưa vào hàng đợi để game loop xử lý ở tick kế
-            inputs.offer(new InputEvent(sess.playerId, seq, ax, ay));
-
-            // gửi ack cho client (phục vụ reconciliation)
-            sess.send(new Packets.S2CAck(seq, System.currentTimeMillis()));
+        switch (type) {
+            case "hello" -> {
+                // optional: lưu tên nếu bạn muốn
+                Object name = root.get("name");
+                log.info("hello from {} name={}", s.playerId, name);
+                s.send(Map.of("type", "hello", "you", s.playerId));
+            }
+            case "input" -> {
+                int seq = ((Number) root.getOrDefault("seq", 0)).intValue();
+                @SuppressWarnings("unchecked")
+                Map<String, Boolean> keys = (Map<String, Boolean>) root.getOrDefault("keys", Map.of());
+                inputs.offer(s.playerId, seq, keys);               // << dùng đúng offer(...)
+                s.send(Map.of("type", "ack", "seq", seq));          // trả ack
+            }
+            default -> log.warn("unknown type {}", type);
         }
     }
 
-    private static boolean isTrue(Map<String,Boolean> m, String k){
-        return m!=null && Boolean.TRUE.equals(m.get(k));
-    }
-
-    @Override public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        cause.printStackTrace(); ctx.close();
+    @Override
+    public void handlerRemoved(ChannelHandlerContext ctx) {
+        sessions.detach(ctx.channel());
+        log.info("channel removed {}", ctx.channel().id().asShortText());
     }
 }
