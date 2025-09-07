@@ -1,49 +1,35 @@
 package rt.client.model;
 
-import java.util.*;
-import java.util.function.Consumer;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-/** Giữ trạng thái local và nội suy người chơi khác cho mượt. */
+/** Trạng thái client: id -> (x,y). Không khóa nặng, đủ dùng cho demo. */
 public class WorldModel {
-    public static class Player { public double x, y; public double tx, ty; }
+    public static final class Pos { public volatile double x, y; }
+    private final Map<String, Pos> ents = new ConcurrentHashMap<>();
+    private volatile String you;
 
-    private String myId;
-    private final Player me = new Player();
-    private final Map<String, Player> others = new HashMap<>();
+    public void setYou(String id) { this.you = id; }
+    public String you() { return you; }
 
-    public void setMyId(String id){ this.myId = id; }
-    public Player getMe(){ return me; }
-    public int count(){ return 1 + others.size(); }
-
-    /** Server gửi state: cập nhật yourself + targets cho others. */
-    public synchronized void applyStateFromServer(long tick, Map<String, Player> ents){
-        // cập nhật target cho others
-        for (var e : ents.entrySet()){
-            var id = e.getKey();
-            if (id.equals(myId)) continue;
-            var srv = e.getValue();
-            var loc = others.computeIfAbsent(id, k -> new Player());
-            loc.tx = srv.x; loc.ty = srv.y;
-            if (Double.isNaN(loc.x) || (loc.x==0 && loc.y==0)) {
-                loc.x = loc.tx; loc.y = loc.ty; // lần đầu "đặt" luôn
-            }
-        }
-        // dọn người biến mất (tùy chọn)
-        others.keySet().removeIf(id -> !ents.containsKey(id));
-    }
-
-    public synchronized void updateMe(double x, double y){ me.x = x; me.y = y; }
-
-    /** Nội suy others mỗi frame. */
-    public synchronized void updateInterpolation(double dt){
-        double lerp = 10.0 * dt; // hệ số nội suy
-        for (var p : others.values()){
-            p.x += (p.tx - p.x) * lerp;
-            p.y += (p.ty - p.y) * lerp;
+    /** Áp state JSON dạng {type:"state", ents:{id:{x,y}}}. */
+    @SuppressWarnings("unchecked")
+    public void applyState(Map<String, Object> root) {
+        Object eobj = root.get("ents");
+        if (!(eobj instanceof Map)) return;
+        Map<String, Object> em = (Map<String, Object>) eobj;
+        for (var entry : em.entrySet()) {
+            String id = entry.getKey();
+            Object v = entry.getValue();
+            if (!(v instanceof Map)) continue;
+            Map<String, Object> xy = (Map<String, Object>) v;
+            double x = ((Number) xy.getOrDefault("x", 0)).doubleValue();
+            double y = ((Number) xy.getOrDefault("y", 0)).doubleValue();
+            ents.computeIfAbsent(id, k -> new Pos());
+            Pos p = ents.get(id);
+            p.x = x; p.y = y;
         }
     }
 
-    public synchronized void forEachOther(Consumer<Player> fn){
-        for (var p : others.values()) fn.accept(p);
-    }
+    public Map<String, Pos> snapshot() { return ents; }
 }

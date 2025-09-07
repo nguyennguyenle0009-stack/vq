@@ -2,95 +2,63 @@ package rt.client.net;
 
 import okhttp3.*;
 import okio.ByteString;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import rt.client.model.WorldModel;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
-/** Lớp chịu trách nhiệm WebSocket: connect, gửi input, nhận hello/ack/state. */
 public class NetClient {
     private final String url;
     private final WorldModel model;
     private final ObjectMapper OM = new ObjectMapper();
     private WebSocket ws;
-    private int lastSeq = 0;
+    private final AtomicInteger seq = new AtomicInteger();
 
-    public NetClient(String url, WorldModel model) {
-        this.url = url; this.model = model;
-    }
+    public NetClient(String url, WorldModel model) { this.url = url; this.model = model; }
 
-    public void connect() {
-        OkHttpClient http = new OkHttpClient.Builder()
-                .readTimeout(0, TimeUnit.MILLISECONDS)
-                .build();
+    public void connect(String playerName) {
+        OkHttpClient http = new OkHttpClient.Builder().readTimeout(0, TimeUnit.MILLISECONDS).build();
         Request req = new Request.Builder().url(url).build();
         this.ws = http.newWebSocket(req, new WebSocketListener() {
             @Override public void onOpen(WebSocket webSocket, Response response) {
-                System.out.println("[NET] WS open");
+                try {
+                    ws.send(OM.writeValueAsString(Map.of("type","hello","name",playerName)));
+                    System.out.println("[NET] open, hello sent");
+                } catch (Exception e) { e.printStackTrace(); }
             }
-            @Override public void onMessage(WebSocket webSocket, String text) { handleMessage(text); }
-            @Override public void onMessage(WebSocket webSocket, ByteString bytes) { /* not used */ }
-            @Override public void onClosed(WebSocket webSocket, int code, String reason) {
-                System.out.println("[NET] WS closed: " + reason);
+            @Override public void onMessage(WebSocket webSocket, String text) {
+                try {
+                    Map<String,Object> root = OM.readValue(text, new TypeReference<Map<String,Object>>(){});
+                    String type = (String) root.get("type");
+                    if ("hello".equals(type)) {
+                        String you = (String) root.get("you");
+                        model.setYou(you);
+                        System.out.println("[NET] hello ok, you=" + you);
+                    } else if ("ack".equals(type)) {
+                        // có thể hiển thị số seq nếu muốn
+                    } else if ("state".equals(type)) {
+                        model.applyState(root);
+                    } else if ("ping".equals(type)) {
+                        ws.send(OM.writeValueAsString(Map.of("type","pong","ts", System.currentTimeMillis())));
+                    }
+                } catch (Exception e) { e.printStackTrace(); }
             }
-            @Override public void onFailure(WebSocket webSocket, Throwable t, Response response) {
-                System.out.println("[NET] WS failure");
-                t.printStackTrace();
-            }
+            @Override public void onMessage(WebSocket webSocket, ByteString bytes) {}
         });
     }
 
-    public int nextSeq(){ return ++lastSeq; }
-
-    /** Gửi input press map. */
-    public void sendInput(int seq, Map<String, Boolean> press) {
+    public void sendInput(boolean up, boolean down, boolean left, boolean right) {
         try {
-            var node = Map.of("op","input","seq",seq,"press",press);
-            ws.send(OM.writeValueAsString(node));
-        } catch (Exception e) { e.printStackTrace(); }
-    }
-
-    /** Nhận hello/ack/state và đẩy vào model. */
-    private void handleMessage(String text) {
-        try {
-            var n = OM.readTree(text);
-            String op = n.path("op").asText("");
-            switch (op) {
-                case "hello" -> {
-                    String pid = n.path("playerId").asText();
-                    model.setMyId(pid);
-                    System.out.println("[NET] HELLO id=" + pid);
-                }
-                case "ack" -> {
-                    int seq = n.path("seq").asInt();
-                    // chừa chỗ reconciliation nếu cần
-                    System.out.println("[NET] ACK " + seq);
-                }
-                case "state" -> {
-                    long tick = n.path("tick").asLong();
-                    var you = n.path("you");
-                    var entsNode = n.path("ents");
-
-                    // your position (authority từ server)
-                    double yx = you.path("x").asDouble();
-                    double yy = you.path("y").asDouble();
-                    model.updateMe(yx, yy);
-
-                    // others map
-                    Map<String, WorldModel.Player> ents = new java.util.HashMap<>();
-                    var it = entsNode.fields();
-                    while (it.hasNext()) {
-                        var e = it.next();
-                        var pNode = e.getValue();
-                        var p = new WorldModel.Player();
-                        p.x = pNode.path("x").asDouble();
-                        p.y = pNode.path("y").asDouble();
-                        ents.put(e.getKey(), p);
-                    }
-                    model.applyStateFromServer(tick, ents);
-                }
-            }
+            int s = seq.incrementAndGet();
+            Map<String,Object> msg = Map.of(
+                "type","input",
+                "seq", s,
+                "keys", Map.of("up",up,"down",down,"left",left,"right",right)
+            );
+            ws.send(OM.writeValueAsString(msg));
         } catch (Exception e) { e.printStackTrace(); }
     }
 }

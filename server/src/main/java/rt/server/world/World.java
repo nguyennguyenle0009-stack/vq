@@ -48,27 +48,27 @@ public class World {
     private static final class Dir { final double x, y; Dir(double x,double y){ this.x=x; this.y=y; } }
     private final Map<String, Dir> lastInput = new ConcurrentHashMap<>();
 
-    /** Advance physics by dt seconds. */
     public void step(double dt) {
-        // apply last inputs
         lastInput.forEach((id, dir) -> {
             P p = ensure(id);
             p.x += dir.x * SPEED * dt;
             p.y += dir.y * SPEED * dt;
-            // clamp
             if (p.x < 0) p.x = 0; if (p.y < 0) p.y = 0;
             if (p.x > W) p.x = W; if (p.y > H) p.y = H;
+
+            // optional: phản chiếu về SessionRegistry để nơi khác đọc
+            for (var s : sessions.all()) {
+                if (s.playerId.equals(id)) { s.x = p.x; s.y = p.y; break; }
+            }
         });
     }
 
-    /** Fill a network map: id -> {x:..., y:...} */
     public void copyForNetwork(Map<String, Map<String, Object>> out) {
-        players.forEach((id, p) -> {
-            out.put(id, Map.of("x", p.x, "y", p.y));
-        });
-        // ensure sessions also exist in players (new joiners)
+        // Bảo đảm người chơi đang online đều có entity trong world
         sessions.all().forEach(s -> players.computeIfAbsent(s.playerId, k -> {
             P p = new P(); p.x = 100; p.y = 100; return p;
         }));
+        // Điền map id -> {x,y}
+        players.forEach((id, p) -> out.put(id, Map.of("x", p.x, "y", p.y)));
     }
 }
