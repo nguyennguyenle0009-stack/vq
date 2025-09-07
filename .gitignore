@@ -1,6 +1,7 @@
 # Gradle
 .gradle/
 build/
+**/build/
 !gradle/wrapper/gradle-wrapper.jar
 
 # Eclipse
@@ -8,6 +9,7 @@ build/
 .project
 .settings/
 bin/
+**/bin/
 
 # IntelliJ IDEA
 .idea/
