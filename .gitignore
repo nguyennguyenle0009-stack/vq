@@ -1,23 +1,24 @@
 # Gradle
-.gradle/
 build/
-!gradle/wrapper/gradle-wrapper.jar
+*/build/
+.gradle/
 
-# Eclipse
+# Eclipse / IntelliJ / VS Code
 .classpath
 .project
 .settings/
-bin/
-
-# IntelliJ IDEA
 .idea/
 *.iml
-*.iws
-out/
+.vscode/
 
-# Logs
-*.log
-
-# OS junk
+# OS
 .DS_Store
 Thumbs.db
+
+# Run outputs / logs
+*.log
+logs/
+
+# Java
+*.class
+bin/

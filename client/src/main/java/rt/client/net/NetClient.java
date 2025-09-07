@@ -65,7 +65,7 @@ public class NetClient {
                 case "ack" -> {
                     int seq = n.path("seq").asInt();
                     // chừa chỗ reconciliation nếu cần
-                    // System.out.println("[NET] ACK " + seq);
+                    System.out.println("[NET] ACK " + seq);
                 }
                 case "state" -> {
                     long tick = n.path("tick").asLong();

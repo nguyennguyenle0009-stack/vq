@@ -1,5 +1,6 @@
 package rt.server.main;
 
+import rt.server.config.ServerConfig;
 import rt.server.game.loop.GameLoop;
 import rt.server.game.loop.SnapshotBuffer;
 import rt.server.game.loop.SnapshotStreamer;
@@ -17,6 +18,9 @@ public class MainServer {
 
 	    var ws = new WsServer(8080, sessions, inputs);
 	    ws.start();
+	    var cfg = ServerConfig.load();
+	    org.slf4j.LoggerFactory.getLogger("rt.server").info("Starting with {}", cfg);
+
 	    System.out.println("Server started at ws://localhost:8080/ws");
 
 	    Thread loop = new Thread(new GameLoop(world, inputs, snaps, 60.0), "loop-60tps");
