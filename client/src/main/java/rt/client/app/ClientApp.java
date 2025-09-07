@@ -2,6 +2,9 @@ package rt.client.app;
 
 import rt.client.model.WorldModel;
 import rt.client.net.NetClient;
+import rt.client.game.ui.FpsCounter;
+import rt.client.game.ui.PingMonitor;
+import rt.client.game.ui.UiHud;
 
 import javax.swing.*;
 import java.awt.*;
@@ -22,9 +25,16 @@ public class ClientApp {
         WorldModel model = new WorldModel();
         NetClient net = new NetClient(url, model);
         net.connect(name);
-
+        
+        // UI metrics
+        FpsCounter fps = new FpsCounter();
+        PingMonitor ping = new PingMonitor(net);
+        ping.start();
+        
+        UiHud hud = new UiHud(fps, ping);
+        
         JFrame f = new JFrame("VQ Client - " + name);
-        CanvasPanel panel = new CanvasPanel(model);
+        CanvasPanel panel = new CanvasPanel(model, hud);
         panel.setFocusable(true);
         f.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         f.setSize(WORLD_W_TILES * TILE_PX + 40, WORLD_H_TILES * TILE_PX + 60);
@@ -46,14 +56,14 @@ public class ClientApp {
                 net.sendInput(input.up, input.down, input.left, input.right), 0, 33, TimeUnit.MILLISECONDS);
 
         // Tick prediction + repaint ~60 FPS        
-        AtomicLong last = new AtomicLong(System.nanoTime());
-        Timer renderTimer = new Timer(16, ev -> {
+        java.util.concurrent.atomic.AtomicLong last = new java.util.concurrent.atomic.AtomicLong(System.nanoTime());
+        new javax.swing.Timer(16, ev -> {
             long now = System.nanoTime();
             double dt = Math.max(0, (now - last.getAndSet(now)) / 1_000_000_000.0);
+            fps.update(dt);                               // <- cập nhật FPS
             model.tickLocalPrediction(dt, input.up, input.down, input.left, input.right);
-            panel.repaint(); // KHÔNG cast e.getSource() thành JComponent nữa
-        });
-        renderTimer.start();
+            panel.repaint();
+        }).start();
     }
 
     private static class InputState {
@@ -70,7 +80,9 @@ public class ClientApp {
 
     private static class CanvasPanel extends JPanel {
         private final WorldModel model;
-        CanvasPanel(WorldModel m){ this.model = m; setBackground(Color.BLACK); }
+        private final UiHud hud;
+        CanvasPanel(WorldModel m, UiHud h){ this.model = m; this.hud = h; setBackground(Color.BLACK); }
+        
 
         @Override protected void paintComponent(Graphics g) {
             super.paintComponent(g);
@@ -112,6 +124,7 @@ public class ClientApp {
             // Debug góc dưới
             g2.setColor(Color.LIGHT_GRAY);
             g2.drawString("tile="+TILE_PX+"px; ents="+ents.size(), 10, getHeight()-10);
+            hud.render(g2);
         }
     }
 }

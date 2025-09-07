@@ -108,6 +108,10 @@ server/
 
 	Mượt thêm xíu
 	
+## 1.0.4
+
+	Hiễn thị FPS và Ping ra màn hình
+	
 # FixBug
 
 

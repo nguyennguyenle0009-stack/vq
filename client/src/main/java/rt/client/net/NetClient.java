@@ -9,6 +9,7 @@ import rt.client.model.WorldModel;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.LongConsumer;
 
 public class NetClient {
     private final String url;
@@ -17,8 +18,18 @@ public class NetClient {
     private WebSocket ws;
     private final AtomicInteger seq = new AtomicInteger();
     private volatile int lastAck = 0;
+    private LongConsumer onClientPong;
 
     public NetClient(String url, WorldModel model) { this.url = url; this.model = model; }
+   
+
+	public void setOnClientPong(LongConsumer cb) { this.onClientPong = cb; }
+	
+	public void sendClientPing(long ns) {
+	    try {
+	        ws.send(OM.writeValueAsString(Map.of("type","cping","ns", ns)));
+	    } catch (Exception e) { e.printStackTrace(); }
+	}
 
     public void connect(String playerName) {
         OkHttpClient http = new OkHttpClient.Builder()
@@ -70,6 +81,10 @@ public class NetClient {
                         }
                         case "ping" -> {
                             ws.send(OM.writeValueAsString(Map.of("type","pong","ts", System.currentTimeMillis())));
+                        }
+                        case "cpong" -> {
+                            Object ns = root.get("ns");
+                            if (ns instanceof Number n && onClientPong != null) onClientPong.accept(n.longValue());
                         }
                         default -> { /* ignore */ }
                     }

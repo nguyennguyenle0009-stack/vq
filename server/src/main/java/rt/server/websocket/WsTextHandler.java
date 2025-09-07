@@ -72,6 +72,10 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                 long rtt = ts > 0 ? now - ts : -1;
                 log.debug("pong {} rtt={}ms", s.playerId, rtt);
             }
+            case "cping" -> {
+                Object ns = root.get("ns"); // nano của client
+                s.send(Map.of("type","cpong","ns", ns)); // trả nguyên lại ns để client tính RTT
+            }
             default -> log.warn("unknown type {}", type);
         }
     }
