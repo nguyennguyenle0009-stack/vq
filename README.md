@@ -60,20 +60,11 @@ server/
     └─ config/
         └─ ServerConfig.java       // cổng, TPS, HZ, kích thước map…
         
-### fix bug 
+# Tính năng     
 
-	The import com.fasterxml cannot be resolved 
-	JsonInclude cannot be resolved to a type 
-	JsonInclude cannot be resolved to a variable
+- Client
 	
-	=> rd /s /q server\build
-	=> rd /s /q common\build
-	
-	Xoá tay build/ và bin/ (hoặc chạy ./gradlew clean).
-	Eclipse: Project → Clean…
-	Gradle → Refresh Project
-	
-### chạy server
+# chạy server
 	Xoá tay build/ và bin/ (hoặc chạy ./gradlew clean).
 	Eclipse: Project → Clean…
 	Gradle → Refresh Project
@@ -91,7 +82,5 @@ server/
 	
 # FixBug
 
-	“unknown type pong” → do server chưa xử lý pong.
-	Log lỗi dài khi client đóng → bắt và nuốt Connection reset/ClosedChannel.
-	Dòng “Server started at ws://localhost:8080/ws” lệch cổng.
+	nhầm localhost mà không hiện lỗi
 
