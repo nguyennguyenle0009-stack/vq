@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 
 public class ClientApp {
     public static void main(String[] args) throws Exception  {
-        String url = "ws://localhost:8080/ws";
+        String url = "ws://localhost:8090/ws";
         String name = args.length > 0 ? args[0] : "Player";
         
         //Log
@@ -32,6 +32,7 @@ public class ClientApp {
         org.slf4j.MDC.put("player", name);
 
         WorldModel model = new WorldModel();
+        
         NetClient net = new NetClient(url, model);
         net.connect(name);
 
@@ -75,21 +76,26 @@ public class ClientApp {
         private final WorldModel model;
         CanvasPanel(WorldModel m){ this.model = m; setBackground(Color.BLACK); }
 
-        @Override protected void paintComponent(Graphics g) {
+        @Override 
+        protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             Graphics2D g2 = (Graphics2D) g;
             int r = 10;
             String you = model.you();
-            model.snapshot().forEach((id, pos) -> {
+
+            long tRender = System.currentTimeMillis() - 100; // khớp INTERP_DELAY
+            var ents = model.sample(tRender);
+
+            if (ents.isEmpty()) {
+                g2.setColor(Color.GRAY);
+                g2.drawString("waiting for state...", 20, 20);
+                return;
+            }
+            ents.forEach((id, pos) -> {
                 int px = (int)Math.round(pos.x);
                 int py = (int)Math.round(pos.y);
-                if (id.equals(you)) {
-                    g2.setColor(Color.GREEN);
-                    g2.fillOval(px - r, py - r, r*2, r*2);
-                } else {
-                    g2.setColor(Color.CYAN);
-                    g2.fillOval(px - r, py - r, r*2, r*2);
-                }
+                g2.setColor(id.equals(you) ? Color.GREEN : Color.CYAN);
+                g2.fillOval(px - r, py - r, r*2, r*2);
                 g2.setColor(Color.WHITE);
                 g2.drawString(id, px + 12, py - 12);
             });

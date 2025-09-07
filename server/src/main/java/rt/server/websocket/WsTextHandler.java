@@ -103,4 +103,16 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
         sessions.detach(ctx.channel());
         log.info("channel removed {}", ctx.channel().id().asShortText());
     }
+    
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
+        if (evt instanceof io.netty.handler.timeout.IdleStateEvent e
+            && e.state() == io.netty.handler.timeout.IdleState.READER_IDLE) {
+            log.info("idle timeout, closing {}", ctx.channel().id().asShortText());
+            sessions.detach(ctx.channel());
+            ctx.close();
+            return;
+        }
+        ctx.fireUserEventTriggered(evt);
+    }
 }

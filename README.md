@@ -83,8 +83,12 @@ server/
 
 	Client: render + bắt phím + gửi input
 	Server: snapshot + ping
+
+## 1.0.2
+
+	Client: Mượt chuyển động (client interpolation 100ms)
+	Server: Dọn disconnect & path sai (server silent, không spam)
 	
 # FixBug
 
-	nhầm localhost mà không hiện lỗi
 

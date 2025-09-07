@@ -46,6 +46,7 @@ public class WsServer {
 	            p.addLast(new HttpServerCodec());	// codec HTTP (vì WebSocket upgrade từ HTTP)
 	            p.addLast(new HttpObjectAggregator(65536));	// gộp HTTP message thành full request
 	            p.addLast(new WebSocketServerProtocolHandler("/ws", null, true));
+	            p.addLast(new io.netty.handler.timeout.IdleStateHandler(45, 0, 0, java.util.concurrent.TimeUnit.SECONDS));
 	            p.addLast(new WsTextHandler(sessions, inputs));	// handler xử lý WebSocket frame dạng text do ta viết
 	          }
 	        });
