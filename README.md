@@ -104,6 +104,10 @@ server/
 	Server: Server dùng đơn vị tile hoàn toàn. Spawn mặc định (3,3) tiles. copyForNetwork trả x,y theo tile
 	Common: Định nghĩa chung: tile 32px, kích thước world (theo ô), tốc độ theo ô/giây
 	
+## 1.0.4
+
+	Mượt thêm xíu
+	
 # FixBug
 
 

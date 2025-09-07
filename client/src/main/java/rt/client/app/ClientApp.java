@@ -45,14 +45,15 @@ public class ClientApp {
         ses.scheduleAtFixedRate(() ->
                 net.sendInput(input.up, input.down, input.left, input.right), 0, 33, TimeUnit.MILLISECONDS);
 
-        // Tick prediction + repaint ~60 FPS
-        AtomicLong last = new AtomicLong(System.currentTimeMillis());
-        new Timer(16, e -> {
-            long now = System.currentTimeMillis();
-            double dt = Math.max(0, (now - last.getAndSet(now)) / 1000.0);
+        // Tick prediction + repaint ~60 FPS        
+        AtomicLong last = new AtomicLong(System.nanoTime());
+        Timer renderTimer = new Timer(16, ev -> {
+            long now = System.nanoTime();
+            double dt = Math.max(0, (now - last.getAndSet(now)) / 1_000_000_000.0);
             model.tickLocalPrediction(dt, input.up, input.down, input.left, input.right);
-            panel.repaint();
-        }).start();
+            panel.repaint(); // KHÔNG cast e.getSource() thành JComponent nữa
+        });
+        renderTimer.start();
     }
 
     private static class InputState {

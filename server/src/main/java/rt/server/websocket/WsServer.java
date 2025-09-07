@@ -3,6 +3,7 @@ package rt.server.websocket;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -49,7 +50,9 @@ public class WsServer {
 	            p.addLast(new io.netty.handler.timeout.IdleStateHandler(45, 0, 0, java.util.concurrent.TimeUnit.SECONDS));
 	            p.addLast(new WsTextHandler(sessions, inputs));	// handler xử lý WebSocket frame dạng text do ta viết
 	          }
-	        });
+	        })
+	        .childOption(ChannelOption.TCP_NODELAY, true)
+	        .childOption(ChannelOption.SO_KEEPALIVE, true);
 	    serverChannel = b.bind(port).sync().channel();	// Bind server vào cổng và chạy đồng bộ (sync để block đến khi bind xong).
 	  }
 

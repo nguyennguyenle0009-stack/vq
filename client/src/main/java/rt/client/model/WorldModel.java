@@ -2,6 +2,7 @@ package rt.client.model;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+
 import static rt.common.game.Units.*;
 
 public class WorldModel {
@@ -13,7 +14,14 @@ public class WorldModel {
     }
     private final Deque<Snapshot> buffer = new ArrayDeque<>();
     private static final int MAX_BUF = 60;
-    private static final long INTERP_DELAY_MS = 100;
+
+    // clock sync: t_server ≈ t_client + offset
+    private volatile boolean hasOffset = false;
+    private volatile double offsetMs = 0;           // ước lượng (EMA)
+    private static final double OFFSET_ALPHA = 0.12; // mượt vừa phải
+
+    // render delay để nội suy (≥ 1 chu kỳ snapshot)
+    private volatile long interpDelayMs = 100;      // sẽ tự tinh chỉnh nhẹ
 
     // ===== Identity =====
     private volatile String you;
@@ -31,14 +39,21 @@ public class WorldModel {
     }
     private final Deque<Pending> pending = new ArrayDeque<>();
 
-    /** Nhận state từ server (tile). */
+    /** Nhận state từ server (tile) + đồng bộ clock + ước lượng chu kỳ snapshot. */
     @SuppressWarnings("unchecked")
     public void applyState(Map<String,Object> root){
         Object entsObj = root.get("ents");
         Object tsObj = root.get("ts");
         if (!(entsObj instanceof Map) || !(tsObj instanceof Number)) return;
-        long ts = ((Number)tsObj).longValue();
+        long tsServer = ((Number)tsObj).longValue();
 
+        // ---- clock sync (EMA)
+        long now = System.currentTimeMillis();
+        double sampleOffset = tsServer - now;                // server - client
+        if (!hasOffset) { offsetMs = sampleOffset; hasOffset = true; }
+        else            { offsetMs = offsetMs + (sampleOffset - offsetMs)*OFFSET_ALPHA; }
+
+        // ---- decode ents (tile)
         Map<String,Object> em = (Map<String,Object>)entsObj;
         Map<String,Pos> ents = new HashMap<>(em.size());
         for (var e: em.entrySet()){
@@ -48,25 +63,35 @@ public class WorldModel {
             p.y = ((Number)xy.getOrDefault("y",0)).doubleValue();
             ents.put(e.getKey(), p);
         }
+
+        // ---- ước lượng chu kỳ snapshot (mượt hoá interpDelay)
         synchronized (buffer){
-            buffer.addLast(new Snapshot(ts, ents));
+            if (!buffer.isEmpty()) {
+                long prev = buffer.peekLast().ts;
+                long dt = Math.max(50, Math.min(200, tsServer - prev)); // clamp 50..200ms
+                interpDelayMs = Math.round(interpDelayMs*0.85 + dt*0.15); // smooth
+            }
+            buffer.addLast(new Snapshot(tsServer, ents));
             while (buffer.size() > MAX_BUF) buffer.removeFirst();
         }
     }
 
-    /** Lấy ảnh thế giới tại thời điểm render (tile). */
+    /** Lấy ảnh thế giới tại "thời gian server" (nội suy theo tile). */
     public Map<String,Pos> sampleForRender(){
-        long tRender = System.currentTimeMillis() - INTERP_DELAY_MS;
+        if (!hasOffset || buffer.isEmpty()) return new HashMap<>();
+        long nowClient = System.currentTimeMillis();
+        long tRenderServer = nowClient + Math.round(offsetMs) - interpDelayMs;
+
         Snapshot a=null,b=null;
         synchronized (buffer){
             if (buffer.isEmpty()) return new HashMap<>();
-            for (Snapshot s: buffer){ if (s.ts <= tRender) a=s; if (s.ts >= tRender){ b=s; break; } }
+            for (Snapshot s: buffer){ if (s.ts <= tRenderServer) a=s; if (s.ts >= tRenderServer){ b=s; break; } }
             if (a==null) a=buffer.peekFirst(); if (b==null) b=buffer.peekLast();
         }
         if (a==null || b==null) return new HashMap<>();
         if (a==b) return new HashMap<>(a.ents);
 
-        double t = (tRender - a.ts) / (double)(b.ts - a.ts);
+        double t = (tRenderServer - a.ts) / (double)(b.ts - a.ts);
         if (t<0) t=0; if (t>1) t=1;
 
         Map<String,Pos> out = new ConcurrentHashMap<>();
@@ -107,9 +132,20 @@ public class WorldModel {
     }
     public synchronized void reconcileFromServer(double serverX, double serverY, int ackSeq){
         if (you==null){ return; }
-        // đặt lại theo server (tile)
-        predX = serverX; predY = serverY; hasPred = true;
 
+        // ---- "soft" reconcile: nếu sai số nhỏ, pha trộn; nếu lớn, snap
+        double dx = serverX - predX, dy = serverY - predY;
+        double err = Math.hypot(dx, dy);
+        if (err < 0.25) { // < 1/4 tile: blend mượt
+            double alpha = 0.35;
+            predX = predX + dx*alpha;
+            predY = predY + dy*alpha;
+        } else {
+            predX = serverX; predY = serverY;
+        }
+        hasPred = true;
+
+        // ---- replay pending (> ack)
         if (pending.isEmpty()) return;
         List<Pending> list = new ArrayList<>(pending);
         list.removeIf(p -> p.seq <= ackSeq);
