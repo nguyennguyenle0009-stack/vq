@@ -3,11 +3,6 @@ package rt.client.app;
 import rt.client.model.WorldModel;
 import rt.client.net.NetClient;
 
-import rt.common.util.DesktopDir;
-import java.nio.file.*;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyAdapter;
@@ -15,49 +10,49 @@ import java.awt.event.KeyEvent;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+
+import static rt.common.game.Units.*; // TILE_PX, toPx(...)
 
 public class ClientApp {
-    public static void main(String[] args) throws Exception  {
+    public static void main(String[] args) {
         String url = "ws://localhost:8090/ws";
         String name = args.length > 0 ? args[0] : "Player";
-        
-        //Log
-        Path base = DesktopDir.resolve().resolve("Vương quyền").resolve("client").resolve(name);
-        Files.createDirectories(base);
-        System.setProperty("VQ_LOG_DIR", base.toString());
-        System.setProperty("LOG_STAMP",
-            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss")));
-        System.setProperty("playerName", name);
-
-        org.slf4j.MDC.put("player", name);
 
         WorldModel model = new WorldModel();
-        
         NetClient net = new NetClient(url, model);
         net.connect(name);
 
         JFrame f = new JFrame("VQ Client - " + name);
         CanvasPanel panel = new CanvasPanel(model);
+        panel.setFocusable(true);
         f.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        f.setSize(900, 700);
+        f.setSize(WORLD_W_TILES * TILE_PX + 40, WORLD_H_TILES * TILE_PX + 60);
         f.setLocationRelativeTo(null);
         f.setContentPane(panel);
         f.setVisible(true);
+        panel.requestFocusInWindow();
 
-        // bắt phím
+        // Bắt phím trên panel (tránh mất focus)
         InputState input = new InputState();
-        f.addKeyListener(new KeyAdapter() {
+        panel.addKeyListener(new KeyAdapter() {
             @Override public void keyPressed(KeyEvent e) { input.set(e, true); }
             @Override public void keyReleased(KeyEvent e) { input.set(e, false); }
         });
-
+        
         // gửi input ~30Hz
         ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
         ses.scheduleAtFixedRate(() ->
                 net.sendInput(input.up, input.down, input.left, input.right), 0, 33, TimeUnit.MILLISECONDS);
 
-        // vẽ ~60FPS
-        new Timer(16, e -> panel.repaint()).start();
+        // Tick prediction + repaint ~60 FPS
+        AtomicLong last = new AtomicLong(System.currentTimeMillis());
+        new Timer(16, e -> {
+            long now = System.currentTimeMillis();
+            double dt = Math.max(0, (now - last.getAndSet(now)) / 1000.0);
+            model.tickLocalPrediction(dt, input.up, input.down, input.left, input.right);
+            panel.repaint();
+        }).start();
     }
 
     private static class InputState {
@@ -76,29 +71,46 @@ public class ClientApp {
         private final WorldModel model;
         CanvasPanel(WorldModel m){ this.model = m; setBackground(Color.BLACK); }
 
-        @Override 
-        protected void paintComponent(Graphics g) {
+        @Override protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             Graphics2D g2 = (Graphics2D) g;
-            int r = 10;
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            // Vẽ lưới 32px cho dễ nhìn
+            g2.setColor(new Color(255,255,255,28));
+            for (int x = 0; x <= getWidth(); x += TILE_PX) g2.drawLine(x, 0, x, getHeight());
+            for (int y = 0; y <= getHeight(); y += TILE_PX) g2.drawLine(0, y, getWidth(), y);
+
             String you = model.you();
 
-            long tRender = System.currentTimeMillis() - 100; // khớp INTERP_DELAY
-            var ents = model.sample(tRender);
+            // Lấy snapshot nội suy theo TILE
+            var ents = model.sampleForRender();
+
+            // Overlay vị trí predicted của "you" (cho cảm giác ngay lập tức)
+            var myPred = model.getPredictedYou();
+            if (you != null && myPred != null) {
+                ents.put(you, myPred);
+            }
 
             if (ents.isEmpty()) {
                 g2.setColor(Color.GRAY);
                 g2.drawString("waiting for state...", 20, 20);
                 return;
             }
+
+            int rPx = 10;
             ents.forEach((id, pos) -> {
-                int px = (int)Math.round(pos.x);
-                int py = (int)Math.round(pos.y);
+                int px = toPx(pos.x);
+                int py = toPx(pos.y);
                 g2.setColor(id.equals(you) ? Color.GREEN : Color.CYAN);
-                g2.fillOval(px - r, py - r, r*2, r*2);
+                g2.fillOval(px - rPx, py - rPx, rPx*2, rPx*2);
                 g2.setColor(Color.WHITE);
                 g2.drawString(id, px + 12, py - 12);
             });
+
+            // Debug góc dưới
+            g2.setColor(Color.LIGHT_GRAY);
+            g2.drawString("tile="+TILE_PX+"px; ents="+ents.size(), 10, getHeight()-10);
         }
     }
 }

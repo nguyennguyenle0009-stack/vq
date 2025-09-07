@@ -73,9 +73,14 @@ server/
 	Eclipse: Project → Clean…
 	Gradle → Refresh Project
 	
-	./gradlew :server:run hoặc run as tại class MainServer
-	
-	# vq — Multiplayer 2D (WIP)
+	gradlew --stop
+	gradlew clean
+	gradlew build
+	gradlew :server:run
+	# cửa sổ 2
+	gradlew :client:run --args="A"
+	# cửa sổ 3
+	gradlew :client:run --args="B"
 
 # Phiên bản
 
@@ -88,6 +93,16 @@ server/
 
 	Client: Mượt chuyển động (client interpolation 100ms)
 	Server: Dọn disconnect & path sai (server silent, không spam)
+	
+## 1.0.3
+	
+	Client-side prediction + reconciliation: áp input local tức thì, lưu pending, khi nhận ack/state thì “replay” các input > ack. (Giảm trễ cảm giác.)
+	
+	Client: 
+		Model client: buffer snapshot + interpolation (tile) + prediction & reconciliation theo tile, client sẽ nhân 32px khi vẽ.
+		Gắn prediction hooks: onInputSent(), onAck(), reconcileFromServer(); spawn sớm tại (3,3) tile sau hello.
+	Server: Server dùng đơn vị tile hoàn toàn. Spawn mặc định (3,3) tiles. copyForNetwork trả x,y theo tile
+	Common: Định nghĩa chung: tile 32px, kích thước world (theo ô), tốc độ theo ô/giây
 	
 # FixBug
 
