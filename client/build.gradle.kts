@@ -1,4 +1,7 @@
-plugins { java }
+plugins { 
+	java 
+	id("application")
+}
 
 dependencies {
     implementation(project(":common"))
@@ -15,4 +18,8 @@ dependencies {
 
     runtimeOnly("ch.qos.logback:logback-classic:1.5.6")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+}
+
+application {
+    mainClass.set("rt.client.app.ClientApp")
 }

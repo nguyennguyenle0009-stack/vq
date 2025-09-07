@@ -10,7 +10,7 @@ import rt.server.websocket.WsServer;
 import rt.server.world.World;
 
 public class MainServer {
-	  public static void main(String[] args) throws Exception {
+	public static void main(String[] args) throws Exception {
 	    var sessions = new SessionRegistry();
 	    var inputs   = new InputQueue();
 	    var snaps    = new SnapshotBuffer();
@@ -34,5 +34,5 @@ public class MainServer {
 	    }));
 
 	    Thread.currentThread().join();
-	  }
-	}
+  	}
+}

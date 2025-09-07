@@ -1,4 +1,5 @@
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.tasks.compile.JavaCompile
 
 // Không cần plugins{} ở root
 
@@ -16,6 +17,11 @@ subprojects {
 
     tasks.withType<Test> {
         useJUnitPlatform()
+    }
+    
+    // QUAN TRỌNG: ép mã hóa UTF-8
+    tasks.withType<JavaCompile>().configureEach {
+        options.encoding = "UTF-8"
     }
 
     // Bỏ libs.*, dùng toạ độ chuỗi rõ ràng
