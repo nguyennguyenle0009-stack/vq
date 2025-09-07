@@ -1,0 +1,12 @@
+<configuration>
+  <!-- Mỗi lần chạy tạo 1 file: client\<Tên>\client-<Tên> log <stamp>.txt -->
+  <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+    <file>${VQ_LOG_DIR}/client-${playerName:-unknown} log ${LOG_STAMP}.txt</file>
+    <append>true</append>
+    <encoder>
+      <charset>UTF-8</charset>
+      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [name=%X{player:-?}|you=%X{you:-?}] %logger{20} - %msg%n</pattern>
+    </encoder>
+  </appender>
+  <root level="INFO"><appender-ref ref="FILE"/></root>
+</configuration>

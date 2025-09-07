@@ -62,7 +62,11 @@ server/
         
 # Tính năng     
 
-- Client
+## Client
+
+	in ra file log nếu gặp lỗi log failed to connect ....\Desktop\Vương quyền\....
+	
+## Server
 	
 # chạy server
 	Xoá tay build/ và bin/ (hoặc chạy ./gradlew clean).

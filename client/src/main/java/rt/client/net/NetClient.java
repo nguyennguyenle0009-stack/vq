@@ -66,16 +66,19 @@ public class NetClient {
                 System.out.println("[NET] closed: " + code + " " + reason + " url=" + url);
             }
 
-            @Override public void onFailure(WebSocket webSocket, Throwable t, Response response) {
-                String msg;
-                if (response != null) {
-                    // Sai path → thường là HTTP 404/400; TLS/upgrade fail → 403/426/…
-                    msg = "HTTP " + response.code() + " " + response.message();
-                    response.close();
-                } else {
-                    msg = t.getClass().getSimpleName() + ": " + String.valueOf(t.getMessage());
-                }
+            @Override 
+            public void onFailure(WebSocket webSocket, Throwable t, Response resp) {
+                String msg = (resp != null)
+                        ? ("HTTP " + resp.code() + " " + resp.message())
+                        : (t.getClass().getSimpleName() + ": " + String.valueOf(t.getMessage()));
                 System.err.println("[NET] WebSocket failure: " + msg + " url=" + url);
+
+                // Ghi ra file riêng: <Tên> log failed to connect <date time>.txt
+                rt.common.util.LogFiles.writeClientEvent(
+                        System.getProperty("playerName", "unknown"),
+                        "failed to connect",
+                        "url=" + url + " | " + msg
+                );
             }
         });
     }

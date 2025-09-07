@@ -3,6 +3,11 @@ package rt.client.app;
 import rt.client.model.WorldModel;
 import rt.client.net.NetClient;
 
+import rt.common.util.DesktopDir;
+import java.nio.file.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyAdapter;
@@ -12,9 +17,19 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class ClientApp {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception  {
         String url = "ws://localhost:8080/ws";
         String name = args.length > 0 ? args[0] : "Player";
+        
+        //Log
+        Path base = DesktopDir.resolve().resolve("Vương quyền").resolve("client").resolve(name);
+        Files.createDirectories(base);
+        System.setProperty("VQ_LOG_DIR", base.toString());
+        System.setProperty("LOG_STAMP",
+            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss")));
+        System.setProperty("playerName", name);
+
+        org.slf4j.MDC.put("player", name);
 
         WorldModel model = new WorldModel();
         NetClient net = new NetClient(url, model);

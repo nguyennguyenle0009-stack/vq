@@ -1,4 +1,17 @@
 <configuration>
+
+  <!-- Mỗi lần chạy tạo 1 file: server\server log <stamp>.txt -->
+  <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+    <file>${VQ_LOG_DIR}/server log ${LOG_STAMP}.txt</file>
+    <append>true</append>
+    <encoder>
+      <charset>UTF-8</charset>
+      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <logger name="io.netty.channel.DefaultChannelPipeline" level="ERROR"/>
+
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
       <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
@@ -10,5 +23,6 @@
 
   <root level="INFO">
     <appender-ref ref="STDOUT"/>
+    <appender-ref ref="FILE"/>
   </root>
 </configuration>

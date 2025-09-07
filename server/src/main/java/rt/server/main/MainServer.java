@@ -1,5 +1,9 @@
 package rt.server.main;
 
+import rt.common.util.DesktopDir;
+import java.nio.file.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import rt.server.config.ServerConfig;
 import rt.server.game.loop.GameLoop;
 import rt.server.game.loop.SnapshotStreamer;
@@ -13,10 +17,16 @@ public class MainServer {
 	    var sessions = new SessionRegistry();
 	    var inputs   = new InputQueue();
 	    var world    = new World(sessions);
-	    
 	    var cfg = ServerConfig.load();
-	    
 	    var ws = new WsServer(cfg.port(), sessions, inputs);
+	    
+	    //Log
+	    var base = DesktopDir.resolve().resolve("Vương quyền").resolve("server");
+	    Files.createDirectories(base);
+	    System.setProperty("VQ_LOG_DIR", base.toString());
+	    System.setProperty("LOG_STAMP",
+        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss")));
+	    
 	    ws.start();
 
 	    org.slf4j.LoggerFactory.getLogger("rt.server").info("Starting with {}", cfg);
