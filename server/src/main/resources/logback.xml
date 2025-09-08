@@ -10,19 +10,32 @@
     </encoder>
   </appender>
 
-  <logger name="io.netty.channel.DefaultChannelPipeline" level="ERROR"/>
-
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
       <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
     </encoder>
   </appender>
+  
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{20} - %msg%n</pattern>
+    </encoder>
+  </appender>
 
+  <!-- Giảm ồn từ Netty & các lib -->
+  <logger name="io.netty" level="WARN"/>
+  <logger name="org.apache" level="WARN"/>
+  
+  <logger name="io.netty.channel.DefaultChannelPipeline" level="ERROR"/>
   <logger name="io.netty" level="INFO"/>
   <logger name="rt.server" level="DEBUG"/>
 
   <root level="INFO">
     <appender-ref ref="STDOUT"/>
     <appender-ref ref="FILE"/>
+  </root>
+  
+  <root level="${LOG_LEVEL}">
+    <appender-ref ref="CONSOLE"/>
   </root>
 </configuration>

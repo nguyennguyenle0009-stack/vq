@@ -11,7 +11,6 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
-import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import rt.server.input.InputQueue;
 import rt.server.session.SessionRegistry;
 
@@ -45,11 +44,33 @@ public class WsServer {
 	        	protected void initChannel(SocketChannel ch) {
 	            ChannelPipeline p = ch.pipeline();	// pipeline: chuỗi các handler
 	            p.addLast(new HttpServerCodec());	// codec HTTP (vì WebSocket upgrade từ HTTP)
-	            p.addLast(new HttpObjectAggregator(65536));	// gộp HTTP message thành full request
-	            p.addLast(new WebSocketServerProtocolHandler("/ws", null, true));
+	            p.addLast(new HttpObjectAggregator(8 * 1024));	// gộp HTTP message thành full request
+	            // Kiểm tra Origin trước khi upgrade
+	            p.addLast(new rt.server.websocket.OriginCheckHandler(
+	                    java.util.Set.of(
+	                        "http://localhost:8080",  // thêm domain bạn cho phép
+	                        "http://127.0.0.1:8080"
+	                    )
+	            ));
+	            // Cấu hình WebSocket: path, tắt extensions, giới hạn payload
+	            io.netty.handler.codec.http.websocketx.WebSocketServerProtocolConfig cfg =
+	                    io.netty.handler.codec.http.websocketx.WebSocketServerProtocolConfig.newBuilder()
+	                        .websocketPath("/ws")
+	                        .subprotocols(null)
+	                        .checkStartsWith(false)
+	                        .handshakeTimeoutMillis(10_000)
+	                        .allowExtensions(false)                 // tắt permessage-deflate để đơn giản & an toàn
+	                        .maxFramePayloadLength(64 * 1024)       // iới hạn 64 KB / frame
+	                        .build();
+	            p.addLast(new io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler(cfg));
 	            p.addLast(new io.netty.handler.timeout.IdleStateHandler(45, 0, 0, java.util.concurrent.TimeUnit.SECONDS));
-	            p.addLast(new WsTextHandler(sessions, inputs));	// handler xử lý WebSocket frame dạng text do ta viết
-	          }
+
+	            // (tuỳ chọn) gộp continuation frames nhưng vẫn tuân maxFramePayloadLength ở trên
+	            p.addLast(new io.netty.handler.codec.http.websocketx.WebSocketFrameAggregator(64 * 1024));
+
+	            // Handlers
+	            p.addLast(new rt.server.websocket.WsTextHandler(sessions, inputs)); // handler xử lý WebSocket frame dạng text do ta viết
+	        	}
 	        })
 	        .childOption(ChannelOption.TCP_NODELAY, true)
 	        .childOption(ChannelOption.SO_KEEPALIVE, true)
@@ -68,3 +89,5 @@ public class WsServer {
 	    if (workerGroup != null) workerGroup.shutdownGracefully();	// tắt thread worker
 	}
 }
+
+//Nếu sau này build bản web chạy ở domain khác, chỉ cần thêm domain vào allowedOrigins ở nơi khởi tạo pipeline.

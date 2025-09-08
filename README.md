@@ -142,6 +142,12 @@ server/
 
 	Protocol sạch hơn: gom message thành DTO ở :common (đang parse kiểu Map), dùng ObjectMapper tái sử dụng.
 
+## 1.0.9
+
+	Bảo mật cơ bản: giới hạn kích thước frame (WebSocketServerProtocolHandler), check Origin, ẩn stacktrace DEBUG.
+	Giới hạn kích thước WebSocket frame (chống spam/DoS)
+	Check Origin (chặn WebSocket từ domain lạ nếu chạy trong trình duyệt)
+	Ẩn stacktrace ồn ào (chỉ bật khi DEBUG)
 
 
 # FixBug

@@ -69,18 +69,19 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                 ));
                 s.send(new AckS2C(in.seq()));
             }
-//            case "ping" -> {
-//                PingS2C pg = Jsons.OM.treeToValue(node, PingS2C.class);
-//                // ✅ echo ts từ server (đừng dùng currentTimeMillis của client)
-//                ws.send(Jsons.OM.writeValueAsString(new PongC2S(pg.ts())));
-//            }
+            case "ping" -> {
+                PongC2S pg = Jsons.OM.treeToValue(node, PongC2S.class);
+                long rtt = System.currentTimeMillis() - pg.ts();
+                // lưu metrics nếu cần; ở đây log nhẹ (DEBUG)
+                log.debug("server RTT {} = {} ms", s.playerId, rtt);
+            }
 //            case "cpong" -> {
 //                ClientPongS2C cp = Jsons.OM.treeToValue(node, ClientPongS2C.class);
 //                if (onClientPong != null) onClientPong.accept(cp.ns()); // RTT client-side
 //            }
             case "cping" -> {
                 ClientPingC2S cp = Jsons.OM.treeToValue(node, ClientPingC2S.class);
-                s.send(new ClientPongS2C(cp.ns())); // trả ns để client đo RTT
+                s.send(new ClientPongS2C(cp.ns())); // echo ns để client tự đo RTT
             }
             default -> log.warn("unknown type {}", type);
         }
@@ -91,17 +92,24 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     // client đóng → dọn dẹp nhẹ nhàng, không in stacktrace khó chịu
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        String id = ctx.channel().id().asShortText();
-        if (cause instanceof SocketException
-                || cause instanceof ClosedChannelException
-                || cause instanceof IOException) {
-            log.info("client {} disconnected: {}", id, cause.getMessage());
+        String cid = ctx.channel().id().asShortText();
+        String msg = cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage();
+
+        // Nhóm lỗi phổ biến khi client đóng đột ngột
+        if (cause instanceof java.net.SocketException && "Connection reset".equalsIgnoreCase(msg)) {
+            log.info("connection reset {}", cid);
+        } else if (cause instanceof io.netty.handler.codec.CorruptedFrameException) {
+            log.warn("bad websocket frame {}: {}", cid, msg); // không in full stack
+        } else if (cause instanceof io.netty.handler.codec.TooLongFrameException) {
+            log.warn("frame too large {}: {}", cid, msg);     // bị chặn bởi maxFramePayloadLength
         } else {
-            log.warn("unhandled exception for {}", id, cause);
+            // Chỉ in stacktrace khi DEBUG, còn lại log ngắn gọn
+            if (log.isDebugEnabled()) log.debug("ws error " + cid, cause);
+            else log.warn("ws error {}: {}", cid, msg);
         }
-        sessions.detach(ctx.channel());
         ctx.close();
     }
+
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {

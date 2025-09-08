@@ -85,11 +85,13 @@ public class NetClient {
                             }
                         }
                         case "ping" -> {
-                            ws.send(Jsons.OM.writeValueAsString(new PongC2S(System.currentTimeMillis())));
+                            PingS2C pg = Jsons.OM.treeToValue(node, PingS2C.class);
+                            // trả "pong" với đúng ts server gửi, để server đo RTT server-side
+                            ws.send(Jsons.OM.writeValueAsString(new PongC2S(pg.ts())));
                         }
                         case "cpong" -> {
                             ClientPongS2C cp = Jsons.OM.treeToValue(node, ClientPongS2C.class);
-                            if (onClientPong != null) onClientPong.accept(cp.ns());
+                            if (onClientPong != null) onClientPong.accept(cp.ns()); // HUD Ping (client-side)
                         }
                         default -> { /* ignore */ }
                     }
