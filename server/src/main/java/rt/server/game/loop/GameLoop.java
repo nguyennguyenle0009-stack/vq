@@ -3,54 +3,48 @@ package rt.server.game.loop;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rt.server.input.InputQueue;
-import rt.server.input.InputQueue.InputEvent;
 import rt.server.world.World;
 
-import java.util.ArrayList;
-import java.util.List;
-
-/** Fixed-timestep loop at given TPS. */
+/** Vòng lặp game authoritative (đơn vị tile). */
 public class GameLoop implements Runnable {
     private static final Logger log = LoggerFactory.getLogger(GameLoop.class);
 
     private final World world;
     private final InputQueue inputs;
-    private final double tps;
-    private final double dt; // seconds
+    private final int tps;
+    private final double dt;
 
-    private final List<InputEvent> batch = new ArrayList<>(128);
-
-    public GameLoop(World world, InputQueue inputs, double tps) {
+    public GameLoop(World world, InputQueue inputs, int tps) {
         this.world = world;
         this.inputs = inputs;
-        this.tps = tps;
-        this.dt = 1.0 / tps;
+        this.tps = Math.max(1, tps);
+        this.dt = 1.0 / this.tps;
     }
 
-    @Override public void run() {
-        long nsPerTick = (long) (1_000_000_000L / tps);
+    @Override
+    public void run() {
+        final long stepNs = Math.round(1_000_000_000.0 / tps);
         long next = System.nanoTime();
-
         while (!Thread.currentThread().isInterrupted()) {
-            // 1) Process inputs
-            batch.clear();
-            inputs.drainAllTo(batch);
-            for (InputEvent e : batch) {
-                world.applyInput(e.playerId, e.up, e.down, e.left, e.right);
-            }
+            try {
+                long now = System.nanoTime();
+                long behind = now - next;
+                if (behind < 0) {
+                    long sleepMs = Math.max(0, (-behind) / 1_000_000);
+                    if (sleepMs > 0) Thread.sleep(sleepMs);
+                    continue;
+                }
+                // 1) Áp input “mới nhất” của từng player
+                inputs.applyToWorld(world);
 
-            // 2) Step world
-            world.step(dt);
+                // 2) Cập nhật world theo dt (giây)
+                world.step(dt);
 
-            // 3) Sleep until next tick
-            next += nsPerTick;
-            long sleep = next - System.nanoTime();
-            if (sleep > 0) {
-                try { Thread.sleep(sleep / 1_000_000L, (int)(sleep % 1_000_000L)); }
-                catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
-            } else {
-                // behind schedule; catch up
-                next = System.nanoTime();
+                next += stepNs;
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            } catch (Throwable t) {
+                log.warn("game loop error", t);
             }
         }
     }

@@ -18,7 +18,7 @@ public class SessionRegistry {
     public Iterable<Session> all(){ return byId.values(); }
 
     public static class Session {
-        final Channel ch; public final String playerId;
+        public final Channel ch; public final String playerId;
         public volatile double x = 100; // server là nguồn sự thật
 		public volatile double y = 100;
         public Session(Channel ch, String id){ this.ch=ch; this.playerId=id; }

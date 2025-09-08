@@ -108,9 +108,24 @@ server/
 
 	Mượt thêm xíu
 	
-## 1.0.4
+## 1.0.5
 
 	Hiễn thị FPS và Ping ra màn hình
+	
+## 1.0.6
+
+	Backpressure & rate-limit: server drop input nếu > 60/s/người; SnapshotStreamer chỉ giữ state mới nhất khi kênh chậm.
+	
+	Rate-limit input và backpressure cho streamer
+		Rate-limit input: tối đa 60 gói/giây/người
+		Backpressure cho SnapshotStreamer: chỉ gửi state MỚI NHẤT khi kênh chậm
+	
+	Test nhanh
+		Client spam input (giữ phím nhấp nhả nhanh):
+		Server không tăng CPU, vẫn mượt.
+		Nhân vật vẫn đi đúng do world đọc “latest keys”.
+		Làm client “chậm” (tăng tải, thu nhỏ/di chuyển cửa sổ):
+		Không backlog state; khi hồi, nhận ngay state mới nhất (không nhảy giật).
 	
 # FixBug
 

@@ -52,7 +52,9 @@ public class WsServer {
 	          }
 	        })
 	        .childOption(ChannelOption.TCP_NODELAY, true)
-	        .childOption(ChannelOption.SO_KEEPALIVE, true);
+	        .childOption(ChannelOption.SO_KEEPALIVE, true)
+	        .childOption(ChannelOption.WRITE_BUFFER_WATER_MARK,
+	        	    new io.netty.channel.WriteBufferWaterMark(32 * 1024, 64 * 1024));
 	    serverChannel = b.bind(port).sync().channel();	// Bind server vào cổng và chạy đồng bộ (sync để block đến khi bind xong).
 	  }
 

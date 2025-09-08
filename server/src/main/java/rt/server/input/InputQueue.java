@@ -1,55 +1,53 @@
 package rt.server.input;
 
+import rt.server.world.World;
 import java.util.Map;
-import java.util.Queue;
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
-/** Thread-safe queue: WS thread offers → GameLoop drains. */
 public class InputQueue {
-
-    /** One input of a player at sequence N. */
-    public static final class InputEvent {
-        public final String playerId;
-        public final int seq;
+    public static final class Keys {
         public final boolean up, down, left, right;
-        public InputEvent(String playerId, int seq, boolean up, boolean down, boolean left, boolean right) {
-            this.playerId = playerId; this.seq = seq;
+        public Keys(boolean up, boolean down, boolean left, boolean right) {
             this.up = up; this.down = down; this.left = left; this.right = right;
         }
     }
 
-    private final Queue<InputEvent> q = new ConcurrentLinkedQueue<>();
-    /** Last accepted seq per player (drop duplicates/out-of-order). */
-    private final Map<String, Integer> lastSeqSeen = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Keys> latest = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Integer> lastSeq = new ConcurrentHashMap<>();
 
-    /** Called by WS: push a new input. Keys may miss fields ⇒ treated as false. */
+    // ≤ 60/s → mỗi gói cách nhau tối thiểu ~16ms
+    private static final long MIN_INTERVAL_NS = 16_000_000L;
+    private final ConcurrentHashMap<String, Long> lastAcceptNs = new ConcurrentHashMap<>();
+
+    @SuppressWarnings("unchecked")
     public void offer(String playerId, int seq, Map<String, Boolean> keys) {
         if (playerId == null || keys == null) return;
 
-        lastSeqSeen.compute(playerId, (id, prev) -> {
-            if (prev != null && seq <= prev) return prev; // ignore stale/dup
-            boolean up    = Boolean.TRUE.equals(keys.get("up"));
-            boolean down  = Boolean.TRUE.equals(keys.get("down"));
-            boolean left  = Boolean.TRUE.equals(keys.get("left"));
-            boolean right = Boolean.TRUE.equals(keys.get("right"));
-            q.add(new InputEvent(playerId, seq, up, down, left, right));
-            return seq;
+        // bỏ out-of-order theo seq
+        lastSeq.compute(playerId, (k, prev) -> (prev == null || seq > prev) ? seq : prev);
+
+        boolean up    = keys.getOrDefault("up",    false);
+        boolean down  = keys.getOrDefault("down",  false);
+        boolean left  = keys.getOrDefault("left",  false);
+        boolean right = keys.getOrDefault("right", false);
+
+        // luôn giữ trạng thái phím mới nhất (coalesce)
+        latest.put(playerId, new Keys(up, down, left, right));
+
+        // rate-limit theo time window (nếu muốn hard drop logic khác, đặt ở đây)
+        long now = System.nanoTime();
+        lastAcceptNs.compute(playerId, (k, prev) -> {
+            if (prev == null || now - prev >= MIN_INTERVAL_NS) return now; // accept
+            return prev; // drop (không cập nhật prev)
         });
     }
 
-    /** Called by GameLoop each tick: drain up to max items into out. Returns drained count. */
-    public int drainTo(List<InputEvent> out, int max) {
-        int n = 0;
-        for (; n < max; n++) {
-            InputEvent e = q.poll();
-            if (e == null) break;
-            out.add(e);
-        }
-        return n;
+    /** World đọc trạng thái phím hiện tại mỗi tick. */
+    public void applyToWorld(World world) {
+        latest.forEach((id, k) -> world.applyInput(id, k.up, k.down, k.left, k.right));
     }
 
-    /** Convenience: drain all. */
-    public int drainAllTo(List<InputEvent> out) { return drainTo(out, Integer.MAX_VALUE); }
+    public int lastProcessedSeq(String playerId) {
+        return lastSeq.getOrDefault(playerId, 0);
+    }
 }
