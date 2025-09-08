@@ -159,8 +159,17 @@ server/
 		Thử đóng client đột ngột → server không còn stacktrace dài; tối đa log connection reset gọn.
 		Nếu mở từ browser khác origin → bị 403 (đã chặn Origin).
 	
+## 1.0.11
 
-
+	GameCanvas panel mới có grid cache, ít cấp phát, HUD FPS/Ping.
+	Sửa ClientApp để dùng render loop 60 FPS (thread riêng gọi repaint()), giữ input 30 Hz + cping 1 s.
+		Thay phần tạo panel/timer trong
+		
+	Ghi chú hiệu năng
+		Grid cache: chỉ vẽ lại khi đổi kích thước cửa sổ → giảm rất nhiều thời gian paint.
+		Ít cấp phát: paintComponent không tạo Set/Map tạm; chỉ duyệt snapshot trả về từ WorldModel.
+		Render loop bằng System.nanoTime() giúp nhịp ổn định hơn Swing Timer.
+		Nếu muốn giảm thêm GC: về sau có thể thêm API trong WorldModel để fill vào Map tái sử dụng thay vì tạo Map mới mỗi snapshot (không bắt buộc ngay).
 
 # FixBug
 
