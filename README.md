@@ -127,6 +127,18 @@ server/
 		Làm client “chậm” (tăng tải, thu nhỏ/di chuyển cửa sổ):
 		Không backlog state; khi hồi, nhận ngay state mới nhất (không nhảy giật).
 	
+## 1.0.7
+
+	tránh “nhảy giật” khi JVM trễ, dùng vòng lặp có catch-up (giới hạn số bước bù)
+	“chốt số”
+		TPS = 60, snapshotHz = 20.
+		MAX_CATCHUP_STEPS = 2 (bắt đầu), nếu vẫn trễ ngắn thì 3.
+		Client INTERP_DELAY_MS = 100–120 ms (hợp với 20 Hz).
+		Rate-limit input 60/s (đã có).
+		Netty: TCP_NODELAY=true, WRITE_BUFFER_WATER_MARK(32k,64k).
+	
+	
+
 # FixBug
 
 

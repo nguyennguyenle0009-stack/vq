@@ -23,24 +23,32 @@ public class GameLoop implements Runnable {
 
     @Override
     public void run() {
-        final long stepNs = Math.round(1_000_000_000.0 / tps);
+        final long stepNs = Math.round(1_000_000_000.0 / tps); // ~16_666_667 ns
         long next = System.nanoTime();
+
+        final int MAX_CATCHUP_STEPS = 2; // tránh spiral of death
+
         while (!Thread.currentThread().isInterrupted()) {
             try {
                 long now = System.nanoTime();
-                long behind = now - next;
-                if (behind < 0) {
-                    long sleepMs = Math.max(0, (-behind) / 1_000_000);
+                if (now < next) {
+                    long sleepMs = Math.max(0, (next - now) / 1_000_000);
                     if (sleepMs > 0) Thread.sleep(sleepMs);
                     continue;
                 }
-                // 1) Áp input “mới nhất” của từng player
-                inputs.applyToWorld(world);
 
-                // 2) Cập nhật world theo dt (giây)
-                world.step(dt);
+                int steps = 0;
+                // làm nhiều step nếu bị trễ, nhưng tối đa 3 step để không đốt CPU
+                while (now >= next && steps < MAX_CATCHUP_STEPS) {
+                    // 1) áp input mới nhất
+                    inputs.applyToWorld(world);
+                    // 2) tick logic
+                    world.step(dt);
 
-                next += stepNs;
+                    next += stepNs;
+                    steps++;
+                    now = System.nanoTime();
+                }
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
             } catch (Throwable t) {
@@ -48,4 +56,5 @@ public class GameLoop implements Runnable {
             }
         }
     }
+
 }

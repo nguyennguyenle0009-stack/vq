@@ -24,7 +24,7 @@ public final class ServerConfig {
         }
         int port = parseIntOrDefault(p.getProperty("server.port"), 8090);
         int tps = parseIntOrDefault(p.getProperty("server.tps"), 60);
-        int hz  = parseIntOrDefault(p.getProperty("server.snapshot_hz"), 12);
+        int hz  = parseIntOrDefault(p.getProperty("server.snapshot_hz"), 20);
         return new ServerConfig(port, tps, hz);
     }
 
