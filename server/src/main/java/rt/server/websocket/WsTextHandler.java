@@ -7,7 +7,8 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import rt.server.input.InputQueue;
+
+import rt.server.game.input.InputQueue;
 import rt.server.session.SessionRegistry;
 import rt.server.session.SessionRegistry.Session;
 
@@ -124,15 +125,15 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
         log.info("channel removed {}", ctx.channel().id().asShortText());
     }
     
+    // đóng idle
     @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
         if (evt instanceof io.netty.handler.timeout.IdleStateEvent e
-            && e.state() == io.netty.handler.timeout.IdleState.READER_IDLE) {
-            log.info("idle timeout, closing {}", ctx.channel().id().asShortText());
-            sessions.detach(ctx.channel());
+             && e.state() == io.netty.handler.timeout.IdleState.READER_IDLE) {
+            log.info("idle timeout {}", ctx.channel().id().asShortText());
             ctx.close();
             return;
         }
-        ctx.fireUserEventTriggered(evt);
+        super.userEventTriggered(ctx, evt);
     }
 }

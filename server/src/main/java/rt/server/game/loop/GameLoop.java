@@ -2,7 +2,8 @@ package rt.server.game.loop;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import rt.server.input.InputQueue;
+
+import rt.server.game.input.InputQueue;
 import rt.server.world.World;
 
 /** Vòng lặp game authoritative (đơn vị tile). */

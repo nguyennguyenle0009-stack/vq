@@ -149,6 +149,18 @@ server/
 	Check Origin (chặn WebSocket từ domain lạ nếu chạy trong trình duyệt)
 	Ẩn stacktrace ồn ào (chỉ bật khi DEBUG)
 
+## 1.0.10
+	
+	Tách pipeline riêng: WsChannelInitializer
+	Gắn initializer vào server bootstrap
+	Kiểm tra nhanh
+		gradlew clean :server:run Console phải in Server started at ws://localhost:<port>/ws.
+		Mở client như thường lệ.
+		Thử đóng client đột ngột → server không còn stacktrace dài; tối đa log connection reset gọn.
+		Nếu mở từ browser khác origin → bị 403 (đã chặn Origin).
+	
+
+
 
 # FixBug
 

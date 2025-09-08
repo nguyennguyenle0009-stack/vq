@@ -1,4 +1,4 @@
-package rt.server.input;
+package rt.server.game.input;
 
 import rt.server.world.World;
 import java.util.Map;
