@@ -164,12 +164,24 @@ server/
 	GameCanvas panel mới có grid cache, ít cấp phát, HUD FPS/Ping.
 	Sửa ClientApp để dùng render loop 60 FPS (thread riêng gọi repaint()), giữ input 30 Hz + cping 1 s.
 		Thay phần tạo panel/timer trong
-		
 	Ghi chú hiệu năng
 		Grid cache: chỉ vẽ lại khi đổi kích thước cửa sổ → giảm rất nhiều thời gian paint.
 		Ít cấp phát: paintComponent không tạo Set/Map tạm; chỉ duyệt snapshot trả về từ WorldModel.
 		Render loop bằng System.nanoTime() giúp nhịp ổn định hơn Swing Timer.
 		Nếu muốn giảm thêm GC: về sau có thể thêm API trong WorldModel để fill vào Map tái sử dụng thay vì tạo Map mới mỗi snapshot (không bắt buộc ngay).
+
+## 1.0.12
+	
+	Cấu hình linh hoạt. 
+	Đưa mọi tham số WS/pipeline ra ServerConfig và truyền xuống WsServer → WsChannelInitializer thay vì hardcode
+	ServerConfig mở rộng (JSON, không cần thêm lib)
+	WsChannelInitializer nhận config
+	WsServer truyền config xuống & set socket options từ config
+	Main khởi động
+	Lợi ích
+		Không cần sửa code khi đổi port, path, giới hạn frame, origin, idle…
+		Dễ bật/tắt Origin check, đổi watermarks, extensions.
+		Hợp nhất cấu hình vào một nơi (ServerConfig) → sạch & nhất quán.
 
 # FixBug
 

@@ -9,3 +9,5 @@
 2025-09-08 23:46:06.148 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - connection reset c6a55043
 2025-09-08 23:46:06.155 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel inactive c6a55043
 2025-09-08 23:46:06.156 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel removed c6a55043
+2025-09-09 00:12:05.472 [main] INFO  rt.server.websocket.WsServer - Server started at ws://localhost:8090/ws
+2025-09-09 00:12:05.475 [main] INFO  rt.server - Starting with ServerConfig{port=8090, tps=60, snapshotHz=20, wsPath=/ws}

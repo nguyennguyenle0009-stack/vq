@@ -9,6 +9,8 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import rt.server.config.ServerConfig;
 import rt.server.game.input.InputQueue;
 import rt.server.session.SessionRegistry;
 
@@ -18,7 +20,7 @@ import rt.server.session.SessionRegistry;
 public class WsServer {
 	private static final Logger log = LoggerFactory.getLogger(WsServer.class);
 	
-	private final int port; // Cổng mà server sẽ lắng nghe WebSocket (ví dụ: 8080).
+	private final ServerConfig cfg;
   	private final SessionRegistry sessions; // Quản lý danh sách phiên (session) của các client kết nối.
   	private final InputQueue inputs; // Hàng đợi input từ client gửi lên (để game loop xử lý).
   	private EventLoopGroup bossGroup; // Nhóm thread quản lý kết nối "chấp nhận socket" (boss).
@@ -26,9 +28,9 @@ public class WsServer {
   	private Channel serverChannel; // Channel đại diện cho server socket (cổng WebSocket).
 
   	// Constructor: khởi tạo server với cổng, registry quản lý session và input queue.
-  	public WsServer(int port, SessionRegistry s, InputQueue i) {
-  		this.port = port; this.sessions = s; this.inputs = i;
-  	}
+    public WsServer(ServerConfig cfg, SessionRegistry sessions, InputQueue inputs) {
+        this.cfg = cfg; this.sessions = sessions; this.inputs = inputs;
+    }
 
 	// Bắt đầu chạy server WebSocket.
 	public void start() throws InterruptedException {
@@ -38,13 +40,13 @@ public class WsServer {
 	    ServerBootstrap b = new ServerBootstrap()
 	        .group(bossGroup, workerGroup)	// gắn nhóm boss/worker
 	        .channel(NioServerSocketChannel.class)	// kiểu channel cho server socket
-	        .childOption(ChannelOption.TCP_NODELAY, true)
-	        .childOption(ChannelOption.SO_KEEPALIVE, true)
+            .childOption(ChannelOption.TCP_NODELAY, cfg.tcpNoDelay)
+            .childOption(ChannelOption.SO_KEEPALIVE, cfg.soKeepAlive)
 	        .childOption(ChannelOption.WRITE_BUFFER_WATER_MARK,
-	        	    new WriteBufferWaterMark(32 * 1024, 64 * 1024))
-	    	.childHandler(new WsChannelInitializer(sessions, inputs));
-	    serverChannel = b.bind(port).sync().channel();	// Bind server vào cổng và chạy đồng bộ (sync để block đến khi bind xong).
-	    log.info("Server started at ws://localhost:{}/ws", port);
+	        		 new WriteBufferWaterMark(cfg.writeBufferLowKB * 1024, cfg.writeBufferHighKB * 1024))
+	        .childHandler(new WsChannelInitializer(sessions, inputs, cfg));
+	    serverChannel = b.bind(cfg.port).sync().channel();	// Bind server vào cổng và chạy đồng bộ (sync để block đến khi bind xong).
+	    log.info("Server started at ws://localhost:{}/ws", cfg.port);
 	}
 
 	// Dừng server, giải phóng tài nguyên.

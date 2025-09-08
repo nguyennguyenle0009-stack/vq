@@ -17,8 +17,8 @@ public class MainServer {
 	    var sessions = new SessionRegistry();
 	    var inputs   = new InputQueue();
 	    var world    = new World(sessions);
-	    var cfg = ServerConfig.load();
-	    var ws = new WsServer(cfg.port(), sessions, inputs);
+	    ServerConfig cfg = ServerConfig.load();
+	    var ws = new WsServer(cfg, sessions, inputs);
 	    
 	    //Log
 	    var base = DesktopDir.resolve().resolve("Vương quyền").resolve("server");
@@ -30,10 +30,10 @@ public class MainServer {
 	    ws.start();
 
 	    org.slf4j.LoggerFactory.getLogger("rt.server").info("Starting with {}", cfg);
-	    System.out.println("Server started at ws://localhost:" + cfg.port() +"/ws");
+	    System.out.println("Server started at ws://localhost:" + cfg.port +"/ws");
 
-	    Thread loop   = new Thread(new GameLoop(world, inputs, cfg.tps()), "loop-" + cfg.tps() + "tps");
-	    Thread stream = new Thread(new SnapshotStreamer(sessions, world, cfg.snapshotHz()), "stream-" + cfg.snapshotHz() + "hz");
+	    Thread loop   = new Thread(new GameLoop(world, inputs, cfg.tps), "loop-" + cfg.tps + "tps");
+	    Thread stream = new Thread(new SnapshotStreamer(sessions, world, cfg.snapshotHz), "stream-" + cfg.snapshotHz + "hz");
 	    loop.start(); stream.start();
 
 	    // Tắt êm khi IDE/Gradle bấm Stop

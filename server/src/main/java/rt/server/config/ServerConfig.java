@@ -1,42 +1,49 @@
 package rt.server.config;
 
-import java.io.IOException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.InputStream;
-import java.util.Properties;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 
-public final class ServerConfig {
-    private final int port;
-    private final int tps;
-    private final int snapshotHz;
+public class ServerConfig {
+    public int port = 8090;
+    public int tps = 60;
+    public int snapshotHz = 20;
 
-    private ServerConfig(int port, int tps, int snapshotHz) {
-        this.port = port;
-        this.tps = tps;
-        this.snapshotHz = snapshotHz;
-    }
+    // WebSocket/pipeline
+    public String wsPath = "/ws";
+    public int wsMaxFrameKB = 64;      // maxFramePayloadLength
+    public int idleSeconds = 45;
+    public boolean wsAllowExtensions = false; // permessage-deflate
+    public boolean checkOrigin = true;
+    public List<String> allowedOrigins = List.of(
+            "http://localhost:8080", 
+            "http://127.0.0.1:8080"
+    );
+
+    // socket options
+    public boolean tcpNoDelay = true;
+    public boolean soKeepAlive = true;
+    public int writeBufferLowKB = 32;
+    public int writeBufferHighKB = 64;
 
     public static ServerConfig load() {
-        Properties p = new Properties();
-        try (InputStream in = ServerConfig.class.getClassLoader().getResourceAsStream("application.properties")) {
-            if (in != null) p.load(in);
-        } catch (IOException e) {
-            // dùng default nếu đọc lỗi
-        }
-        int port = parseIntOrDefault(p.getProperty("server.port"), 8090);
-        int tps = parseIntOrDefault(p.getProperty("server.tps"), 60);
-        int hz  = parseIntOrDefault(p.getProperty("server.snapshot_hz"), 20);
-        return new ServerConfig(port, tps, hz);
+        ObjectMapper om = new ObjectMapper();
+        try {
+            // ưu tiên file ở working dir
+            Path p = Path.of("server-config.json");
+            if (Files.exists(p)) return om.readValue(Files.newInputStream(p), ServerConfig.class);
+            // fallback: resources
+            try (InputStream in = ServerConfig.class.getResourceAsStream("/server-config.json")) {
+                if (in != null) return om.readValue(in, ServerConfig.class);
+            }
+        } catch (Exception ignore) {}
+        return new ServerConfig();
     }
-
-    private static int parseIntOrDefault(String s, int def) {
-        try { return Integer.parseInt(s); } catch (Exception e) { return def; }
-    }
-
-    public int port() { return port; }
-    public int tps() { return tps; }
-    public int snapshotHz() { return snapshotHz; }
 
     @Override public String toString() {
-        return "ServerConfig{port=" + port + ", tps=" + tps + ", snapshotHz=" + snapshotHz + "}";
+        return "ServerConfig{port=%d, tps=%d, snapshotHz=%d, wsPath=%s}".formatted(port,tps,snapshotHz,wsPath);
     }
 }

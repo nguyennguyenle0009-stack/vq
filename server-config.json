@@ -1,0 +1,14 @@
+{
+  "port": 8090,
+  "tps": 60,
+  "snapshotHz": 20,
+  "wsPath": "/ws",
+  "wsMaxFrameKB": 64,
+  "idleSeconds": 45,
+  "checkOrigin": true,
+  "allowedOrigins": ["http://localhost:8080", "http://127.0.0.1:8080"],
+  "tcpNoDelay": true,
+  "soKeepAlive": true,
+  "writeBufferLowKB": 32,
+  "writeBufferHighKB": 64
+}
