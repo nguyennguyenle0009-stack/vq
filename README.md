@@ -136,8 +136,13 @@ server/
 		Client INTERP_DELAY_MS = 100–120 ms (hợp với 20 Hz).
 		Rate-limit input 60/s (đã có).
 		Netty: TCP_NODELAY=true, WRITE_BUFFER_WATER_MARK(32k,64k).
-	
-	
+	Note: Bản này giúp mượt hơn khi có “tụt nhịp” ngắn (GC, spike CPU), nhưng không để server rơi vào vòng bù vô tận.
+
+## 1.0.8
+
+	Protocol sạch hơn: gom message thành DTO ở :common (đang parse kiểu Map), dùng ObjectMapper tái sử dụng.
+
+
 
 # FixBug
 

@@ -2,10 +2,13 @@ package rt.client.net;
 
 import okhttp3.*;
 import okio.ByteString;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import rt.client.model.WorldModel;
+import rt.common.net.Jsons;
+import rt.common.net.dto.*;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -14,90 +17,86 @@ import java.util.function.LongConsumer;
 public class NetClient {
     private final String url;
     private final WorldModel model;
-    private final ObjectMapper OM = new ObjectMapper();
     private WebSocket ws;
+
     private final AtomicInteger seq = new AtomicInteger();
     private volatile int lastAck = 0;
-    private LongConsumer onClientPong;
 
-    public NetClient(String url, WorldModel model) { this.url = url; this.model = model; }
-   
+    private LongConsumer onClientPong; // HUD ping
+    public void setOnClientPong(LongConsumer cb) { this.onClientPong = cb; }
 
-	public void setOnClientPong(LongConsumer cb) { this.onClientPong = cb; }
-	
-	public void sendClientPing(long ns) {
-	    try {
-	        ws.send(OM.writeValueAsString(Map.of("type","cping","ns", ns)));
-	    } catch (Exception e) { e.printStackTrace(); }
-	}
+    public NetClient(String url, WorldModel model) {
+        this.url = url;
+        this.model = model;
+    }
 
     public void connect(String playerName) {
         OkHttpClient http = new OkHttpClient.Builder()
-                .connectTimeout(5, TimeUnit.SECONDS)
-                .readTimeout(0, TimeUnit.MILLISECONDS)
-                .pingInterval(30, TimeUnit.SECONDS)
-                .retryOnConnectionFailure(false)
+                .readTimeout(0, TimeUnit.MILLISECONDS) // WS giữ lâu
                 .build();
 
         Request req = new Request.Builder().url(url).build();
         this.ws = http.newWebSocket(req, new WebSocketListener() {
             @Override public void onOpen(WebSocket webSocket, Response response) {
                 try {
-                    ws.send(OM.writeValueAsString(Map.of("type","hello","name",playerName)));
+                    ws.send(Jsons.OM.writeValueAsString(new HelloC2S(playerName)));
+                    System.out.println("[NET] open, hello sent");
                 } catch (Exception e) { e.printStackTrace(); }
             }
 
             @Override public void onMessage(WebSocket webSocket, String text) {
                 try {
-                    Map<String,Object> root = OM.readValue(text, new TypeReference<Map<String,Object>>(){});
-                    String type = (String) root.get("type");
+                    JsonNode node = Jsons.OM.readTree(text);
+                    String type = node.path("type").asText(null);
+                    if (type == null) return;
+
                     switch (type) {
                         case "hello" -> {
-                            String you = (String) root.get("you");
-                            model.setYou(you);
-                            model.spawnAt(3,3); // vẽ sớm tại (3,3) tiles
+                            HelloS2C msg = Jsons.OM.treeToValue(node, HelloS2C.class);
+                            model.setYou(msg.you());
+                            model.spawnAt(3, 3); // xuất hiện ngay
+                            System.out.println("[NET] hello ok, you=" + msg.you());
                         }
                         case "ack" -> {
-                            int a = ((Number) root.getOrDefault("seq", 0)).intValue();
-                            lastAck = a;
-                            model.onAck(a);
+                            AckS2C a = Jsons.OM.treeToValue(node, AckS2C.class);
+                            lastAck = a.seq();
+                            model.onAck(a.seq());
                         }
                         case "state" -> {
+                            StateS2C st = Jsons.OM.treeToValue(node, StateS2C.class);
+
+                            // Convert sang Map để giữ nguyên WorldModel.applyState(Map<...>) hiện tại
+                            Map<String, Object> entsMap = new HashMap<>();
+                            st.ents().forEach((id, es) ->
+                                    entsMap.put(id, Map.of("x", es.x(), "y", es.y()))
+                            );
+                            Map<String, Object> root = Map.of(
+                                    "type", "state",
+                                    "ts", st.ts(),
+                                    "ents", entsMap
+                            );
                             model.applyState(root);
-                            String you = model.you();
+
+                            // Reconcile YOU
+                            var you = model.you();
                             if (you != null) {
-                                @SuppressWarnings("unchecked")
-                                Map<String, Object> ents = (Map<String, Object>) root.get("ents");
-                                if (ents != null) {
-                                    @SuppressWarnings("unchecked")
-                                    Map<String, Object> me = (Map<String, Object>) ents.get(you);
-                                    if (me != null) {
-                                        double sx = ((Number) me.getOrDefault("x", 0)).doubleValue();
-                                        double sy = ((Number) me.getOrDefault("y", 0)).doubleValue();
-                                        model.reconcileFromServer(sx, sy, lastAck);
-                                    }
-                                }
+                                var me = st.ents().get(you);
+                                if (me != null) model.reconcileFromServer(me.x(), me.y(), lastAck);
                             }
                         }
                         case "ping" -> {
-                            ws.send(OM.writeValueAsString(Map.of("type","pong","ts", System.currentTimeMillis())));
+                            ws.send(Jsons.OM.writeValueAsString(new PongC2S(System.currentTimeMillis())));
                         }
                         case "cpong" -> {
-                            Object ns = root.get("ns");
-                            if (ns instanceof Number n && onClientPong != null) onClientPong.accept(n.longValue());
+                            ClientPongS2C cp = Jsons.OM.treeToValue(node, ClientPongS2C.class);
+                            if (onClientPong != null) onClientPong.accept(cp.ns());
                         }
                         default -> { /* ignore */ }
                     }
                 } catch (Exception e) { e.printStackTrace(); }
             }
 
-            @Override public void onMessage(WebSocket webSocket, ByteString bytes) {}
-            @Override public void onClosed(WebSocket webSocket, int code, String reason) {}
-            @Override public void onFailure(WebSocket webSocket, Throwable t, Response r) {
-                String msg = (r!=null) ? ("HTTP "+r.code()+" "+r.message())
-                        : (t.getClass().getSimpleName()+": "+String.valueOf(t.getMessage()));
-                System.err.println("[NET] fail: " + msg + " url=" + url);
-            }
+            @Override public void onMessage(WebSocket webSocket, ByteString bytes) { /* no-op */ }
         });
     }
 
@@ -106,12 +105,13 @@ public class NetClient {
             int s = seq.incrementAndGet();
             long now = System.currentTimeMillis();
             model.onInputSent(s, up, down, left, right, now);
-            Map<String,Object> msg = Map.of(
-                "type","input",
-                "seq", s,
-                "keys", Map.of("up",up,"down",down,"left",left,"right",right)
-            );
-            ws.send(OM.writeValueAsString(msg));
+            ws.send(Jsons.OM.writeValueAsString(new InputC2S(s, new Keys(up, down, left, right))));
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    public void sendClientPing(long ns) {
+        try {
+            ws.send(Jsons.OM.writeValueAsString(new ClientPingC2S(ns)));
         } catch (Exception e) { e.printStackTrace(); }
     }
 }

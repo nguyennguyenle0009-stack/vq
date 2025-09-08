@@ -1,7 +1,6 @@
 // WsTextHandler.java
 package rt.server.websocket;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -17,6 +16,10 @@ import java.net.SocketException;
 import java.nio.channels.ClosedChannelException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import rt.common.net.Jsons;
+import rt.common.net.dto.*;
 
 public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private static final Logger log = LoggerFactory.getLogger(WsTextHandler.class);
@@ -45,40 +48,45 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame frame) throws Exception {
         String text = frame.text();
-        Map<String, Object> root = OM.readValue(text, new TypeReference<Map<String, Object>>() {});
-        Object to = root.get("type");
-        if (!(to instanceof String type)) { log.warn("missing type"); return; }
+        JsonNode node = Jsons.OM.readTree(text);
+        String type = node.path("type").asText(null);
+        if (type == null) { log.warn("missing type"); return; }
 
         Session s = sessions.byChannel(ctx.channel());
-        if (s == null) { log.warn("no session for channel"); return; }
+        if (s == null) { log.warn("no session"); return; }
 
         switch (type) {
             case "hello" -> {
-                Object name = root.get("name");
-                log.info("hello from {} name={}", s.playerId, name);
-                s.send(Map.of("type", "hello", "you", s.playerId));
+                HelloC2S msg = Jsons.OM.treeToValue(node, HelloC2S.class);
+                log.info("hello from {} name={}", s.playerId, msg.name());
+                s.send(new HelloS2C(s.playerId)); // {"type":"hello","you":...}
             }
             case "input" -> {
-                int seq = ((Number) root.getOrDefault("seq", 0)).intValue();
-                @SuppressWarnings("unchecked")
-                Map<String, Boolean> keys = (Map<String, Boolean>) root.getOrDefault("keys", Map.of());
-                inputs.offer(s.playerId, seq, keys);
-                s.send(Map.of("type", "ack", "seq", seq));
+                InputC2S in = Jsons.OM.treeToValue(node, InputC2S.class);
+                Keys k = in.keys();
+                inputs.offer(s.playerId, in.seq(), Map.of(
+                        "up", k.up(), "down", k.down(), "left", k.left(), "right", k.right()
+                ));
+                s.send(new AckS2C(in.seq()));
             }
-            case "pong" -> {
-                long now = System.currentTimeMillis();
-                long ts = root.get("ts") instanceof Number ? ((Number) root.get("ts")).longValue() : 0L;
-                lastPong.put(s.playerId, now);
-                long rtt = ts > 0 ? now - ts : -1;
-                log.debug("pong {} rtt={}ms", s.playerId, rtt);
-            }
+//            case "ping" -> {
+//                PingS2C pg = Jsons.OM.treeToValue(node, PingS2C.class);
+//                // ✅ echo ts từ server (đừng dùng currentTimeMillis của client)
+//                ws.send(Jsons.OM.writeValueAsString(new PongC2S(pg.ts())));
+//            }
+//            case "cpong" -> {
+//                ClientPongS2C cp = Jsons.OM.treeToValue(node, ClientPongS2C.class);
+//                if (onClientPong != null) onClientPong.accept(cp.ns()); // RTT client-side
+//            }
             case "cping" -> {
-                Object ns = root.get("ns"); // nano của client
-                s.send(Map.of("type","cpong","ns", ns)); // trả nguyên lại ns để client tính RTT
+                ClientPingC2S cp = Jsons.OM.treeToValue(node, ClientPingC2S.class);
+                s.send(new ClientPongS2C(cp.ns())); // trả ns để client đo RTT
             }
             default -> log.warn("unknown type {}", type);
         }
     }
+    
+
 
     // client đóng → dọn dẹp nhẹ nhàng, không in stacktrace khó chịu
     @Override
