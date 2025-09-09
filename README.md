@@ -192,6 +192,12 @@ server/
 	Test đơn vị (JUnit 5) cho core
 		Acceptance: chạy gradlew :server:test pass; có test cho clamp, normalize, reconcile.
 
+## 1.0.14
+
+	Client nhận & vẽ map (tường) từ server
+	HUD hiển thị tick & số entity (bổ sung vào WorldModel + GameCanvas)
+	Dọn log trùng “Server started …”
+
 # FixBug
 
 

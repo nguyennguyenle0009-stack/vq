@@ -10,6 +10,7 @@ import io.netty.handler.timeout.IdleStateHandler;
 import rt.server.config.ServerConfig;
 import rt.server.game.input.InputQueue;
 import rt.server.session.SessionRegistry;
+import rt.server.world.World;
 
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -17,12 +18,14 @@ import java.util.concurrent.TimeUnit;
 public class WsChannelInitializer extends ChannelInitializer<SocketChannel> {
     private final SessionRegistry sessions;
     private final InputQueue inputs;
+    private final World world;
     private final ServerConfig cfg;
 
-    public WsChannelInitializer(SessionRegistry sessions, InputQueue inputs, ServerConfig cfg) {
+    public WsChannelInitializer(SessionRegistry sessions, InputQueue inputs, ServerConfig cfg, World world) {
         this.sessions = sessions;
         this.inputs = inputs;
         this.cfg = cfg;
+        this.world = world;
     }
 
     @Override
@@ -55,6 +58,6 @@ public class WsChannelInitializer extends ChannelInitializer<SocketChannel> {
         p.addLast(new IdleStateHandler(cfg.idleSeconds, 0, 0, TimeUnit.SECONDS));
 
         // Handler nghiệp vụ
-        p.addLast(new WsTextHandler(sessions, inputs));
+        p.addLast(new WsTextHandler(sessions, inputs, world));
     }
 }

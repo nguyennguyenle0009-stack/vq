@@ -11,10 +11,8 @@ import org.slf4j.LoggerFactory;
 import rt.server.game.input.InputQueue;
 import rt.server.session.SessionRegistry;
 import rt.server.session.SessionRegistry.Session;
+import rt.server.world.World;
 
-import java.io.IOException;
-import java.net.SocketException;
-import java.nio.channels.ClosedChannelException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -28,13 +26,15 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
 
     private final SessionRegistry sessions;
     private final InputQueue inputs;
+    private final World world;
 
     // theo dõi heartbeat (không bắt buộc, dùng để debug)
     private final ConcurrentHashMap<String, Long> lastPong = new ConcurrentHashMap<>();
 
-    public WsTextHandler(SessionRegistry sessions, InputQueue inputs) {
+    public WsTextHandler(SessionRegistry sessions, InputQueue inputs, World world) {
         this.sessions = sessions;
         this.inputs = inputs;
+        this.world = world;
     }
 
     @Override
@@ -57,11 +57,15 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
         if (s == null) { log.warn("no session"); return; }
 
         switch (type) {
-            case "hello" -> {
-                HelloC2S msg = Jsons.OM.treeToValue(node, HelloC2S.class);
-                log.info("hello from {} name={}", s.playerId, msg.name());
-                s.send(new HelloS2C(s.playerId)); // {"type":"hello","you":...}
-            }
+	        case "hello" -> {
+	            HelloC2S msg = Jsons.OM.treeToValue(node, HelloC2S.class);
+	            log.info("hello from {} name={}", s.playerId, msg.name());
+	            s.send(new HelloS2C(s.playerId));
+	
+	            // Gửi map một lần sau hello
+	            var m = world.map(); // thêm field world vào WsTextHandler (xem chú thích bên dưới)
+	            s.send(new MapS2C(m.tile, m.w, m.h, m.solidLines()));
+	        }
             case "input" -> {
                 InputC2S in = Jsons.OM.treeToValue(node, InputC2S.class);
                 Keys k = in.keys();
@@ -76,10 +80,7 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                 // lưu metrics nếu cần; ở đây log nhẹ (DEBUG)
                 log.debug("server RTT {} = {} ms", s.playerId, rtt);
             }
-//            case "cpong" -> {
-//                ClientPongS2C cp = Jsons.OM.treeToValue(node, ClientPongS2C.class);
-//                if (onClientPong != null) onClientPong.accept(cp.ns()); // RTT client-side
-//            }
+//          case "cpong" -> { }
             case "cping" -> {
                 ClientPingC2S cp = Jsons.OM.treeToValue(node, ClientPingC2S.class);
                 s.send(new ClientPongS2C(cp.ns())); // echo ns để client tự đo RTT

@@ -6,6 +6,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import static rt.common.game.Units.*;
 
 public class WorldModel {
+	
+    private volatile long lastTick = 0;
+    public long lastTick(){ return lastTick; }
+
+    private volatile MapModel map;
+    public void setMap(MapModel m){ this.map = m; }
+    public MapModel map(){ return map; }
+    
     // ===== Interpolation buffer (đơn vị tile) =====
     public static final class Pos { public double x, y; }
     public static final class Snapshot {
@@ -44,6 +52,8 @@ public class WorldModel {
     public void applyState(Map<String,Object> root){
         Object entsObj = root.get("ents");
         Object tsObj = root.get("ts");
+        Object tickObj = root.get("tick");
+        if (tickObj instanceof Number) lastTick = ((Number) tickObj).longValue();
         if (!(entsObj instanceof Map) || !(tsObj instanceof Number)) return;
         long tsServer = ((Number)tsObj).longValue();
 

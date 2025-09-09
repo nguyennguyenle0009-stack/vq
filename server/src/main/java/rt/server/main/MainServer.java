@@ -19,7 +19,7 @@ public class MainServer {
 	    var inputs   = new InputQueue();
 	    var world    = new World(sessions);
 	    ServerConfig cfg = ServerConfig.load();
-	    var ws = new WsServer(cfg, sessions, inputs);
+	    var ws = new WsServer(cfg, sessions, inputs, world);
 	    
 	    //Log
 	    var base = DesktopDir.resolve().resolve("Vương quyền").resolve("server");
@@ -33,7 +33,7 @@ public class MainServer {
 	    world.setMap(TileMap.loadResource("/maps/test01.json"));
 
 	    org.slf4j.LoggerFactory.getLogger("rt.server").info("Starting with {}", cfg);
-	    System.out.println("Server started at ws://localhost:" + cfg.port +"/ws");
+	    //System.out.println("Server started at ws://localhost:" + cfg.port +"/ws");
 
 	    Thread loop   = new Thread(new GameLoop(world, inputs, cfg.tps), "loop-" + cfg.tps + "tps");
 	    Thread stream = new Thread(new SnapshotStreamer(sessions, world, cfg.snapshotHz), "stream-" + cfg.snapshotHz + "hz");

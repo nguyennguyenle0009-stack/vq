@@ -36,7 +36,18 @@ public class GameCanvas extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         final int w = getWidth(), h = getHeight();
-
+        
+        var mm = model.map();
+        if (mm != null) {
+            g.setColor(new Color(200, 200, 200, 90)); // tường nhạt
+            int T = mm.tile;
+            for (int y = 0; y < mm.h; y++) {
+                for (int x = 0; x < mm.w; x++) {
+                    if (mm.solid[y][x]) g.fillRect(x * T, y * T, T, T);
+                }
+            }
+        }
+        
         // Rebuild grid khi đổi size
         if (gridImg == null || w != gridW || h != gridH) {
             rebuildGrid(w, h);
@@ -78,7 +89,9 @@ public class GameCanvas extends JPanel {
         g2.setColor(Color.WHITE);
         g2.drawString("FPS: " + Math.round(fpsEma), 8, 18);
         if (pingMs >= 0) g2.drawString("Ping: " + pingMs + " ms", 8, 34);
-        g2.drawString("tile=" + TILE + "px; ents=" + model.sampleForRender().size(), 8, h - 8);
+
+        var snap = model.sampleForRender();
+        g2.drawString("tick=" + model.lastTick() + " ents=" + snap.size(), 8, h - 8);
     }
 
     private void rebuildGrid(int w, int h) {

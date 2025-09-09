@@ -66,3 +66,17 @@
 2025-09-09 11:44:01.690 [main] INFO  rt.server.websocket.WsServer - Server started at ws://localhost:8090/ws
 2025-09-09 11:49:33.878 [main] INFO  rt.server.websocket.WsServer - Server started at ws://localhost:8090/ws
 2025-09-09 11:49:33.940 [main] INFO  rt.server - Starting with ServerConfig{port=8090, tps=60, snapshotHz=20, wsPath=/ws}
+2025-09-09 12:22:01.636 [main] INFO  rt.server.websocket.WsServer - Server started at ws://localhost:8090/ws
+2025-09-09 12:22:01.683 [main] INFO  rt.server - Starting with ServerConfig{port=8090, tps=60, snapshotHz=20, wsPath=/ws}
+2025-09-09 12:22:32.141 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel added fd549513
+2025-09-09 12:22:32.385 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - hello from fd549513 name=A
+2025-09-09 12:22:42.453 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 12:22:52.728 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 12:23:02.966 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 12:23:13.229 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 12:23:23.410 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 12:23:33.601 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 12:23:43.788 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 12:23:50.519 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - connection reset fd549513
+2025-09-09 12:23:50.522 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel inactive fd549513
+2025-09-09 12:23:50.523 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel removed fd549513

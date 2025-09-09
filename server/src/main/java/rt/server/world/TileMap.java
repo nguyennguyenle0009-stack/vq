@@ -70,4 +70,15 @@ public class TileMap {
                 s[y][x] = rows[y].charAt(x) == '#';
         return new TileMap(w, h, 32, s);
     }
+    
+    public String[] solidLines() {
+        String[] rows = new String[h];
+        StringBuilder sb = new StringBuilder(w);
+        for (int y = 0; y < h; y++) {
+            sb.setLength(0);
+            for (int x = 0; x < w; x++) sb.append(solid[y][x] ? '#' : '.');
+            rows[y] = sb.toString();
+        }
+        return rows;
+    }
 }
