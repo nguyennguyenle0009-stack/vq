@@ -10,7 +10,6 @@ import rt.server.game.loop.GameLoop;
 import rt.server.game.loop.SnapshotStreamer;
 import rt.server.session.SessionRegistry;
 import rt.server.websocket.WsServer;
-import rt.server.world.TileMap;
 import rt.server.world.World;
 
 public class MainServer {
@@ -28,7 +27,7 @@ public class MainServer {
 	    System.setProperty("LOG_STAMP",
         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss")));
 	    
-	    world.setMap(TileMap.loadResource(cfg.mapResourcePath));
+	    world.setMap(rt.server.world.TiledJsonLoader.loadResource(cfg.mapResourcePath)); // nếu mapResourcePath là .json Tiled
 	    
 	    ws.start();
 

@@ -258,8 +258,10 @@ server/
 			NetClient: nhận “dev_stats”
 			GameCanvas: toggle F4 & vẽ HUD Dev
 			
-			
 ## 1.0.19
+
+	Loader TMX (Tiled) – tuỳ lúc cần (đặt sẵn)
+		loader đọc Tiled JSON (không phải TMX XML) vì Tiled xuất JSON tiện hơn.
 
 ## 1.0.20
 
