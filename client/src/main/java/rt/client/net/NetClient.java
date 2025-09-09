@@ -8,6 +8,7 @@ import rt.common.net.Jsons;
 import rt.common.net.dto.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,6 +17,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongConsumer;
 
 public class NetClient {
+	private static final ObjectMapper OM = new ObjectMapper();
+	
     private final String url;
     private final WorldModel model;
     private WebSocket ws;
@@ -99,11 +102,11 @@ public class NetClient {
                             if (onClientPong != null) onClientPong.accept(cp.ns()); // HUD Ping (client-side)
                         }
                         case "error" -> {
-                            ErrorS2C er = Jsons.OM.treeToValue(node, ErrorS2C.class);
+                            var er = Jsons.OM.treeToValue(node, rt.common.net.dto.ErrorS2C.class);
                             System.out.println("[SERVER ERROR] " + er.code() + ": " + er.message());
                         }
                         case "admin_result" -> {
-                            AdminResultS2C ar = Jsons.OM.treeToValue(node, AdminResultS2C.class);
+                            var ar = Jsons.OM.treeToValue(node, rt.common.net.dto.AdminResultS2C.class);
                             System.out.println("[ADMIN] " + (ar.ok() ? "OK" : "FAIL") + " - " + ar.msg());
                         }
                         default -> { /* ignore */ }
@@ -127,6 +130,14 @@ public class NetClient {
     public void sendClientPing(long ns) {
         try {
             ws.send(Jsons.OM.writeValueAsString(new ClientPingC2S(ns)));
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+    
+    public void sendAdmin(String token, String cmd) {
+        try {
+            ws.send(OM.writeValueAsString(java.util.Map.of(
+                "type","admin","token", token, "cmd", cmd
+            )));
         } catch (Exception e) { e.printStackTrace(); }
     }
 }

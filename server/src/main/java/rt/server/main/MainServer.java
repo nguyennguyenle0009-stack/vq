@@ -18,7 +18,7 @@ public class MainServer {
 	    var sessions = new SessionRegistry();
 	    var inputs   = new InputQueue();
 	    var world    = new World(sessions);
-	    ServerConfig cfg = ServerConfig.load();
+	    var cfg = ServerConfig.load();
 	    var ws = new WsServer(cfg, sessions, inputs, world);
 	    
 	    //Log
@@ -28,9 +28,9 @@ public class MainServer {
 	    System.setProperty("LOG_STAMP",
         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss")));
 	    
-	    ws.start();
-	    
 	    world.setMap(TileMap.loadResource(cfg.mapResourcePath));
+	    
+	    ws.start();
 
 	    org.slf4j.LoggerFactory.getLogger("rt.server").info("Starting with {}", cfg);
 	    //System.out.println("Server started at ws://localhost:" + cfg.port +"/ws");

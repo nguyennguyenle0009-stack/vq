@@ -107,3 +107,31 @@
 2025-09-09 12:56:23.144 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - connection reset 08618095
 2025-09-09 12:56:23.149 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel inactive 08618095
 2025-09-09 12:56:23.150 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel removed 08618095
+2025-09-09 16:43:45.742 [main] INFO  rt.server.websocket.WsServer - Server started at ws://localhost:8090/ws
+2025-09-09 16:43:45.791 [main] INFO  rt.server - Starting with ServerConfig{port=8090, tps=60, snapshotHz=20, wsPath=/ws}
+2025-09-09 16:44:09.363 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel added bbab0be6
+2025-09-09 16:44:09.501 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - hello from bbab0be6 name=A
+2025-09-09 16:44:16.430 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 16:44:26.715 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 16:44:36.985 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 16:44:47.230 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 16:44:57.459 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 16:45:07.672 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 16:45:17.868 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 16:45:28.133 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 16:45:38.392 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 16:45:48.574 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 16:45:58.751 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 16:46:08.950 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 16:46:16.964 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - connection reset bbab0be6
+2025-09-09 16:46:16.971 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel inactive bbab0be6
+2025-09-09 16:46:16.972 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel removed bbab0be6
+2025-09-09 16:51:44.031 [main] INFO  rt.server.websocket.WsServer - Server started at ws://localhost:8090/ws
+2025-09-09 16:51:44.032 [main] INFO  rt.server - Starting with ServerConfig{port=8090, tps=60, snapshotHz=20, wsPath=/ws}
+2025-09-09 16:52:00.607 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel added 0323337f
+2025-09-09 16:52:00.737 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - hello from 0323337f name=A
+2025-09-09 16:52:04.483 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 16:52:14.783 [nioEventLoopGroup-3-1] WARN  rt.server.websocket.WsTextHandler - unknown type pong
+2025-09-09 16:52:19.200 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - connection reset 0323337f
+2025-09-09 16:52:19.203 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel inactive 0323337f
+2025-09-09 16:52:19.203 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel removed 0323337f

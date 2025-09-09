@@ -13,6 +13,8 @@ import java.util.concurrent.TimeUnit;
 
 public class ClientApp {
     public static void main(String[] args) {
+        final String ADMIN_TOKEN = "dev-secret-123"; // đổi nếu đổi trong server-config.json
+    	
         String url = "ws://localhost:8090/ws";
         String name = args.length > 0 ? args[0] : "Player";
 
@@ -41,6 +43,20 @@ public class ClientApp {
         InputState input = new InputState();
         f.addKeyListener(new KeyAdapter() {
             @Override public void keyPressed(KeyEvent e) { input.set(e, true); }
+            @Override public void keyReleased(KeyEvent e) { input.set(e, false); }
+        });
+        f.addKeyListener(new KeyAdapter() {
+            @Override public void keyPressed(KeyEvent e) {
+                switch (e.getKeyCode()) {
+                    case KeyEvent.VK_F1 -> net.sendAdmin(ADMIN_TOKEN, "listSessions");
+                    case KeyEvent.VK_F2 -> {
+                        String you = model.you();
+                        if (you != null) net.sendAdmin(ADMIN_TOKEN, "teleport " + you + " 5 5");
+                    }
+                    case KeyEvent.VK_F3 -> net.sendAdmin(ADMIN_TOKEN, "reloadMap");
+                }
+                input.set(e, true);
+            }
             @Override public void keyReleased(KeyEvent e) { input.set(e, false); }
         });
 
@@ -79,6 +95,7 @@ public class ClientApp {
 
     private static class InputState {
         volatile boolean up, down, left, right;
+        
         void set(KeyEvent e, boolean v) {
             switch (e.getKeyCode()) {
                 case KeyEvent.VK_W, KeyEvent.VK_UP -> up = v;

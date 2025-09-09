@@ -29,24 +29,22 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     private final ConcurrentHashMap<String, Long> lastPong = new ConcurrentHashMap<>();
     
  // Rate-limit input: <= 60 msg/s per player, notify at most 1/sec
-    private static final int INPUT_MAX_PER_SEC = 60;
-    private static final long INPUT_WINDOW_MS = 1000L;
-
+    private static final int  INPUT_MAX_PER_SEC = 60;
+    private static final long INPUT_WINDOW_MS   = 1000L;
     private static final class RL { long winStart; int count; long lastNotify; }
     private final java.util.concurrent.ConcurrentHashMap<String, RL> rl = new java.util.concurrent.ConcurrentHashMap<>();
-
-
+    
     private final SessionRegistry sessions;
     private final InputQueue inputs;
     private final World world;
     private final ServerConfig cfg;
 
     public WsTextHandler(SessionRegistry sessions, InputQueue inputs, World world, ServerConfig cfg) {
-        this.sessions = sessions;
-        this.inputs = inputs;
-        this.world = world;
-        this.cfg = cfg;
-    }
+    	this.sessions = sessions; 
+    	this.inputs = inputs; 
+    	this.world = world; 
+    	this.cfg = cfg;
+}
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) {
@@ -78,46 +76,39 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
 	            s.send(new MapS2C(m.tile, m.w, m.h, m.solidLines()));
 	        }
 	        case "input" -> {
-	            InputC2S in = Jsons.OM.treeToValue(node, InputC2S.class);
-	            if (!allowInputAndMaybeWarn(s.playerId, s)) {
-	                // drop silently (đã báo lỗi ở allowInputAndMaybeWarn)
-	                return;
-	            }
-	            Keys k = in.keys();
-	            inputs.offer(s.playerId, in.seq(), Map.of(
-	                    "up", k.up(), "down", k.down(), "left", k.left(), "right", k.right()
-	            ));
-	            s.send(new AckS2C(in.seq()));
+	            var in = Jsons.OM.treeToValue(node, rt.common.net.dto.InputC2S.class);
+	            if (!allowInputAndMaybeWarn(s.playerId, s)) return; // drop + báo lỗi đã gửi
+	            var k = in.keys();
+	            inputs.offer(s.playerId, in.seq(),
+	                java.util.Map.of("up",k.up(),"down",k.down(),"left",k.left(),"right",k.right()));
+	            s.send(new rt.common.net.dto.AckS2C(in.seq()));
 	        }
+
 	        case "admin" -> {
-	            // Chỉ dùng trong dev; token từ ServerConfig
-	            AdminC2S ad = Jsons.OM.treeToValue(node, AdminC2S.class);
+	            var ad = Jsons.OM.treeToValue(node, rt.common.net.dto.AdminC2S.class);
 	            if (ad.token() == null || !ad.token().equals(cfg.adminToken)) {
-	                s.send(new ErrorS2C("ADMIN_UNAUTHORIZED", "Bad or missing admin token"));
-	                return;
+	                s.send(new rt.common.net.dto.ErrorS2C("ADMIN_UNAUTHORIZED","Bad or missing admin token"));
+	                break;
 	            }
 	            String cmd = ad.cmd() == null ? "" : ad.cmd().trim();
 	            try {
 	                if (cmd.equals("listSessions")) {
 	                    StringBuilder sb = new StringBuilder();
 	                    sessions.all().forEach(x -> sb.append(x.playerId).append(' '));
-	                    s.send(new AdminResultS2C(true, "sessions: " + sb.toString().trim()));
+	                    s.send(new rt.common.net.dto.AdminResultS2C(true, "sessions: " + sb.toString().trim()));
 	                } else if (cmd.startsWith("teleport ")) {
-	                    String[] parts = cmd.split("\\s+");
-	                    if (parts.length != 4) { s.send(new AdminResultS2C(false, "usage: teleport <id> <x> <y>")); break; }
-	                    String id = parts[1];
-	                    double x = Double.parseDouble(parts[2]);
-	                    double y = Double.parseDouble(parts[3]);
-	                    boolean ok = world.teleport(id, x, y);
-	                    s.send(new AdminResultS2C(ok, ok ? "teleported" : "failed (blocked/out-of-bounds)"));
+	                    String[] p = cmd.split("\\s+");
+	                    if (p.length != 4) { s.send(new rt.common.net.dto.AdminResultS2C(false,"usage: teleport <id> <x> <y>")); break; }
+	                    boolean ok = world.teleport(p[1], Double.parseDouble(p[2]), Double.parseDouble(p[3]));
+	                    s.send(new rt.common.net.dto.AdminResultS2C(ok, ok ? "teleported" : "failed (blocked/out-of-bounds)"));
 	                } else if (cmd.equals("reloadMap")) {
 	                    boolean ok = world.reloadMap(cfg.mapResourcePath);
-	                    s.send(new AdminResultS2C(ok, ok ? "map reloaded" : "reload failed"));
+	                    s.send(new rt.common.net.dto.AdminResultS2C(ok, ok ? "map reloaded" : "reload failed"));
 	                } else {
-	                    s.send(new AdminResultS2C(false, "unknown cmd"));
+	                    s.send(new rt.common.net.dto.AdminResultS2C(false, "unknown cmd"));
 	                }
 	            } catch (Exception ex) {
-	                s.send(new AdminResultS2C(false, "error: " + ex.getMessage()));
+	                s.send(new rt.common.net.dto.AdminResultS2C(false, "error: " + ex.getMessage()));
 	            }
 	        }
             case "ping" -> {

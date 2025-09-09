@@ -95,21 +95,17 @@ public class World {
     public boolean teleport(String id, double x, double y) {
         TileMap m = this.map;
         if (x < 0 || y < 0 || x >= m.w || y >= m.h) return false;
-        P p = ensure(id);
         int tx = (int)Math.floor(x), ty = (int)Math.floor(y);
         if (m.blocked(tx, ty)) return false;
+        P p = ensure(id);
         p.x = x; p.y = y;
         sessions.all().forEach(s -> { if (s.playerId.equals(id)) { s.x = x; s.y = y; } });
         return true;
     }
-
+    
     public boolean reloadMap(String resourcePath) {
-        try {
-            setMap(TileMap.loadResource(resourcePath));
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
+        try { setMap(TileMap.loadResource(resourcePath)); return true; }
+        catch (Exception e) { return false; }
     }
 
 }

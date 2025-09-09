@@ -225,6 +225,17 @@ server/
 		Thêm HUD Dev Toggle (F3) để bật/tắt hiển thị: tick, ents, fps, ping, rate-drop count.
 		(Khi cần) loader TMX (Tiled) cho map phức tạp.
 		
+## 1.0.16
+
+	Thêm ErrorS2C cho các lỗi khác: PAYLOAD_TOO_LARGE, BAD_SCHEMA, ORIGIN_FORBIDDEN (nếu check origin bật).
+	Nhẹ nhàng refactor InputQueue để rate-limit nằm trong hàng đợi (thay vì ở handler) nếu bạn muốn tách biệt network & logic.
+	Thêm HUD Dev Toggle (F3) để bật/tắt hiển thị: tick, ents, fps, ping, rate-drop count.
+	(Khi cần) loader TMX (Tiled) cho map phức tạp.
+	Test nhanh
+		Giữ phím di chuyển thật nhanh → mỗi ~1s client sẽ nhận [SERVER ERROR] RATE_LIMIT_INPUT … (không spam), game vẫn mượt.
+		Nhấn F1 → console client: [ADMIN] OK - sessions: …
+		Nhấn F2 → teleport chính mình về (5,5) nếu tile trống
+		Nhấn F3 → reload map từ mapResourcePath		
 		
 
 
