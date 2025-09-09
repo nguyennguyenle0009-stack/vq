@@ -56,6 +56,8 @@ public class WsChannelInitializer extends ChannelInitializer<SocketChannel> {
 
         // (tuỳ chọn) đóng kết nối nếu 45s không có inbound
         p.addLast(new IdleStateHandler(cfg.idleSeconds, 0, 0, TimeUnit.SECONDS));
+        
+        p.addLast(new WsExceptionHandler());
 
         // Handler nghiệp vụ
         p.addLast(new WsTextHandler(sessions, inputs, world, cfg));

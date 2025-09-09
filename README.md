@@ -237,7 +237,13 @@ server/
 		Nhấn F2 → teleport chính mình về (5,5) nếu tile trống
 		Nhấn F3 → reload map từ mapResourcePath		
 		
+## 1.0.17
 
+	Chuẩn hoá Error codes: BAD_SCHEMA, PAYLOAD_TOO_LARGE, ORIGIN_FORBIDDEN, ADMIN_UNAUTHORIZED.
+		common - thêm hằng số mã lỗi
+		server - OriginCheck gửi error & close
+		server – Bắt TooLongFrameException → PAYLOAD_TOO_LARGE
+		server – dùng ErrorCodes trong WsTextHandler
 
 
 

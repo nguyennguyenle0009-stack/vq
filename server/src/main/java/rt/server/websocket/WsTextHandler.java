@@ -18,6 +18,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.fasterxml.jackson.databind.JsonNode;
+
+import rt.common.net.ErrorCodes;
 import rt.common.net.Jsons;
 import rt.common.net.dto.*;
 
@@ -87,7 +89,7 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
 	        case "admin" -> {
 	            var ad = Jsons.OM.treeToValue(node, rt.common.net.dto.AdminC2S.class);
 	            if (ad.token() == null || !ad.token().equals(cfg.adminToken)) {
-	                s.send(new rt.common.net.dto.ErrorS2C("ADMIN_UNAUTHORIZED","Bad or missing admin token"));
+	                s.send(new rt.common.net.dto.ErrorS2C(ErrorCodes.ADMIN_UNAUTHORIZED,"Bad or missing admin token"));
 	                break;
 	            }
 	            String cmd = ad.cmd() == null ? "" : ad.cmd().trim();
@@ -185,7 +187,7 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
         // drop + notify (throttle 1s)
         if (now - r.lastNotify >= 1000L) {
             r.lastNotify = now;
-            s.send(new rt.common.net.dto.ErrorS2C("RATE_LIMIT_INPUT",
+            s.send(new rt.common.net.dto.ErrorS2C(ErrorCodes.RATE_LIMIT_INPUT,
                     "Too many inputs (> " + INPUT_MAX_PER_SEC + "/s). Some inputs are dropped."));
         }
         return false;
