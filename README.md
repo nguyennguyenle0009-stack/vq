@@ -183,6 +183,15 @@ server/
 		Dễ bật/tắt Origin check, đổi watermarks, extensions.
 		Hợp nhất cấu hình vào một nơi (ServerConfig) → sạch & nhất quán.
 
+## 1.0.13
+
+	Chốt protocol + capture state
+		Acceptance: streamer chỉ gọi 1 API world.capture, client nhận ver=1, không còn convert Map thô.
+	Map tile + collision tối thiểu
+		Acceptance: nhân vật không đi xuyên tường, clamp theo map, không còn clamp theo kích thước cửa sổ.
+	Test đơn vị (JUnit 5) cho core
+		Acceptance: chạy gradlew :server:test pass; có test cho clamp, normalize, reconcile.
+
 # FixBug
 
 

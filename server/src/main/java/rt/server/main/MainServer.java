@@ -10,6 +10,7 @@ import rt.server.game.loop.GameLoop;
 import rt.server.game.loop.SnapshotStreamer;
 import rt.server.session.SessionRegistry;
 import rt.server.websocket.WsServer;
+import rt.server.world.TileMap;
 import rt.server.world.World;
 
 public class MainServer {
@@ -28,6 +29,8 @@ public class MainServer {
         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss")));
 	    
 	    ws.start();
+	    
+	    world.setMap(TileMap.loadResource("/maps/test01.json"));
 
 	    org.slf4j.LoggerFactory.getLogger("rt.server").info("Starting with {}", cfg);
 	    System.out.println("Server started at ws://localhost:" + cfg.port +"/ws");

@@ -1,29 +1,44 @@
 package rt.server.world;
 
+import rt.common.net.dto.EntityState;
+import rt.common.net.dto.StateS2C;
 import rt.server.session.SessionRegistry;
-import java.util.Map;
+
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static rt.common.game.Units.*;
-
-/** Server-side authoritative world (đơn vị: TILE). */
+/** Trạng thái game (đơn vị tile). Server là nguồn sự thật. */
 public class World {
     private final SessionRegistry sessions;
 
-    // World size & speed theo đơn vị tile
-    private static final double W = WORLD_W_TILES;
-    private static final double H = WORLD_H_TILES;
-    private static final double SPEED = SPEED_TILES_PER_SEC; // tiles/s
-
+    // Vị trí authoritative của player (đơn vị tile)
     private static final class P { double x, y; }
     private final Map<String, P> players = new ConcurrentHashMap<>();
 
+    // Input “mới nhất” mỗi player (đã chuẩn hoá)
+    private static final class Dir { final double x,y; Dir(double x,double y){this.x=x;this.y=y;} }
+    private final Map<String, Dir> lastInput = new ConcurrentHashMap<>();
+
+    // Tốc độ: tile/giây
+    private static final double SPEED = 3.0;
+
+    // Bản đồ
+    private volatile TileMap map = TileMap.demo();
+
     public World(SessionRegistry sessions) { this.sessions = sessions; }
 
-    private P ensure(String id) {
-        return players.computeIfAbsent(id, k -> { var p = new P(); p.x = 3; p.y = 3; return p; });
+    public void setMap(TileMap m){ this.map = Objects.requireNonNull(m); }
+    public TileMap map(){ return map; }
+
+    private P ensure(String id){
+        return players.computeIfAbsent(id, k -> {
+            P p = new P();
+            p.x = 3; p.y = 3; // spawn mặc định
+            return p;
+        });
     }
 
+    /** Client gửi input → lưu vector chuẩn hoá. */
     public void applyInput(String playerId, boolean up, boolean down, boolean left, boolean right) {
         double vx = (right ? 1 : 0) - (left ? 1 : 0);
         double vy = (down  ? 1 : 0) - (up   ? 1 : 0);
@@ -33,26 +48,47 @@ public class World {
         ensure(playerId); // tạo nếu chưa có
     }
 
-    private static final class Dir { final double x,y; Dir(double x,double y){this.x=x;this.y=y;} }
-    private final Map<String, Dir> lastInput = new ConcurrentHashMap<>();
-
-    /** dt tính bằng giây; cập nhật theo tile. */
+    /** 1 tick logic theo dt (giây). Collision theo tile với sweep trục X rồi Y. */
     public void step(double dt) {
+        TileMap m = this.map;
         lastInput.forEach((id, dir) -> {
             P p = ensure(id);
-            p.x += dir.x * SPEED * dt;
-            p.y += dir.y * SPEED * dt;
-            if (p.x < 0) p.x = 0; if (p.y < 0) p.y = 0;
-            if (p.x > W) p.x = W; if (p.y > H) p.y = H;
-            // (tuỳ chọn) phản chiếu sang Session nếu nơi khác đọc
-            sessions.all().forEach(s -> { if (s.playerId.equals(id)) { s.x = p.x; s.y = p.y; }});
+            double nx = p.x + dir.x * SPEED * dt;
+            double ny = p.y + dir.y * SPEED * dt;
+
+            // Clamp map bounds (điểm player nằm trong map)
+            nx = Math.max(0, Math.min(nx, m.w - 1e-3));
+            ny = Math.max(0, Math.min(ny, m.h - 1e-3));
+
+            // Sweep X
+            int tx = (int)Math.floor(nx);
+            int ty = (int)Math.floor(p.y); // Y tạm giữ
+            if (!m.blocked(tx, ty)) p.x = nx;
+
+            // Sweep Y
+            tx = (int)Math.floor(p.x);
+            ty = (int)Math.floor(ny);
+            if (!m.blocked(tx, ty)) p.y = ny;
+
+            // Phản chiếu sang session (để streamer đọc nếu đang dùng Session.x/y)
+            for (var s : sessions.all()) {
+                if (s.playerId.equals(id)) { s.x = p.x; s.y = p.y; break; }
+            }
         });
     }
 
-    /** Đổ state cho network: x,y theo tile (client sẽ * 32px để vẽ). */
+    /** Ảnh chụp nhất quán cho streamer. */
+    public StateS2C capture(long tick){
+        Map<String, EntityState> ents = new HashMap<>(players.size());
+        players.forEach((id, p) -> ents.put(id, new EntityState(p.x, p.y)));
+        return new StateS2C(tick, System.currentTimeMillis(), ents);
+    }
+
+    // (Giữ nguyên nếu nơi khác đang dùng)
     public void copyForNetwork(Map<String, Map<String, Object>> out) {
-        // bảo đảm ai online cũng có entity
-        sessions.all().forEach(s -> ensure(s.playerId));
         players.forEach((id, p) -> out.put(id, Map.of("x", p.x, "y", p.y)));
     }
+
+    // tiện cho test
+    public double[] pos(String id){ P p = players.get(id); return p==null? null : new double[]{p.x, p.y}; }
 }

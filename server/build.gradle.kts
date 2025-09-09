@@ -6,6 +6,7 @@ dependencies {
     implementation("io.netty:netty-all:4.1.110.Final")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
     runtimeOnly("ch.qos.logback:logback-classic:1.5.6")
+    testImplementation(platform("org.junit:junit-bom:5.10.2"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
 }
 
