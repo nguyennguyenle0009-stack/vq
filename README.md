@@ -197,6 +197,60 @@ server/
 	Client nhận & vẽ map (tường) từ server
 	HUD hiển thị tick & số entity (bổ sung vào WorldModel + GameCanvas)
 	Dọn log trùng “Server started …”
+	
+## 1.0.15
+
+	Mục tiêu:
+		Thêm ErrorS2C (server báo lỗi chuẩn cho client)
+		Admin command tối giản qua WS (token trong config): listSessions, teleport, reloadMap
+		Rate-limit input kèm thông báo lỗi (drop > 60 input/s/người, báo tối đa 1 lần/giây)
+		Bổ sung cấu hình: adminToken, mapResourcePath
+		Trong channelRead0(...) – switch (type)
+			Hello: (giữ như hiện tại) + đã có gửi map ở vòng trước; không đổi.	
+			Input: chèn rate-limit trước khi inputs.offer(...).
+			Admin: parse, check token và thực thi lệnh; trả AdminResultS2C.
+			Bỏ warn cho cpong/pong như trước (đã làm).
+	Test nhanh
+		Rate-limit: giữ phím di chuyển và (tạm) tăng tần suất gửi input ở client lên 10–15ms một lần → console client sẽ nhận error RATE_LIMIT_INPUT ~ mỗi giây một lần (không spam), server vẫn mượt vì drop phần dư.
+		Admin (từ client A):
+		Gửi JSON thủ công (tạm thời): bạn có thể thêm nút dev hoặc dùng tạm ws.send(...) trong client:
+		ws.send(OM.writeValueAsString(Map.of("type","admin","token","dev-secret-123","cmd","listSessions")));
+		ws.send(OM.writeValueAsString(Map.of("type","admin","token","dev-secret-123","cmd","teleport <id> 10 4")));
+		ws.send(OM.writeValueAsString(Map.of("type","admin","token","dev-secret-123","cmd","reloadMap")));
+		Console client sẽ in [ADMIN] OK - ....
+		Map reload: sửa file maps/test01.json (thêm bức tường), gọi reloadMap, kiểm tra va chạm thay đổi ngay (state mới giữ nguyên, chỉ collision thay đổi).
+	bước kế tiếp (sau khi patch này OK)
+		Thêm ErrorS2C cho các lỗi khác: PAYLOAD_TOO_LARGE, BAD_SCHEMA, ORIGIN_FORBIDDEN (nếu check origin bật).
+		Nhẹ nhàng refactor InputQueue để rate-limit nằm trong hàng đợi (thay vì ở handler) nếu bạn muốn tách biệt network & logic.
+		Thêm HUD Dev Toggle (F3) để bật/tắt hiển thị: tick, ents, fps, ping, rate-drop count.
+		(Khi cần) loader TMX (Tiled) cho map phức tạp.
+		
+		
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # FixBug
 

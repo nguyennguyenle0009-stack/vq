@@ -8,6 +8,7 @@ import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import rt.server.config.ServerConfig;
 import rt.server.game.input.InputQueue;
 import rt.server.session.SessionRegistry;
 import rt.server.session.SessionRegistry.Session;
@@ -23,18 +24,28 @@ import rt.common.net.dto.*;
 public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private static final Logger log = LoggerFactory.getLogger(WsTextHandler.class);
     private static final ObjectMapper OM = new ObjectMapper();
+    
+    // theo dõi heartbeat (không bắt buộc, dùng để debug)
+    private final ConcurrentHashMap<String, Long> lastPong = new ConcurrentHashMap<>();
+    
+ // Rate-limit input: <= 60 msg/s per player, notify at most 1/sec
+    private static final int INPUT_MAX_PER_SEC = 60;
+    private static final long INPUT_WINDOW_MS = 1000L;
+
+    private static final class RL { long winStart; int count; long lastNotify; }
+    private final java.util.concurrent.ConcurrentHashMap<String, RL> rl = new java.util.concurrent.ConcurrentHashMap<>();
+
 
     private final SessionRegistry sessions;
     private final InputQueue inputs;
     private final World world;
+    private final ServerConfig cfg;
 
-    // theo dõi heartbeat (không bắt buộc, dùng để debug)
-    private final ConcurrentHashMap<String, Long> lastPong = new ConcurrentHashMap<>();
-
-    public WsTextHandler(SessionRegistry sessions, InputQueue inputs, World world) {
+    public WsTextHandler(SessionRegistry sessions, InputQueue inputs, World world, ServerConfig cfg) {
         this.sessions = sessions;
         this.inputs = inputs;
         this.world = world;
+        this.cfg = cfg;
     }
 
     @Override
@@ -66,14 +77,49 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
 	            var m = world.map(); // thêm field world vào WsTextHandler (xem chú thích bên dưới)
 	            s.send(new MapS2C(m.tile, m.w, m.h, m.solidLines()));
 	        }
-            case "input" -> {
-                InputC2S in = Jsons.OM.treeToValue(node, InputC2S.class);
-                Keys k = in.keys();
-                inputs.offer(s.playerId, in.seq(), Map.of(
-                        "up", k.up(), "down", k.down(), "left", k.left(), "right", k.right()
-                ));
-                s.send(new AckS2C(in.seq()));
-            }
+	        case "input" -> {
+	            InputC2S in = Jsons.OM.treeToValue(node, InputC2S.class);
+	            if (!allowInputAndMaybeWarn(s.playerId, s)) {
+	                // drop silently (đã báo lỗi ở allowInputAndMaybeWarn)
+	                return;
+	            }
+	            Keys k = in.keys();
+	            inputs.offer(s.playerId, in.seq(), Map.of(
+	                    "up", k.up(), "down", k.down(), "left", k.left(), "right", k.right()
+	            ));
+	            s.send(new AckS2C(in.seq()));
+	        }
+	        case "admin" -> {
+	            // Chỉ dùng trong dev; token từ ServerConfig
+	            AdminC2S ad = Jsons.OM.treeToValue(node, AdminC2S.class);
+	            if (ad.token() == null || !ad.token().equals(cfg.adminToken)) {
+	                s.send(new ErrorS2C("ADMIN_UNAUTHORIZED", "Bad or missing admin token"));
+	                return;
+	            }
+	            String cmd = ad.cmd() == null ? "" : ad.cmd().trim();
+	            try {
+	                if (cmd.equals("listSessions")) {
+	                    StringBuilder sb = new StringBuilder();
+	                    sessions.all().forEach(x -> sb.append(x.playerId).append(' '));
+	                    s.send(new AdminResultS2C(true, "sessions: " + sb.toString().trim()));
+	                } else if (cmd.startsWith("teleport ")) {
+	                    String[] parts = cmd.split("\\s+");
+	                    if (parts.length != 4) { s.send(new AdminResultS2C(false, "usage: teleport <id> <x> <y>")); break; }
+	                    String id = parts[1];
+	                    double x = Double.parseDouble(parts[2]);
+	                    double y = Double.parseDouble(parts[3]);
+	                    boolean ok = world.teleport(id, x, y);
+	                    s.send(new AdminResultS2C(ok, ok ? "teleported" : "failed (blocked/out-of-bounds)"));
+	                } else if (cmd.equals("reloadMap")) {
+	                    boolean ok = world.reloadMap(cfg.mapResourcePath);
+	                    s.send(new AdminResultS2C(ok, ok ? "map reloaded" : "reload failed"));
+	                } else {
+	                    s.send(new AdminResultS2C(false, "unknown cmd"));
+	                }
+	            } catch (Exception ex) {
+	                s.send(new AdminResultS2C(false, "error: " + ex.getMessage()));
+	            }
+	        }
             case "ping" -> {
                 PongC2S pg = Jsons.OM.treeToValue(node, PongC2S.class);
                 long rtt = System.currentTimeMillis() - pg.ts();
@@ -136,5 +182,21 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
             return;
         }
         super.userEventTriggered(ctx, evt);
+    }
+    
+    private boolean allowInputAndMaybeWarn(String playerId, SessionRegistry.Session s) {
+        long now = System.currentTimeMillis();
+        RL r = rl.computeIfAbsent(playerId, k -> new RL());
+        if (now - r.winStart >= INPUT_WINDOW_MS) { r.winStart = now; r.count = 0; }
+        r.count++;
+        if (r.count <= INPUT_MAX_PER_SEC) return true;
+
+        // drop + notify (throttle 1s)
+        if (now - r.lastNotify >= 1000L) {
+            r.lastNotify = now;
+            s.send(new rt.common.net.dto.ErrorS2C("RATE_LIMIT_INPUT",
+                    "Too many inputs (> " + INPUT_MAX_PER_SEC + "/s). Some inputs are dropped."));
+        }
+        return false;
     }
 }

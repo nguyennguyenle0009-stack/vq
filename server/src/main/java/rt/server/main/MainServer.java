@@ -30,7 +30,7 @@ public class MainServer {
 	    
 	    ws.start();
 	    
-	    world.setMap(TileMap.loadResource("/maps/test01.json"));
+	    world.setMap(TileMap.loadResource(cfg.mapResourcePath));
 
 	    org.slf4j.LoggerFactory.getLogger("rt.server").info("Starting with {}", cfg);
 	    //System.out.println("Server started at ws://localhost:" + cfg.port +"/ws");

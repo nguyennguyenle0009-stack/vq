@@ -10,5 +10,7 @@
   "tcpNoDelay": true,
   "soKeepAlive": true,
   "writeBufferLowKB": 32,
-  "writeBufferHighKB": 64
+  "writeBufferHighKB": 64,
+  "adminToken": "dev-secret-123",
+  "mapResourcePath": "/maps/test01.json"
 }

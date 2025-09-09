@@ -98,6 +98,14 @@ public class NetClient {
                             ClientPongS2C cp = Jsons.OM.treeToValue(node, ClientPongS2C.class);
                             if (onClientPong != null) onClientPong.accept(cp.ns()); // HUD Ping (client-side)
                         }
+                        case "error" -> {
+                            ErrorS2C er = Jsons.OM.treeToValue(node, ErrorS2C.class);
+                            System.out.println("[SERVER ERROR] " + er.code() + ": " + er.message());
+                        }
+                        case "admin_result" -> {
+                            AdminResultS2C ar = Jsons.OM.treeToValue(node, AdminResultS2C.class);
+                            System.out.println("[ADMIN] " + (ar.ok() ? "OK" : "FAIL") + " - " + ar.msg());
+                        }
                         default -> { /* ignore */ }
                     }
                 } catch (Exception e) { e.printStackTrace(); }

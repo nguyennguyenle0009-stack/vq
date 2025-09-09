@@ -28,6 +28,9 @@ public class ServerConfig {
     public boolean soKeepAlive = true;
     public int writeBufferLowKB = 32;
     public int writeBufferHighKB = 64;
+    
+    public String adminToken = "changeme";        // đổi trong server-config.json để an toàn
+    public String mapResourcePath = "/maps/test01.json";
 
     public static ServerConfig load() {
         ObjectMapper om = new ObjectMapper();

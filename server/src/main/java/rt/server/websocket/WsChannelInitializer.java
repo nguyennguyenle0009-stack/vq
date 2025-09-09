@@ -58,6 +58,6 @@ public class WsChannelInitializer extends ChannelInitializer<SocketChannel> {
         p.addLast(new IdleStateHandler(cfg.idleSeconds, 0, 0, TimeUnit.SECONDS));
 
         // Handler nghiệp vụ
-        p.addLast(new WsTextHandler(sessions, inputs, world));
+        p.addLast(new WsTextHandler(sessions, inputs, world, cfg));
     }
 }
