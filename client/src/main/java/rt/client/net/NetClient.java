@@ -48,7 +48,8 @@ public class NetClient {
                 } catch (Exception e) { e.printStackTrace(); }
             }
 
-            @Override public void onMessage(WebSocket webSocket, String text) {
+            @Override 
+            public void onMessage(WebSocket webSocket, String text) {
                 try {
                     JsonNode node = Jsons.OM.readTree(text);
                     String type = node.path("type").asText(null);
@@ -108,6 +109,10 @@ public class NetClient {
                         case "admin_result" -> {
                             var ar = Jsons.OM.treeToValue(node, rt.common.net.dto.AdminResultS2C.class);
                             System.out.println("[ADMIN] " + (ar.ok() ? "OK" : "FAIL") + " - " + ar.msg());
+                        }
+                        case "dev_stats" -> {
+                            rt.common.net.dto.DevStatsS2C ds = OM.treeToValue(node, rt.common.net.dto.DevStatsS2C.class);
+                            model.applyDevStats(ds.ents(), ds.droppedInputs(), ds.streamerSkips(), ds.writable());
                         }
                         default -> { /* ignore */ }
                     }

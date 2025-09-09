@@ -187,9 +187,11 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
         // drop + notify (throttle 1s)
         if (now - r.lastNotify >= 1000L) {
             r.lastNotify = now;
-            s.send(new rt.common.net.dto.ErrorS2C(ErrorCodes.RATE_LIMIT_INPUT,
-                    "Too many inputs (> " + INPUT_MAX_PER_SEC + "/s). Some inputs are dropped."));
+            s.droppedInputs.incrementAndGet(); //cộng số lần thông báo/giây
+            s.send(new ErrorS2C(ErrorCodes.RATE_LIMIT_INPUT,
+                "Too many inputs (> " + INPUT_MAX_PER_SEC + "/s). Some inputs are dropped."));
         }
         return false;
+
     }
 }

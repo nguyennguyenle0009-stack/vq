@@ -45,6 +45,7 @@ public class ClientApp {
             @Override public void keyPressed(KeyEvent e) { input.set(e, true); }
             @Override public void keyReleased(KeyEvent e) { input.set(e, false); }
         });
+        final boolean[] devHud = {false};
         f.addKeyListener(new KeyAdapter() {
             @Override public void keyPressed(KeyEvent e) {
                 switch (e.getKeyCode()) {
@@ -54,6 +55,7 @@ public class ClientApp {
                         if (you != null) net.sendAdmin(ADMIN_TOKEN, "teleport " + you + " 5 5");
                     }
                     case KeyEvent.VK_F3 -> net.sendAdmin(ADMIN_TOKEN, "reloadMap");
+                    case KeyEvent.VK_F4 -> { devHud[0] = !devHud[0]; panel.setDevHud(devHud[0]); }
                 }
                 input.set(e, true);
             }

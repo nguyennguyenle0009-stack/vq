@@ -18,14 +18,22 @@ public class SessionRegistry {
     public Iterable<Session> all(){ return byId.values(); }
 
     public static class Session {
-        public final Channel ch; public final String playerId;
-        public volatile double x = 100; // server là nguồn sự thật
-		public volatile double y = 100;
-        public Session(Channel ch, String id){ this.ch=ch; this.playerId=id; }
+        public final io.netty.channel.Channel ch;
+        public final String playerId;
+        public volatile double x = 100, y = 100;
+
+        // counters cho HUD
+        public final java.util.concurrent.atomic.AtomicLong droppedInputs = new java.util.concurrent.atomic.AtomicLong();
+        public final java.util.concurrent.atomic.AtomicLong streamerSkips = new java.util.concurrent.atomic.AtomicLong();
+
+        public Session(io.netty.channel.Channel ch, String id){ this.ch=ch; this.playerId=id; }
+
         public void send(Object obj){
-            try { ch.writeAndFlush(new TextWebSocketFrame(OM.writeValueAsString(obj))); }
+            try { ch.writeAndFlush(new io.netty.handler.codec.http.websocketx.TextWebSocketFrame(
+                    rt.common.net.Jsons.OM.writeValueAsString(obj))); }
             catch (Exception e){ e.printStackTrace(); }
         }
     }
+
 }
 

@@ -3,14 +3,10 @@ package rt.server.game.loop;
 import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import rt.common.net.dto.EntityState;
-import rt.common.net.dto.PingS2C;
 import rt.common.net.dto.StateS2C;
 import rt.server.session.SessionRegistry;
 import rt.server.world.World;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -32,14 +28,17 @@ public class SnapshotStreamer implements Runnable {
     }
 
     @Override public void run() {
+    	
         long periodMs = 1000L / hz;
         while (!Thread.currentThread().isInterrupted()) {
             try {
                 StateS2C state = world.capture(++tick);
 
-                sessions.all().forEach(s ->
-                    pending.computeIfAbsent(s.ch, k -> new AtomicReference<>()).set(state)
-                );
+                sessions.all().forEach(s -> {
+                    var ref = pending.computeIfAbsent(s.ch, k -> new java.util.concurrent.atomic.AtomicReference<rt.common.net.dto.StateS2C>());
+                    var prev = ref.getAndSet(state);
+                    if (prev != null) s.streamerSkips.incrementAndGet();
+                });
 
                 sessions.all().forEach(s -> {
                     Channel ch = s.ch;
@@ -51,9 +50,18 @@ public class SnapshotStreamer implements Runnable {
                     }
                 });
 
-                if (tick % (hz * 10) == 0) {
-                    sessions.all().forEach(s -> s.send(new PingS2C(System.currentTimeMillis())));
+                // Sau đoạn gửi state, mỗi 1 giây (tick % hz == 0) gửi DevStatsS2C:
+                if (tick % hz == 0) { // ~1s
+                    int entsCount = state.ents().size();
+                    long ts = System.currentTimeMillis();
+                    sessions.all().forEach(s -> {
+                        boolean writable = s.ch.isWritable();
+                        int dropped = (int) s.droppedInputs.getAndSet(0);   // reset mỗi giây
+                        int skips   = (int) s.streamerSkips.getAndSet(0);   // reset mỗi giây
+                        s.send(new rt.common.net.dto.DevStatsS2C(tick, ts, entsCount, dropped, skips, writable));
+                    });
                 }
+                
                 Thread.sleep(periodMs);
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();

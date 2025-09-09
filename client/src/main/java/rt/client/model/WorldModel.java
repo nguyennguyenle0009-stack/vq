@@ -46,6 +46,21 @@ public class WorldModel {
             this.seq=seq;this.ts=ts;this.up=up;this.down=down;this.left=left;this.right=right;}
     }
     private final Deque<Pending> pending = new ArrayDeque<>();
+    
+    private volatile int serverEnts = -1;
+    private volatile int devDropped = 0, devSkips = 0;
+    private volatile boolean devWritable = true;
+    public int devDropped(){ return devDropped; }
+    public int serverEnts(){ return serverEnts; }
+    public int devSkips(){ return devSkips; }
+    public boolean devWritable(){ return devWritable; }
+    public int pendingSize(){ synchronized (pending) { return pending.size(); } }
+    public void applyDevStats(int ents, int dropped, int skips, boolean writable){
+        this.serverEnts = ents;
+        this.devDropped = dropped;
+        this.devSkips   = skips;
+        this.devWritable = writable;
+    }
 
     /** Nhận state từ server (tile) + đồng bộ clock + ước lượng chu kỳ snapshot. */
     @SuppressWarnings("unchecked")

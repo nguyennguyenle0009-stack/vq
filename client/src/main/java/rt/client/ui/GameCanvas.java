@@ -22,6 +22,9 @@ public class GameCanvas extends JPanel {
     private volatile double fpsEma = 60.0;
     private long lastPaintNs = 0L;
     private volatile long pingMs = -1;
+    
+    private volatile boolean showDev = false;
+    public void setDevHud(boolean v){ showDev = v; }
 
     public GameCanvas(WorldModel model) {
         this.model = model;
@@ -91,7 +94,25 @@ public class GameCanvas extends JPanel {
         if (pingMs >= 0) g2.drawString("Ping: " + pingMs + " ms", 8, 34);
 
         var snap = model.sampleForRender();
+        int entsRender = snap.size();
+        int entsServer = model.serverEnts();
         g2.drawString("tick=" + model.lastTick() + " ents=" + snap.size(), 8, h - 8);
+        
+        if (showDev) {
+            int line = 0;
+            g2.setColor(new Color(0,0,0,170));
+            g2.fillRoundRect(w-240, 8, 232, 104, 12, 12);
+            g2.setColor(Color.GREEN);
+            g2.drawString("DEV HUD", w-230, 24);
+            g2.setColor(Color.WHITE);
+            g2.drawString("tick: " + model.lastTick(),                w-230, 44);
+            g2.drawString("ents(server): " + entsServer,              w-230, 60);
+            g2.drawString("ents(render): " + entsRender,              w-230, 76);
+            g2.drawString("pending inputs: " + model.pendingSize(),   w-230, 92);
+            g2.drawString("dropped inputs: " + model.devDropped(),    w-230, 108);
+            g2.drawString("streamer skips: " + model.devSkips() +
+                          (model.devWritable() ? " (writable)" : " (backpressure)"), w-230, 124);
+        }
     }
 
     private void rebuildGrid(int w, int h) {

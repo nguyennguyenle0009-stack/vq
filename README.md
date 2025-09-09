@@ -244,11 +244,24 @@ server/
 		server - OriginCheck gửi error & close
 		server – Bắt TooLongFrameException → PAYLOAD_TOO_LARGE
 		server – dùng ErrorCodes trong WsTextHandler
+		
+## 1.0.18
 
+	HUD Dev (F4): tick, ents, dropped inputs, streamer skips, pending inputs
+		common – DTO dev stats
+		server – đếm & gửi dev stats
+			Ghi nhận counters trong session
+			Khi rate-limit trong WsTextHandler → tăng counter
+			Đếm streamer skips & gửi DevStatsS2C mỗi giây
+		client – lưu & vẽ HUD Dev (F4)
+			WorldModel: lưu dev stats + expose pending size
+			NetClient: nhận “dev_stats”
+			GameCanvas: toggle F4 & vẽ HUD Dev
+			
+			
+## 1.0.19
 
-
-
-
+## 1.0.20
 
 
 
