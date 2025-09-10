@@ -1,6 +1,16 @@
 <configuration>
+  <!-- Defaults -->
+  <timestamp key="LOG_STAMP" datePattern="yyyy-MM-dd_HH-mm-ss"/>
+  <property name="VQ_LOG_DIR" value="${USER_HOME}/Desktop/Vương quyền/server"/>
 
-  <!-- Mỗi lần chạy tạo 1 file: server\server log <stamp>.txt -->
+  <!-- Console -->
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- File -->
   <appender name="FILE" class="ch.qos.logback.core.FileAppender">
     <file>${VQ_LOG_DIR}/server log ${LOG_STAMP}.txt</file>
     <append>true</append>
@@ -10,32 +20,15 @@
     </encoder>
   </appender>
 
-  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-    <encoder>
-      <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
-    </encoder>
-  </appender>
-  
-  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-    <encoder>
-      <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{20} - %msg%n</pattern>
-    </encoder>
-  </appender>
-
-  <!-- Giảm ồn từ Netty & các lib -->
+  <!-- Giảm ồn -->
   <logger name="io.netty" level="WARN"/>
-  <logger name="org.apache" level="WARN"/>
-  
   <logger name="io.netty.channel.DefaultChannelPipeline" level="ERROR"/>
-  <logger name="io.netty" level="INFO"/>
-  <logger name="rt.server" level="DEBUG"/>
+  <!-- Cho phép xem disconnect ở DEBUG nếu cần -->
+  <logger name="rt.server.websocket.WsExceptionHandler" level="DEBUG"/>
 
+  <!-- Chỉ MỘT root -->
   <root level="INFO">
     <appender-ref ref="STDOUT"/>
     <appender-ref ref="FILE"/>
-  </root>
-  
-  <root level="${LOG_LEVEL}">
-    <appender-ref ref="CONSOLE"/>
   </root>
 </configuration>

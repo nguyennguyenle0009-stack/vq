@@ -176,3 +176,134 @@ java.net.SocketException: Connection reset
 	at java.base/java.lang.Thread.run(Thread.java:833)
 2025-09-09 22:42:57.743 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel inactive eb2051fb
 2025-09-09 22:42:57.743 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel removed eb2051fb
+2025-09-09 22:58:46.593 [main] INFO  rt.server.websocket.WsServer - Server started at ws://localhost:8090/ws
+2025-09-09 22:58:46.596 [main] INFO  rt.server - Starting with ServerConfig{port=8090, tps=60, snapshotHz=20, wsPath=/ws}
+2025-09-09 22:59:03.891 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel added 5233cd1d
+2025-09-09 22:59:04.108 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - hello from 5233cd1d name=A
+2025-09-09 22:59:07.621 [nioEventLoopGroup-3-2] INFO  rt.server.websocket.WsTextHandler - channel added 80591d5a
+2025-09-09 22:59:07.786 [nioEventLoopGroup-3-2] INFO  rt.server.websocket.WsTextHandler - hello from 80591d5a name=B
+2025-09-09 22:59:18.918 [nioEventLoopGroup-3-2] WARN  r.s.websocket.WsExceptionHandler - WS pipeline exception
+java.net.SocketException: Connection reset
+	at java.base/sun.nio.ch.SocketChannelImpl.throwConnectionReset(SocketChannelImpl.java:394)
+	at java.base/sun.nio.ch.SocketChannelImpl.read(SocketChannelImpl.java:426)
+	at io.netty.buffer.PooledByteBuf.setBytes(PooledByteBuf.java:255)
+	at io.netty.buffer.AbstractByteBuf.writeBytes(AbstractByteBuf.java:1132)
+	at io.netty.channel.socket.nio.NioSocketChannel.doReadBytes(NioSocketChannel.java:356)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:151)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:788)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:724)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:650)
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:994)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+2025-09-09 22:59:18.932 [nioEventLoopGroup-3-2] INFO  rt.server.websocket.WsTextHandler - channel inactive 80591d5a
+2025-09-09 22:59:18.932 [nioEventLoopGroup-3-2] INFO  rt.server.websocket.WsTextHandler - channel removed 80591d5a
+2025-09-09 22:59:59.738 [nioEventLoopGroup-3-1] WARN  r.s.websocket.WsExceptionHandler - WS pipeline exception
+java.net.SocketException: Connection reset
+	at java.base/sun.nio.ch.SocketChannelImpl.throwConnectionReset(SocketChannelImpl.java:394)
+	at java.base/sun.nio.ch.SocketChannelImpl.read(SocketChannelImpl.java:426)
+	at io.netty.buffer.PooledByteBuf.setBytes(PooledByteBuf.java:255)
+	at io.netty.buffer.AbstractByteBuf.writeBytes(AbstractByteBuf.java:1132)
+	at io.netty.channel.socket.nio.NioSocketChannel.doReadBytes(NioSocketChannel.java:356)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:151)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:788)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:724)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:650)
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:994)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+2025-09-09 22:59:59.740 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel inactive 5233cd1d
+2025-09-09 22:59:59.740 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel removed 5233cd1d
+2025-09-09 23:01:21.715 [main] INFO  rt.server.websocket.WsServer - Server started at ws://localhost:8090/ws
+2025-09-09 23:01:21.717 [main] INFO  rt.server - Starting with ServerConfig{port=8090, tps=60, snapshotHz=20, wsPath=/ws}
+2025-09-09 23:01:35.443 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel added c7021f38
+2025-09-09 23:01:35.602 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - hello from c7021f38 name=A
+2025-09-09 23:01:55.737 [nioEventLoopGroup-3-1] WARN  r.s.websocket.WsExceptionHandler - WS pipeline exception
+java.net.SocketException: Connection reset
+	at java.base/sun.nio.ch.SocketChannelImpl.throwConnectionReset(SocketChannelImpl.java:394)
+	at java.base/sun.nio.ch.SocketChannelImpl.read(SocketChannelImpl.java:426)
+	at io.netty.buffer.PooledByteBuf.setBytes(PooledByteBuf.java:255)
+	at io.netty.buffer.AbstractByteBuf.writeBytes(AbstractByteBuf.java:1132)
+	at io.netty.channel.socket.nio.NioSocketChannel.doReadBytes(NioSocketChannel.java:356)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:151)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:788)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:724)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:650)
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:994)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+2025-09-09 23:01:55.746 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel inactive c7021f38
+2025-09-09 23:01:55.747 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel removed c7021f38
+2025-09-09 23:03:19.340 [main] INFO  rt.server.websocket.WsServer - Server started at ws://localhost:8090/ws
+2025-09-09 23:03:19.343 [main] INFO  rt.server - Starting with ServerConfig{port=8090, tps=60, snapshotHz=20, wsPath=/ws}
+2025-09-09 23:03:50.634 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel added 0ae1b2b6
+2025-09-09 23:03:50.762 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - hello from 0ae1b2b6 name=A
+2025-09-09 23:04:15.088 [nioEventLoopGroup-3-1] WARN  r.s.websocket.WsExceptionHandler - WS pipeline exception
+java.net.SocketException: Connection reset
+	at java.base/sun.nio.ch.SocketChannelImpl.throwConnectionReset(SocketChannelImpl.java:394)
+	at java.base/sun.nio.ch.SocketChannelImpl.read(SocketChannelImpl.java:426)
+	at io.netty.buffer.PooledByteBuf.setBytes(PooledByteBuf.java:255)
+	at io.netty.buffer.AbstractByteBuf.writeBytes(AbstractByteBuf.java:1132)
+	at io.netty.channel.socket.nio.NioSocketChannel.doReadBytes(NioSocketChannel.java:356)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:151)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:788)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:724)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:650)
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:994)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+2025-09-09 23:04:15.096 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel inactive 0ae1b2b6
+2025-09-09 23:04:15.097 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel removed 0ae1b2b6
+2025-09-10 10:35:05.937 [main] INFO  rt.server.websocket.WsServer - Server started at ws://localhost:8090/ws
+2025-09-10 10:35:05.938 [main] INFO  rt.server - Starting with ServerConfig{port=8090, tps=60, snapshotHz=20, wsPath=/ws}
+2025-09-10 10:35:22.624 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel added cd85209d
+2025-09-10 10:35:22.752 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - hello from cd85209d name=A
+2025-09-10 10:35:46.659 [nioEventLoopGroup-3-1] WARN  r.s.websocket.WsExceptionHandler - WS pipeline exception
+java.net.SocketException: Connection reset
+	at java.base/sun.nio.ch.SocketChannelImpl.throwConnectionReset(SocketChannelImpl.java:394)
+	at java.base/sun.nio.ch.SocketChannelImpl.read(SocketChannelImpl.java:426)
+	at io.netty.buffer.PooledByteBuf.setBytes(PooledByteBuf.java:255)
+	at io.netty.buffer.AbstractByteBuf.writeBytes(AbstractByteBuf.java:1132)
+	at io.netty.channel.socket.nio.NioSocketChannel.doReadBytes(NioSocketChannel.java:356)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:151)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:788)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:724)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:650)
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:994)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+2025-09-10 10:35:46.664 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel inactive cd85209d
+2025-09-10 10:35:46.665 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel removed cd85209d
+2025-09-10 10:38:06.468 [main] INFO  rt.server.websocket.WsServer - Server started at ws://localhost:8090/ws
+2025-09-10 10:38:06.470 [main] INFO  rt.server - Starting with ServerConfig{port=8090, tps=60, snapshotHz=20, wsPath=/ws}
+2025-09-10 10:38:14.321 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel added c0569c30
+2025-09-10 10:38:14.342 [nioEventLoopGroup-3-1] DEBUG rt.server.websocket.WsTextHandler - pipeline names: [HttpServerCodec#0, HttpObjectAggregator#0, OriginCheckHandler#0, io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandshakeHandler, io.netty.handler.codec.http.websocketx.Utf8FrameValidator, WebSocketServerProtocolHandler#0, WebSocketFrameAggregator#0, IdleStateHandler#0, WsExceptionHandler#0, WsTextHandler#0, DefaultChannelPipeline$TailContext#0]
+2025-09-10 10:38:14.436 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - hello from c0569c30 name=A
+2025-09-10 10:38:56.049 [nioEventLoopGroup-3-1] WARN  r.s.websocket.WsExceptionHandler - WS pipeline exception
+java.net.SocketException: Connection reset
+	at java.base/sun.nio.ch.SocketChannelImpl.throwConnectionReset(SocketChannelImpl.java:394)
+	at java.base/sun.nio.ch.SocketChannelImpl.read(SocketChannelImpl.java:426)
+	at io.netty.buffer.PooledByteBuf.setBytes(PooledByteBuf.java:255)
+	at io.netty.buffer.AbstractByteBuf.writeBytes(AbstractByteBuf.java:1132)
+	at io.netty.channel.socket.nio.NioSocketChannel.doReadBytes(NioSocketChannel.java:356)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:151)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:788)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:724)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:650)
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:994)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+2025-09-10 10:38:56.054 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel inactive c0569c30
+2025-09-10 10:38:56.055 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel removed c0569c30

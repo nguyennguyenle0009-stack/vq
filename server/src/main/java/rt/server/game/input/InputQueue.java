@@ -19,7 +19,6 @@ public class InputQueue {
     private static final long MIN_INTERVAL_NS = 16_000_000L;
     private final ConcurrentHashMap<String, Long> lastAcceptNs = new ConcurrentHashMap<>();
 
-    @SuppressWarnings("unchecked")
     public void offer(String playerId, int seq, Map<String, Boolean> keys) {
         if (playerId == null || keys == null) return;
 

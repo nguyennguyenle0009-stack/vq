@@ -133,23 +133,18 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     // client đóng → dọn dẹp nhẹ nhàng, không in stacktrace khó chịu
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        String cid = ctx.channel().id().asShortText();
-        String msg = cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage();
-
-        // Nhóm lỗi phổ biến khi client đóng đột ngột
-        if (cause instanceof java.net.SocketException && "Connection reset".equalsIgnoreCase(msg)) {
-            log.info("connection reset {}", cid);
-        } else if (cause instanceof io.netty.handler.codec.CorruptedFrameException) {
-            log.warn("bad websocket frame {}: {}", cid, msg); // không in full stack
-        } else if (cause instanceof io.netty.handler.codec.TooLongFrameException) {
-            log.warn("frame too large {}: {}", cid, msg);     // bị chặn bởi maxFramePayloadLength
-        } else {
-            // Chỉ in stacktrace khi DEBUG, còn lại log ngắn gọn
-            if (log.isDebugEnabled()) log.debug("ws error " + cid, cause);
-            else log.warn("ws error {}: {}", cid, msg);
-        }
-        ctx.close();
+      String msg = String.valueOf(cause.getMessage()); String low = msg==null? "": msg.toLowerCase();
+      boolean benign = cause instanceof java.net.SocketException
+                    || cause instanceof java.nio.channels.ClosedChannelException
+                    || (cause instanceof java.io.IOException
+                        && (low.contains("connection reset") || low.contains("by peer")
+                            || low.contains("forcibly closed") || low.contains("broken pipe")));
+      if (benign) { if (log.isDebugEnabled()) log.debug("client disconnected: {}", msg); ctx.close(); return; }
+      if (cause instanceof io.netty.handler.codec.TooLongFrameException) { ctx.close(); return; }
+      if (cause instanceof io.netty.handler.codec.http.websocketx.CorruptedWebSocketFrameException) { ctx.close(); return; }
+      log.warn("WS pipeline exception", cause); ctx.close();
     }
+
 
 
     @Override
@@ -192,6 +187,15 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                 "Too many inputs (> " + INPUT_MAX_PER_SEC + "/s). Some inputs are dropped."));
         }
         return false;
-
+    }
+    
+    //bổ sung debug sau khi channel active để liệt kê pipeline
+    @Override 
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        if (org.slf4j.LoggerFactory.getLogger(getClass()).isDebugEnabled()) {
+            org.slf4j.LoggerFactory.getLogger(getClass())
+                .debug("pipeline names: {}", ctx.pipeline().names());
+        }
+        super.channelActive(ctx);
     }
 }

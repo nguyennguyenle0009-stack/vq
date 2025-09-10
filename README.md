@@ -66,6 +66,11 @@ server/
 
 	in ra file log nếu gặp lỗi log failed to connect ....\Desktop\Vương quyền\....
 	
+	Nhấn F1 → console client: [ADMIN] OK - sessions: …
+	Nhấn F2 → teleport chính mình về (5,5) nếu tile trống
+	Nhấn F3 → reload map từ mapResourcePath	
+    Nhấn F4 → hiện Dev HUD
+	
 ## Server
 	
 # chạy server
