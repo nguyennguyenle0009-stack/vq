@@ -20,20 +20,12 @@ import java.util.concurrent.TimeUnit;
 
 public class ClientApp {
     public static void main(String[] args) throws IOException {
-        Path logDir = LogDirs.ensureDesktopSubdir("Vương quyền", "client", "VQ_LOG_DIR");
-        System.out.println("[client] log dir = " + logDir);
-        
         final String ADMIN_TOKEN = "dev-secret-123"; // đổi nếu đổi trong server-config.json
     	
         String url = "ws://localhost:8090/ws";
         String name = args.length > 0 ? args[0] : "Player";
         
-        String logDirProp = System.getProperty("VQ_LOG_DIR");
-        if (logDirProp == null || logDirProp.isBlank()) {
-            var p = java.nio.file.Paths.get(System.getProperty("user.home"), "Desktop", "Vương quyền", "client");
-            try { java.nio.file.Files.createDirectories(p); } catch (Exception ignored) {}
-            System.setProperty("VQ_LOG_DIR", p.toString());
-        }
+        org.slf4j.MDC.put("player", name);
         
         //Log
         Path base = DesktopDir.resolve().resolve("Vương quyền").resolve("client").resolve(name);
@@ -43,7 +35,7 @@ public class ClientApp {
             LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss")));
         System.setProperty("playerName", name);
 
-        org.slf4j.MDC.put("player", name);
+
 
         WorldModel model = new WorldModel();
         NetClient net = new NetClient(url, model);

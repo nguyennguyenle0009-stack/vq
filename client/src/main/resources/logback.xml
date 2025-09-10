@@ -1,5 +1,5 @@
 <configuration>
-  <statusListener class="ch.qos.logback.core.status.OnConsoleStatusListener"/>
+  <!-- <statusListener class="ch.qos.logback.core.status.OnConsoleStatusListener"/> -->
 
   <timestamp key="LOG_STAMP" datePattern="yyyy-MM-dd_HH-mm-ss"/>
   <property name="VQ_LOG_DIR" value="${VQ_LOG_DIR:-${user.home}/Desktop/Vương quyền/client}"/>

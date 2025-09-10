@@ -271,7 +271,8 @@ server/
 	fixbug: Connection reset tắt client đột ngột 
 
 ## 1.0.20
-
+	
+	Tách Netty dependency: thay netty-all bằng netty-handler, netty-codec-http, netty-transport, netty-buffer.
 
 
 

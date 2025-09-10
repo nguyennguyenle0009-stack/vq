@@ -17,21 +17,12 @@ import rt.server.world.World;
 
 public class MainServer {
 	public static void main(String[] args) throws Exception {
-        Path logDir = LogDirs.ensureDesktopSubdir("Vương quyền", "server", "VQ_LOG_DIR");
-        System.out.println("[server] log dir = " + logDir);
 		
 	    var sessions = new SessionRegistry();
 	    var inputs   = new InputQueue();
 	    var world    = new World(sessions);
 	    var cfg = ServerConfig.load();
 	    var ws = new WsServer(cfg, sessions, inputs, world);
-	    
-	    String logDirProp = System.getProperty("VQ_LOG_DIR");
-	    if (logDirProp == null || logDirProp.isBlank()) {
-	        var p = java.nio.file.Paths.get(System.getProperty("user.home"), "Desktop", "Vương quyền", "server");
-	        try { java.nio.file.Files.createDirectories(p); } catch (Exception ignored) {}
-	        System.setProperty("VQ_LOG_DIR", p.toString());
-	    }
 	    
 	    //Log
 	    var base = DesktopDir.resolve().resolve("Vương quyền").resolve("server");
