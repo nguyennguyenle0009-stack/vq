@@ -267,6 +267,8 @@ server/
 
 	Loader TMX (Tiled) – tuỳ lúc cần (đặt sẵn)
 		loader đọc Tiled JSON (không phải TMX XML) vì Tiled xuất JSON tiện hơn.
+		
+	fixbug: Connection reset tắt client đột ngột 
 
 ## 1.0.20
 
