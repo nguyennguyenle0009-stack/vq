@@ -1,10 +1,9 @@
 <configuration>
-  <!-- Cho biết lỗi cấu hình nếu có -->
   <statusListener class="ch.qos.logback.core.status.OnConsoleStatusListener"/>
 
-  <!-- Nếu code chưa set, vẫn có mặc định về Desktop -->
+  <!-- Có thể thiếu (khi đó fallback sẽ dùng LOG_STAMP_IS_UNDEFINED) -->
   <timestamp key="LOG_STAMP" datePattern="yyyy-MM-dd_HH-mm-ss"/>
-  <property name="VQ_LOG_DIR" value="${user.home}/Desktop/Vương quyền/server"/>
+  <property name="VQ_LOG_DIR" value="${VQ_LOG_DIR:-${user.home}/Desktop/Vương quyền/server}"/>
 
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
@@ -13,7 +12,7 @@
   </appender>
 
   <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-    <file>${VQ_LOG_DIR}/server log ${LOG_STAMP}.txt</file>
+    <file>${VQ_LOG_DIR}/server log ${LOG_STAMP:-LOG_STAMP_IS_UNDEFINED}.txt</file>
     <append>true</append>
     <encoder>
       <charset>UTF-8</charset>
@@ -26,6 +25,7 @@
   <logger name="io.netty.channel.DefaultChannelPipeline" level="ERROR"/>
   <logger name="rt.server.websocket.WsExceptionHandler" level="DEBUG"/>
 
+  <!-- CHỈ MỘT root -->
   <root level="INFO">
     <appender-ref ref="STDOUT"/>
     <appender-ref ref="FILE"/>

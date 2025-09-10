@@ -3,20 +3,47 @@ package rt.client.app;
 import rt.client.model.WorldModel;
 import rt.client.net.NetClient;
 import rt.client.ui.GameCanvas;
+import rt.common.util.DesktopDir;
+import rt.common.util.LogDirs;
 
 import javax.swing.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class ClientApp {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
+        Path logDir = LogDirs.ensureDesktopSubdir("Vương quyền", "client", "VQ_LOG_DIR");
+        System.out.println("[client] log dir = " + logDir);
+        
         final String ADMIN_TOKEN = "dev-secret-123"; // đổi nếu đổi trong server-config.json
     	
         String url = "ws://localhost:8090/ws";
         String name = args.length > 0 ? args[0] : "Player";
+        
+        String logDirProp = System.getProperty("VQ_LOG_DIR");
+        if (logDirProp == null || logDirProp.isBlank()) {
+            var p = java.nio.file.Paths.get(System.getProperty("user.home"), "Desktop", "Vương quyền", "client");
+            try { java.nio.file.Files.createDirectories(p); } catch (Exception ignored) {}
+            System.setProperty("VQ_LOG_DIR", p.toString());
+        }
+        
+        //Log
+        Path base = DesktopDir.resolve().resolve("Vương quyền").resolve("client").resolve(name);
+        Files.createDirectories(base);
+        System.setProperty("VQ_LOG_DIR", base.toString());
+        System.setProperty("LOG_STAMP",
+            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss")));
+        System.setProperty("playerName", name);
+
+        org.slf4j.MDC.put("player", name);
 
         WorldModel model = new WorldModel();
         NetClient net = new NetClient(url, model);

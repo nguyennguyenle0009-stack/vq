@@ -1,7 +1,0 @@
-2025-09-10 11:54:54.477 [main] INFO  rt.server.websocket.WsServer - Server started at ws://localhost:8090/ws
-2025-09-10 11:54:54.478 [main] INFO  rt.server - Starting with ServerConfig{port=8090, tps=60, snapshotHz=20, wsPath=/ws}
-2025-09-10 11:55:18.059 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel added 7da49135
-2025-09-10 11:55:18.206 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - hello from 7da49135 name=A
-2025-09-10 11:55:29.961 [nioEventLoopGroup-3-1] DEBUG r.s.websocket.WsExceptionHandler - client disconnected: ch=7da49135 msg=Connection reset
-2025-09-10 11:55:29.964 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel inactive 7da49135
-2025-09-10 11:55:29.965 [nioEventLoopGroup-3-1] INFO  rt.server.websocket.WsTextHandler - channel removed 7da49135
