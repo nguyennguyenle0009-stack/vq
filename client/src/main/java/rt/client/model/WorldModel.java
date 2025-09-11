@@ -5,6 +5,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static rt.common.game.Units.*;
 
+import rt.common.dto.StateS2C;
+
 public class WorldModel {
 	
     private volatile long lastTick = 0;
@@ -47,19 +49,59 @@ public class WorldModel {
     }
     private final Deque<Pending> pending = new ArrayDeque<>();
     
-    private volatile int serverEnts = -1;
-    private volatile int devDropped = 0, devSkips = 0;
-    private volatile boolean devWritable = true;
-    public int devDropped(){ return devDropped; }
-    public int serverEnts(){ return serverEnts; }
-    public int devSkips(){ return devSkips; }
+    // ===== Dev HUD metrics =====
+    private volatile int devDroppedInputs, devStreamerSkips, devEntsServer;
+    private volatile boolean devWritable;
+    private volatile double pingMs = 0;
+
+    public void setPingMs(double v){ pingMs = v; }
+    public double pingMs(){ return pingMs; }
+    public int devDroppedInputs(){ return devDroppedInputs; }
+    public int devStreamerSkips(){ return devStreamerSkips; }
     public boolean devWritable(){ return devWritable; }
-    public int pendingSize(){ synchronized (pending) { return pending.size(); } }
-    public void applyDevStats(int ents, int dropped, int skips, boolean writable){
-        this.serverEnts = ents;
-        this.devDropped = dropped;
-        this.devSkips   = skips;
+    public int devEntsServer(){ return devEntsServer; }
+    public int pendingSize(){ return pending.size(); }
+    public int lastAck(){ return pending.isEmpty()? 0 : pending.peekLast().seq; }
+    public long renderTickEstimate(){
+        synchronized (buffer){
+            if (buffer.isEmpty()) return 0;
+            // ước lượng tick theo chu kỳ snapshot ~20Hz (tuỳ config server)
+            return buffer.peekLast().ts / 50L;
+        }
+    }
+    public void applyDevStats(int droppedInputs, int streamerSkips, boolean writable, int entsServer){
+        this.devDroppedInputs = droppedInputs;
+        this.devStreamerSkips = streamerSkips;
         this.devWritable = writable;
+        this.devEntsServer = entsServer;
+    }
+    
+    /** Nhận state từ DTO (server → client). */
+    public void applyStateDTO(StateS2C st){
+        long tsServer = st.ts();
+        // ---- clock sync (EMA)
+        long now = System.currentTimeMillis();
+        double sampleOffset = tsServer - now; // server - client
+        if (!hasOffset) { offsetMs = sampleOffset; hasOffset = true; }
+        else            { offsetMs = offsetMs + (sampleOffset - offsetMs)*OFFSET_ALPHA; }
+
+        Map<String,Pos> ents = new HashMap<>();
+        if (st.ents()!=null) {
+            st.ents().forEach((id, es) -> {
+                Pos p = new Pos(); p.x = es.x(); p.y = es.y();
+                ents.put(id, p);
+            });
+        }
+
+        synchronized (buffer){
+            if (!buffer.isEmpty()) {
+                long prev = buffer.peekLast().ts;
+                long dt = Math.max(50, Math.min(200, tsServer - prev)); // clamp 50..200ms
+                interpDelayMs = Math.round(interpDelayMs*0.85 + dt*0.15); // smooth
+            }
+            buffer.addLast(new Snapshot(tsServer, ents));
+            while (buffer.size() > MAX_BUF) buffer.removeFirst();
+        }
     }
 
     /** Nhận state từ server (tile) + đồng bộ clock + ước lượng chu kỳ snapshot. */
@@ -204,4 +246,6 @@ public class WorldModel {
         buffer.addLast(new Snapshot(now, ents));
         while (buffer.size() > MAX_BUF) buffer.removeFirst();
     }
+    
+    
 }

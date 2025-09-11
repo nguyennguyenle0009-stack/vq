@@ -95,7 +95,7 @@ public class GameCanvas extends JPanel {
 
         var snap = model.sampleForRender();
         int entsRender = snap.size();
-        int entsServer = model.serverEnts();
+        int entsServer = model.devEntsServer();
         g2.drawString("tick=" + model.lastTick() + " ents=" + snap.size(), 8, h - 8);
         
         if (showDev) {
@@ -109,8 +109,8 @@ public class GameCanvas extends JPanel {
             g2.drawString("ents(server): " + entsServer,              w-230, 60);
             g2.drawString("ents(render): " + entsRender,              w-230, 76);
             g2.drawString("pending inputs: " + model.pendingSize(),   w-230, 92);
-            g2.drawString("dropped inputs: " + model.devDropped(),    w-230, 108);
-            g2.drawString("streamer skips: " + model.devSkips() +
+            g2.drawString("dropped inputs: " + model.devDroppedInputs(),    w-230, 108);
+            g2.drawString("streamer skips: " + model.devStreamerSkips() +
                           (model.devWritable() ? " (writable)" : " (backpressure)"), w-230, 124);
         }
     }

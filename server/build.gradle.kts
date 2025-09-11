@@ -1,4 +1,7 @@
-plugins { application }
+plugins { 
+	application 
+	id("com.github.johnrengelman.shadow") version "8.1.1"
+}
 
 dependencies {
 
@@ -19,4 +22,9 @@ dependencies {
 
 application {
     mainClass.set("rt.server.main.MainServer")
+}
+
+tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
+    archiveClassifier.set("all")
+    mergeServiceFiles()
 }

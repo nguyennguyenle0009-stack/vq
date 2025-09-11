@@ -1,0 +1,26 @@
+Cách áp dụng:
+
+Mở terminal ở thư mục gốc dự án (nơi có client/, server/, common/).
+
+Lưu nội dung dưới đây thành file vq-bundle.patch.
+
+Chạy:
+
+git apply --whitespace=fix vq-bundle.patch
+./gradlew clean build
+./gradlew :server:shadowJar
+
+
+Chạy server nhanh:
+
+scripts/run-server.bat   # Windows
+# hoặc
+chmod +x scripts/run-server.sh && scripts/run-server.sh
+
+
+Chạy client:
+
+./gradlew :client:run --args="PlayerA"
+
+
+Nhấn F4 để bật/tắt HUD (FPS, ping, tick render, ents server/render, pending, dropped, streamer skips, writable).

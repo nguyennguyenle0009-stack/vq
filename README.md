@@ -274,7 +274,28 @@ server/
 	
 	Tách Netty dependency: thay netty-all bằng netty-handler, netty-codec-http, netty-transport, netty-buffer.
 
+## 1.0.21
 
+	Mục tiêu, 
+		DTO-first ở client (bỏ Map tạm trong onMessage) → sạch schema, ít bug.
+		Tests cho prediction/reconcile, rate-limit, streamer backpressure.
+		CI GitHub Actions (JDK 17) để PR nào cũng build/test tự động.
+		Fat-jar server + script chạy nhanh (scripts/run-server.(bat|sh)).
+		Dev HUD (F4) hiển thị đầy đủ: tick, ents(server/render), pending, dropped, streamer skips, writable.
+
+	Cách test, và thay đổi hành vi
+		DTO-first ở client:
+			Client không còn parse Map thô trong onMessage, mà dùng các DTO (HelloS2C, StateS2C, …). Điều này giảm bug schema và dễ đọc code hơn. Server của bạn đang gửi các kiểu hello/state/ack/ping/dev_stats → client parse khớp.
+			Test: chạy ./gradlew :client:test và :client:run --args="A" → nhân vật vẫn di chuyển như trước; mọi thứ mượt như cũ.
+		Dev HUD (F4):
+			Nhấn F4 để xem ô HUD: FPS, Ping, Tick(render est), Ents(server/render), Pending, Dropped, Streamer skips, Writable.
+			Test: bật/tắt F4 khi đang chơi; tắt/đổi focus cửa sổ để thấy FPS thay đổi; nếu server gửi dev_stats, HUD sẽ hiện đầy đủ.
+		Tests:
+			WorldPredictionTest kiểm chứng dự đoán client + reconcile.
+			StreamerBackpressureTest xác minh triết lý “giữ state mới nhất” (last-write-wins) bằng slot AtomicReference.
+			RateLimitSketchTest là phác thảo; nếu InputQueue đã có counter, bạn có thể đổi test trỏ trực tiếp InputQueue sau (hiện tại không phá build).
+		CI: Mọi PR/commit lên main sẽ build/test với JDK 17 tự động (Ubuntu runners).
+		Fat-jar & scripts: Tạo file server-all.jar để chạy server nhanh bằng .bat/.sh. Không ảnh hưởng IDE hay lệnh Gradle thường.
 
 
 

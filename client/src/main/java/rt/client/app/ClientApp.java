@@ -3,6 +3,7 @@ package rt.client.app;
 import rt.client.model.WorldModel;
 import rt.client.net.NetClient;
 import rt.client.ui.GameCanvas;
+import rt.client.ui.HudOverlay;
 import rt.common.util.DesktopDir;
 import rt.common.util.LogDirs;
 
@@ -48,6 +49,20 @@ public class ClientApp {
         f.setLocationRelativeTo(null);
         f.setContentPane(panel);
         f.setVisible(true);
+        
+        // HUD dev (F4)
+        HudOverlay hud = new HudOverlay(model);
+        JLayeredPane layers = f.getLayeredPane();
+        hud.setBounds(0,0,f.getWidth(),f.getHeight());
+        layers.add(hud, JLayeredPane.PALETTE_LAYER);
+        f.addComponentListener(new java.awt.event.ComponentAdapter(){
+            @Override public void componentResized(java.awt.event.ComponentEvent e){ hud.setBounds(0,0,f.getWidth(),f.getHeight()); }
+        });
+        f.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(KeyStroke.getKeyStroke("F4"), "toggleHud");
+        f.getRootPane().getActionMap().put("toggleHud", new AbstractAction() {
+            @Override public void actionPerformed(java.awt.event.ActionEvent e) { hud.setVisible(!hud.isVisible()); }
+        });
 
         // Ping HUD (client-side RTT)
         net.setOnClientPong(ns -> {
