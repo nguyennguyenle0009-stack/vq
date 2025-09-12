@@ -2,7 +2,7 @@ package rt.common.net.dto;
 
 import java.util.Map;
 
-public record StateS2C(String type, int ver, long tick, long ts, Map<String, EntityState> ents) {
+public record StateS2C(String type, int ver, long tick, long ts, Map<String, EntityState> ents) implements Msg {
     // constructor “chuẩn” với version
     public StateS2C(long tick, long ts, Map<String, EntityState> ents) {
         this("state", 1, tick, ts, ents);

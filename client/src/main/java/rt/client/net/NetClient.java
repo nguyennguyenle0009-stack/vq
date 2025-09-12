@@ -2,12 +2,9 @@ package rt.client.net;
 
 import okhttp3.*;
 import okio.ByteString;
-import rt.client.model.MapModel;
 import rt.client.model.WorldModel;
-
-import rt.common.dto.*;
-import rt.common.json.Jsons;
-import rt.common.net.dto.ClientPingC2S;
+import rt.common.net.Jsons;
+import rt.common.net.dto.*;
 
 import org.slf4j.Logger; 
 import org.slf4j.LoggerFactory;
@@ -15,7 +12,6 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -171,7 +167,7 @@ public class NetClient {
         try {
         	int s = seq.incrementAndGet();
         	model.onInputSent(s, up,down,left,right, System.currentTimeMillis());
-        	var msg = new InputC2S("input", s, new InputC2S.Keys(up,down,left,right));
+        	var msg = new InputC2S("input", s, new Keys(up,down,left,right));
         	ws.send(Jsons.OM.writeValueAsString(msg));
         } catch (Exception e) { e.printStackTrace(); }
     }

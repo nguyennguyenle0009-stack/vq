@@ -3,9 +3,10 @@ package rt.client.model;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import rt.common.net.dto.StateS2C;
+
 import static rt.common.game.Units.*;
 
-import rt.common.dto.StateS2C;
 
 public class WorldModel {
 	
