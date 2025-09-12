@@ -4,6 +4,7 @@ import rt.client.net.NetClient;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
+// deprecated, superseded by NetClient cping/cpong
 /** Chủ động ping server mỗi 1s bằng nanoTime, đo RTT chính xác trên client. */
 public final class PingMonitor {
     private final NetClient net;

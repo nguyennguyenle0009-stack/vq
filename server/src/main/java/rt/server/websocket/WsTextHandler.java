@@ -119,10 +119,22 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                 // lưu metrics nếu cần; ở đây log nhẹ (DEBUG)
                 log.debug("server RTT {} = {} ms", s.playerId, rtt);
             }
-//          case "cpong" -> { }
+            case "cpong" -> { }
             case "cping" -> {
-                ClientPingC2S cp = Jsons.OM.treeToValue(node, ClientPingC2S.class);
-                s.send(new ClientPongS2C(cp.ns())); // echo ns để client tự đo RTT
+            	// Chưa có Dto
+            	Map<String,Object> root = OM.readValue(text,
+            		    new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){});
+            	
+                // Ưu tiên echo lại nanoTime nếu client gửi "ns"
+                Object ns = root.get("ns");
+                if (ns instanceof Number n) {
+                    long v = n.longValue();
+                    s.send(Map.of("type", "cpong", "ns", v));
+                } else {
+                    // fallback: echo lại millisecond "ts"
+                    long ts = ((Number) root.getOrDefault("ts", System.currentTimeMillis())).longValue();
+                    s.send(Map.of("type", "cpong", "ts", ts));
+                }
             }
             default -> log.warn("unknown type {}", type);
         }

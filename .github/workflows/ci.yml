@@ -12,5 +12,5 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
-      - run: chmod x gradlew
+      - run: chmod +x gradlew
       - run: ./gradlew --no-daemon --stacktrace clean build

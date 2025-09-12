@@ -37,6 +37,9 @@ public class NetClient {
     private LongConsumer onClientPong; // HUD ping
     private ScheduledExecutorService pinger;
     public void setOnClientPong(LongConsumer cb) { this.onClientPong = cb; }
+    
+    private final ScheduledExecutorService pingSes =
+    	    Executors.newSingleThreadScheduledExecutor(r -> { var t=new Thread(r,"net-ping"); t.setDaemon(true); return t; });
 
     public NetClient(String url, WorldModel model) {
         this.url = url;
@@ -52,25 +55,40 @@ public class NetClient {
         this.ws = http.newWebSocket(req, new WebSocketListener() {
         	@Override 
         	public void onOpen(WebSocket webSocket, Response response) {
-			    try {
-			    	ws.send(Jsons.OM.writeValueAsString(new HelloC2S("hello", playerName)));
-			    	// gửi cping mỗi 3s
-			    	pinger = Executors.newSingleThreadScheduledExecutor();
-			    	pinger.scheduleAtFixedRate(() -> {
-			    		try {
-			    			
-			    			long ts = System.currentTimeMillis();
-			    			ws.send(Jsons.OM.writeValueAsString(Map.of("type","cping","ts", ts)));
-				        } catch (Exception ignore) {} 
-		    		}, 1000, 3000, TimeUnit.MILLISECONDS);
-		    	 } catch (Exception e) { e.printStackTrace(); }
-    		 }
+        	    try {
+        	        ws.send(OM.writeValueAsString(Map.of("type","hello","name",playerName)));
+        	        pingSes.scheduleAtFixedRate(() -> {
+        	            try {
+        	                long ns = System.nanoTime(); // nanoTime để đo RTT
+        	                ws.send(OM.writeValueAsString(Map.of("type","cping","ns", ns)));
+        	            } catch (Exception ignore) {}
+        	        }, 1000, 1000, TimeUnit.MILLISECONDS);
+        	    } catch (Exception e) { e.printStackTrace(); }
+        	}
+        	
+//        	@Override
+//        	public void onOpen(WebSocket webSocket, Response response) {
+//			    try {
+//			    	ws.send(Jsons.OM.writeValueAsString(new HelloC2S("hello", playerName)));
+//			    	// gửi cping mỗi 3s
+//			    	pinger = Executors.newSingleThreadScheduledExecutor();
+//			    	pinger.scheduleAtFixedRate(() -> {
+//			    		try {
+//			    			
+//			    			long ts = System.currentTimeMillis();
+//			    			ws.send(Jsons.OM.writeValueAsString(Map.of("type","cping","ts", ts)));
+//				        } catch (Exception ignore) {} 
+//		    		}, 1000, 3000, TimeUnit.MILLISECONDS);
+//		    	 } catch (Exception e) { e.printStackTrace(); }
+//    		 }
 
 			@Override 
 			public void onMessage(WebSocket webSocket, String text) {
 			  try {
 				  JsonNode node = Jsons.OM.readTree(text);
 				  String type = node.hasNonNull("type") ? node.get("type").asText() : "";
+//				  String type = node.path("type").asText(null);
+			        if (type == null) { log.warn("missing type"); return; }
 				  switch (type) {
 				      case "hello" -> {
 				          HelloS2C m = Jsons.OM.treeToValue(node, HelloS2C.class);
@@ -99,16 +117,38 @@ public class NetClient {
 				          ErrorS2C er = Jsons.OM.treeToValue(node, ErrorS2C.class);
 				          log.warn("server error {}: {}", er.code(), er.message());
 				      }
-				      case "ping" -> {
-				          long ts = node.hasNonNull("ts") ? node.get("ts").asLong() : System.currentTimeMillis();
-				          long now = System.currentTimeMillis();
-				          model.setPingMs(Math.max(0, now - ts)); // RTT ước lượng (nếu server gửi ts của server, coi như đo “one-way”)
-				          ws.send(Jsons.OM.writeValueAsString(new PongC2S("pong", now)));
-				      }
-				      case "cpong" -> {
-				          long ts = node.path("ts").asLong(System.currentTimeMillis());
-				          model.setPingMs(Math.max(0, System.currentTimeMillis() - ts));
-				        }
+			            case "cpong" -> {
+			                long rttMs = -1;
+			                if (node.has("ns")) {
+			                    long ns = node.path("ns").asLong();
+			                    rttMs = Math.max(0, (System.nanoTime() - ns) / 1_000_000L);
+			                } else if (node.has("ts")) {
+			                    long ts = node.path("ts").asLong();
+			                    rttMs = Math.max(0, System.currentTimeMillis() - ts);
+			                }
+			                if (rttMs >= 0 && rttMs <= 5000) model.setPingMs(rttMs);
+			            }
+
+			            case "ping" -> {
+			                ws.send(Jsons.OM.writeValueAsString(
+			                    java.util.Map.of("type", "pong", "ts", System.currentTimeMillis())
+			                ));
+		              }
+//				      case "ping" -> {
+//				          long ts = node.hasNonNull("ts") ? node.get("ts").asLong() : System.currentTimeMillis();
+//				          long now = System.currentTimeMillis();
+//				          model.setPingMs(Math.max(0, now - ts)); // RTT ước lượng (nếu server gửi ts của server, coi như đo “one-way”)
+//				          ws.send(Jsons.OM.writeValueAsString(new PongC2S("pong", now)));
+//				      }
+//				      case "cpong" -> {
+//				    	  // server sẽ echo lại ns (nanoTime) mà client đã gửi
+//				    	  long ns = node.path("ns").asLong(0L);
+//				    	  if (ns > 0L) {
+//				    		  long rttMs = Math.max(0, (System.nanoTime() - ns) / 1_000_000L);
+//				    		  model.setPingMs(rttMs);
+//				    		  if (onClientPong != null) onClientPong.accept(rttMs);
+//				    	  }
+//				      }
 				      default -> {
 				          log.debug("unknown type: {}", type);
 				      }

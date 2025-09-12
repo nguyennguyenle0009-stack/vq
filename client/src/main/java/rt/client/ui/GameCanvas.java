@@ -16,6 +16,25 @@ public class GameCanvas extends JPanel {
     // Grid cache
     private BufferedImage gridImg;
     private int gridW = -1, gridH = -1;
+    
+	  private volatile double fps = 0.0, ping = 0.0;
+
+	  // >>> thêm 2 biến đếm khung
+	  private long lastFpsNs = System.nanoTime();
+	  private int frames = 0;
+	  
+	  public void setPing(double v){ ping=v; }
+
+	  // >>> gọi mỗi lần khung được vẽ để cập nhật FPS
+	  public void onFrame() {
+	    long now = System.nanoTime();
+	    frames++;
+	    if (now - lastFpsNs >= 500_000_000L) { // ~0.5s
+	      fps = frames * 1_000_000_000.0 / (now - lastFpsNs);
+	      frames = 0;
+	      lastFpsNs = now;
+	    }
+	  }
 
     // HUD
     private final Font hudFont = new Font("Consolas", Font.PLAIN, 13);
@@ -92,30 +111,9 @@ public class GameCanvas extends JPanel {
         lastPaintNs = now;
 
         g2.setFont(hudFont);
-        g2.setColor(Color.WHITE);
-        g2.drawString("FPS: " + Math.round(fpsEma), 8, 18);
-        if (pingMs >= 0) g2.drawString("Ping: " + pingMs + " ms", 8, 34);
-
-        var snap = model.sampleForRender();
-        int entsRender = snap.size();
-        int entsServer = model.devEntsServer();
-        g2.drawString("tick=" + model.lastTick() + " ents=" + snap.size(), 8, h - 8);
         
-        if (showDev) {
-            int line = 0;
-            g2.setColor(new Color(0,0,0,170));
-            g2.fillRoundRect(w-240, 8, 232, 104, 12, 12);
-            g2.setColor(Color.GREEN);
-            g2.drawString("DEV HUD", w-230, 24);
-            g2.setColor(Color.WHITE);
-            g2.drawString("tick: " + model.lastTick(),                w-230, 44);
-            g2.drawString("ents(server): " + entsServer,              w-230, 60);
-            g2.drawString("ents(render): " + entsRender,              w-230, 76);
-            g2.drawString("pending inputs: " + model.pendingSize(),   w-230, 92);
-            g2.drawString("dropped inputs: " + model.devDroppedInputs(),    w-230, 108);
-            g2.drawString("streamer skips: " + model.devStreamerSkips() +
-                          (model.devWritable() ? " (writable)" : " (backpressure)"), w-230, 124);
-        }
+        g2.setColor(Color.WHITE);
+        g2.drawString(String.format("FPS: %.0f   Ping: %.0f ms", hud.getFps(), model.pingText()), 10,20);
         
         if (hud != null) hud.onFrame();
     }

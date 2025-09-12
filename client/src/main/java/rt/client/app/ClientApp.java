@@ -24,19 +24,33 @@ public class ClientApp {
         final String ADMIN_TOKEN = "dev-secret-123"; // đổi nếu đổi trong server-config.json
     	
         String url = "ws://localhost:8090/ws";
+//        String name = args.length > 0 ? args[0] : "Player";
+//        
+//        org.slf4j.MDC.put("player", name);
+//        
+//        //Log
+//        Path base = DesktopDir.resolve().resolve("Vương quyền").resolve("client").resolve(name);
+//        Files.createDirectories(base);
+//        System.setProperty("VQ_LOG_DIR", base.toString());
+//        System.setProperty("LOG_STAMP",
+//            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss")));
+//        System.setProperty("playerName", name);
+
         String name = args.length > 0 ? args[0] : "Player";
-        
-        org.slf4j.MDC.put("player", name);
-        
-        //Log
-        Path base = DesktopDir.resolve().resolve("Vương quyền").resolve("client").resolve(name);
-        Files.createDirectories(base);
-        System.setProperty("VQ_LOG_DIR", base.toString());
-        System.setProperty("LOG_STAMP",
-            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss")));
-        System.setProperty("playerName", name);
 
-
+	     // Tạo thư mục: Desktop/Vương quyền/client/<name>
+	     Path base = rt.common.util.DesktopDir.resolve()
+	             .resolve("Vương quyền").resolve("client").resolve(name);
+	     try { Files.createDirectories(base); } catch (Exception ignored) {}
+	
+	     // Set system properties cho Logback
+	     System.setProperty("VQ_LOG_DIR", base.toString());
+	     System.setProperty("playerName", name);
+	     if (System.getProperty("LOG_STAMP") == null) {
+	         String stamp = new java.text.SimpleDateFormat("yyyy-MM-dd_HH-mm-ss")
+	                 .format(new java.util.Date());
+	         System.setProperty("LOG_STAMP", stamp);
+	     }
 
         WorldModel model = new WorldModel();
         NetClient net = new NetClient(url, model);

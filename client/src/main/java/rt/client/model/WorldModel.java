@@ -29,7 +29,11 @@ public class WorldModel {
     private volatile boolean hasOffset = false;
     private volatile double offsetMs = 0;           // ước lượng (EMA)
     private static final double OFFSET_ALPHA = 0.12; // mượt vừa phải
-
+    
+    // Ping EMA
+    private volatile boolean hasPing = false;
+    private static final double PING_ALPHA = 0.25;
+    
     // render delay để nội suy (≥ 1 chu kỳ snapshot)
     private volatile long interpDelayMs = 100;      // sẽ tự tinh chỉnh nhẹ
 
@@ -247,5 +251,11 @@ public class WorldModel {
         while (buffer.size() > MAX_BUF) buffer.removeFirst();
     }
     
-    
+    public void setPingMs(long rttMs) {
+        double v = Math.max(0, rttMs);
+        if (!hasPing) { pingMs = v; hasPing = true; }
+        else          { pingMs = pingMs + (v - pingMs) * PING_ALPHA; }
+    }
+    public double pingText() { return hasPing ? (Math.round(pingMs)) : 0.0; }
+    public int pingRoundedMs() { return (int)Math.round(pingMs); }
 }
