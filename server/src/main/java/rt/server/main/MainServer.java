@@ -31,8 +31,8 @@ public class MainServer {
 	    System.setProperty("LOG_STAMP",
         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss")));
 	    
-	    world.setMap(TileMap.loadResource(cfg.mapResourcePath));
-	    //world.setMap(rt.server.world.TiledJsonLoader.loadResource(cfg.mapResourcePath)); // nếu mapResourcePath là .json Tiled
+	    //world.setMap(TileMap.loadResource(cfg.mapResourcePath));
+	    world.setMap(rt.server.world.TiledJsonLoader.loadResource(cfg.mapResourcePath)); // nếu mapResourcePath là .json Tiled
 	    
 	    ws.start();
 

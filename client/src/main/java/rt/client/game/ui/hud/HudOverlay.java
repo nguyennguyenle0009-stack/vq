@@ -1,4 +1,4 @@
-package rt.client.ui;
+package rt.client.game.ui.hud;
 
 import javax.swing.*;
 import java.awt.*;

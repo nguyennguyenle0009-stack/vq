@@ -2,6 +2,7 @@ package rt.client.net;
 
 import okhttp3.*;
 import okio.ByteString;
+import rt.client.model.MapModel;
 import rt.client.model.WorldModel;
 import rt.common.net.Jsons;
 import rt.common.net.dto.*;
@@ -92,6 +93,10 @@ public class NetClient {
 				          // Hiện chấm ngay khi chưa kịp state
 				          model.spawnAt(3,3);
 				      }
+                      case "map" -> {
+                          MapS2C m = Jsons.OM.treeToValue(node, MapS2C.class);
+                          model.setMap(MapModel.fromLines(m.tile(), m.w(), m.h(), m.solidLines()));
+                      }
 				      case "ack" -> {
 				          AckS2C m = Jsons.OM.treeToValue(node, AckS2C.class);
 				          model.onAck(m.seq());

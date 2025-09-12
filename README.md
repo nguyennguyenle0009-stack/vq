@@ -300,11 +300,21 @@ server/
 ## 1.0.22 
 
 	Sửa FPS = 0 (đo FPS theo lần vẽ thực tế)
+	
+## 1.0.22 fix 13/09/2025
 
-
-
-
-
+	Chỉnh lại cấu trúc game
+		Tách class GameCanvas:
+			rt.client.game.ui.GameCanvas.java (đã cập nhật) – trở nên “mỏng”, chỉ điều phối các renderer ở trên.
+			rt.client.game.ui.hud.HudRenderer.java (mới) – vẽ HUD chữ (FPS/Ping) góc trái.
+			rt.client.game.ui.render.GridRenderer.java (mới) - vẽ lưới (có cache kích thước).
+			rt.client.game.ui.render.EntityRenderer.java (mới) – vẽ entity (chấm + nhãn).
+			rt.client.game.ui.tile.TileRenderer.java (mới) – vẽ tile map (ô solid).
+		Tách class ClientApp:
+			rt.client.input.InputState – giữ trạng thái WASD/Arrow, không còn lồng trong ClientApp.
+			rt.client.app.AdminHotkeys – xử lý F1 (listSessions), F2 (teleport you 5 5), F3 (reloadMap), F4 (toggle HUD).
+			rt.client.ui.RenderLoop – vòng lặp 60 FPS, gọi repaint() an toàn.
+			rt.client.app.ClientApp – gọn lại, chỉ khởi tạo và “lắp ghép” các phần.
 
 
 
