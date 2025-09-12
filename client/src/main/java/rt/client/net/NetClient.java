@@ -17,6 +17,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongConsumer;
@@ -33,6 +35,7 @@ public class NetClient {
     private volatile int lastAck = 0;
 
     private LongConsumer onClientPong; // HUD ping
+    private ScheduledExecutorService pinger;
     public void setOnClientPong(LongConsumer cb) { this.onClientPong = cb; }
 
     public NetClient(String url, WorldModel model) {
@@ -47,13 +50,21 @@ public class NetClient {
 
         Request req = new Request.Builder().url(url).build();
         this.ws = http.newWebSocket(req, new WebSocketListener() {
-            @Override 
-            public void onOpen(WebSocket webSocket, Response response) {
-                try {
-                	var hello = new HelloC2S("hello", playerName);
-                	ws.send(Jsons.OM.writeValueAsString(hello));
-                } catch (Exception e) { e.printStackTrace(); }
-            }
+        	@Override 
+        	public void onOpen(WebSocket webSocket, Response response) {
+			    try {
+			    	ws.send(Jsons.OM.writeValueAsString(new HelloC2S("hello", playerName)));
+			    	// gửi cping mỗi 3s
+			    	pinger = Executors.newSingleThreadScheduledExecutor();
+			    	pinger.scheduleAtFixedRate(() -> {
+			    		try {
+			    			
+			    			long ts = System.currentTimeMillis();
+			    			ws.send(Jsons.OM.writeValueAsString(Map.of("type","cping","ts", ts)));
+				        } catch (Exception ignore) {} 
+		    		}, 1000, 3000, TimeUnit.MILLISECONDS);
+		    	 } catch (Exception e) { e.printStackTrace(); }
+    		 }
 
 			@Override 
 			public void onMessage(WebSocket webSocket, String text) {
@@ -94,6 +105,10 @@ public class NetClient {
 				          model.setPingMs(Math.max(0, now - ts)); // RTT ước lượng (nếu server gửi ts của server, coi như đo “one-way”)
 				          ws.send(Jsons.OM.writeValueAsString(new PongC2S("pong", now)));
 				      }
+				      case "cpong" -> {
+				          long ts = node.path("ts").asLong(System.currentTimeMillis());
+				          model.setPingMs(Math.max(0, System.currentTimeMillis() - ts));
+				        }
 				      default -> {
 				          log.debug("unknown type: {}", type);
 				      }

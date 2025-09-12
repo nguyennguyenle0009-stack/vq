@@ -297,7 +297,9 @@ server/
 		CI: Mọi PR/commit lên main sẽ build/test với JDK 17 tự động (Ubuntu runners).
 		Fat-jar & scripts: Tạo file server-all.jar để chạy server nhanh bằng .bat/.sh. Không ảnh hưởng IDE hay lệnh Gradle thường.
 
+## 1.0.22 
 
+	Sửa FPS = 0 (đo FPS theo lần vẽ thực tế)
 
 
 

@@ -63,6 +63,8 @@ public class ClientApp {
         f.getRootPane().getActionMap().put("toggleHud", new AbstractAction() {
             @Override public void actionPerformed(java.awt.event.ActionEvent e) { hud.setVisible(!hud.isVisible()); }
         });
+        
+        panel.setHud(hud);
 
         // Ping HUD (client-side RTT)
         net.setOnClientPong(ns -> {

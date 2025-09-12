@@ -25,6 +25,9 @@ public class GameCanvas extends JPanel {
     
     private volatile boolean showDev = false;
     public void setDevHud(boolean v){ showDev = v; }
+    
+    private HudOverlay hud;
+    public void setHud(HudOverlay h){ this.hud = h; }
 
     public GameCanvas(WorldModel model) {
         this.model = model;
@@ -113,6 +116,8 @@ public class GameCanvas extends JPanel {
             g2.drawString("streamer skips: " + model.devStreamerSkips() +
                           (model.devWritable() ? " (writable)" : " (backpressure)"), w-230, 124);
         }
+        
+        if (hud != null) hud.onFrame();
     }
 
     private void rebuildGrid(int w, int h) {
