@@ -49,4 +49,12 @@ public class InputQueue {
     public int lastProcessedSeq(String playerId) {
         return lastSeq.getOrDefault(playerId, 0);
     }
+    
+    /** Drop all remembered input state for a player. */
+    public void remove(String playerId) {
+        if (playerId == null) return;
+        latest.remove(playerId);
+        lastSeq.remove(playerId);
+        lastAcceptNs.remove(playerId);
+    }
 }

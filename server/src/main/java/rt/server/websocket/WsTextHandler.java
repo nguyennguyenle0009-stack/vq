@@ -162,12 +162,22 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
         String id = ctx.channel().id().asShortText();
+        Session s = sessions.byChannel(ctx.channel());
+        if (s != null) {
+            world.removePlayer(s.playerId);
+            inputs.remove(s.playerId);
+        }
         sessions.detach(ctx.channel());
         log.info("channel inactive {}", id);
     }
 
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) {
+        Session s = sessions.byChannel(ctx.channel());
+        if (s != null) {
+            world.removePlayer(s.playerId);
+            inputs.remove(s.playerId);
+        }
         sessions.detach(ctx.channel());
         log.info("channel removed {}", ctx.channel().id().asShortText());
     }

@@ -92,6 +92,13 @@ public class World {
     // tiện cho test
     public double[] pos(String id){ P p = players.get(id); return p==null? null : new double[]{p.x, p.y}; }
     
+    /** Remove all data for a player that has disconnected. */
+    public void removePlayer(String id) {
+        if (id == null) return;
+        players.remove(id);
+        lastInput.remove(id);
+    }
+    
     public boolean teleport(String id, double x, double y) {
         TileMap m = this.map;
         if (x < 0 || y < 0 || x >= m.w || y >= m.h) return false;

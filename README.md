@@ -316,6 +316,9 @@ server/
 			rt.client.ui.RenderLoop – vòng lặp 60 FPS, gọi repaint() an toàn.
 			rt.client.app.ClientApp – gọn lại, chỉ khởi tạo và “lắp ghép” các phần.
 
+## 1.0.23
+	
+	Sửa lỗi người chơi hiển thị sau khi thoát khỏi máy khách
 
 
 
@@ -324,7 +327,5 @@ server/
 
 
 
-
-# FixBug
 
 
