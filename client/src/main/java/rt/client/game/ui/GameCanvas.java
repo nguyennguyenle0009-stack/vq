@@ -8,6 +8,7 @@ import rt.client.game.ui.tile.TileRenderer;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.geom.AffineTransform;
 
 /** Canvas vẽ mượt, tách riêng renderers: grid / tile / entity / HUD text. */
 public class GameCanvas extends JPanel {
@@ -49,26 +50,50 @@ public class GameCanvas extends JPanel {
 
     @Override
     protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        final int w = getWidth(), h = getHeight();
-        Graphics2D g2 = (Graphics2D) g;
+    super.paintComponent(g);
+    final int w = getWidth(), h = getHeight();
 
-        // Tắt AA vì vẽ hình học đơn giản -> nhanh hơn
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 
-        // 1) Vẽ tile map (tường/ô solid)
-        tileRenderer.draw(g2, model);
+    Graphics2D g2 = (Graphics2D) g.create();
+    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // 2) Vẽ lưới (có cache theo kích thước)
-        gridRenderer.draw(g2, w, h, TILE, getGraphicsConfiguration());
 
-        // 3) Vẽ entity (chấm + nhãn)
-        entityRenderer.draw(g2, model, TILE);
+    // ==== CAMERA OFFSET (center player) ====
+    int offX = 0, offY = 0;
+    var you = model.you();
+    if (you != null) {
+    var snapshot = model.sampleForRender();
+    var p = snapshot.get(you);
+    if (p != null) {
+    int px = (int)Math.round(p.x * TILE);
+    int py = (int)Math.round(p.y * TILE);
+    offX = w/2 - px;
+    offY = h/2 - py;
+    }
+    }
+    AffineTransform oldTx = g2.getTransform();
+    g2.translate(offX, offY);
 
-        // 4) HUD text đơn giản (FPS/Ping)
-        hudRenderer.draw(g2, model, hud);
 
-        // Cập nhật FPS cho HudOverlay (nếu có sử dụng)
-        if (hud != null) hud.onFrame();
+    // 1) Tiles (đã chuyển sang dùng atlas ở mục 2.2)
+    tileRenderer.draw(g2, model);
+
+
+    // 2) Grid (cache) – để dưới transform để lưới đi theo camera
+    gridRenderer.draw(g2, w, h, TILE, getGraphicsConfiguration());
+
+
+    // 3) Entities
+    entityRenderer.draw(g2, model, TILE);
+
+
+    // reset transform trước khi vẽ HUD
+    g2.setTransform(oldTx);
+
+
+    // 4) HUD
+    hudRenderer.draw(g2, model, hud);
+    if (hud != null) hud.onFrame();
+    g2.dispose();
     }
 }

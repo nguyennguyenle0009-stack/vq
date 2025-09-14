@@ -409,10 +409,35 @@ Replace these files from this zip:
 If you hit compile errors, remove the leftover "map" references as in Step 0,
 and ensure `WorldRegistry` is injected where WsTextHandler is constructed.
 
+## 1.0.25
 
+	VQ Patchset – Camera Follow
 
+### Terrain Skeleton (Multi-World, Seeded, Chunked)
+- Deterministic terrain by **seed**
+- Infinite world via **chunks** (32×32 tiles)
+- Multi-world: overworld / desert / mountain
+- Server authoritative; client renders tilesets
 
+#### Wire-up
+**Server**
+- Build `WorldRegistry` from config (see `server-worlds.json`)
+- On hello -> send `WorldHandshakeS2C`
+- On `ChunkReqC2S` -> reply with batch of `ChunkS2C` for requested radius
 
+**Client**
+- On handshake -> create `TileAtlas(tileset, tile=32, cols)` and remember `viewDist`
+- Maintain `ChunkCache` per world; when camera changes chunk -> send `ChunkReqC2S`
+- Render: `ChunkRenderer.draw(g2, camX, camY, viewW, viewH)`
 
+#### Extend terrain
+- Add a generator class in `common` implementing `TerrainGeneratorEx`
+- Register in `GeneratorFactory` (or via ServiceLoader later)
+- Add world entry in server config
 
+This skeleton is drop-in and does not pull AWT into server. Integrate with your existing Net layer.
+
+## 1.0.26
+
+	Tileset Load, Chunk DTOs (2025‑09‑14)
 
