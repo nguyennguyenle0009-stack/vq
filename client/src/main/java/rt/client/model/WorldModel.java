@@ -18,7 +18,11 @@ public class WorldModel {
     public MapModel map(){ return map; }
     
     // ===== Interpolation buffer (đơn vị tile) =====
-    public static final class Pos { public double x, y; }
+    public static final class Pos { 
+    	public double x;
+    	public double y; 
+    }
+    
     public static final class Snapshot {
         public final long ts; public final Map<String, Pos> ents;
         Snapshot(long ts, Map<String, Pos> ents){ this.ts = ts; this.ents = ents; }
@@ -43,7 +47,8 @@ public class WorldModel {
     public void setYou(String id){ this.you=id; } public String you(){ return you; }
 
     // ===== Prediction (tile) =====
-    private volatile boolean hasPred=false; private volatile double predX, predY;
+    private volatile boolean hasPred=false; 
+    public volatile double predX, predY;
 
     // ===== Pending inputs =====
     public static final class Pending {

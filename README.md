@@ -320,7 +320,94 @@ server/
 	
 	Sửa lỗi người chơi hiển thị sau khi thoát khỏi máy khách
 
+## 1.0.24
 
+	Xóa map ở server
+	
+### VQ: Overhaul to Seeded Chunk + Multi-World (remove old Map pipeline)
+
+Follow these steps in order. This patch removes the old single-map code and replaces it with
+the seed-based chunk streaming we discussed.
+
+#### Step 0: Delete old map code
+Delete these files/directories if present (ignore if missing):
+- common/**/dto/MapS2C.java
+- server/**/world/TileMap.java
+- server/**/world/World.reloadMap*(...)
+- server/**/config/ServerConfig.java map path fields (mapFile/mapPath)
+- Any `maps/*.json` used by the old pipeline (server & client)
+- client/**/model/MapModel.java
+- client/**/model/WorldModel.map()/setMap()
+- client/**/game/ui/TileRenderer.java (or any renderer that draws the old single map)
+- Any case "map" in NetClient and WsTextHandler
+
+Use grep to find/remove references:
+```
+MapS2C
+TileMap
+solidLines
+setMap(
+WorldModel.map(
+reloadMap
+loadMap
+maps/
+```
+---
+
+#### Step 1: Add new shared core (already provided in terrain_skeleton zip)
+Copy `common/rt/common/map/**`, `common/rt/common/net/dto/**`, `rt/common/map/codec/**`
+from the skeleton you imported earlier.
+
+Key classes:
+- Grid, TileChunk
+- TerrainGenerator, TerrainGeneratorEx, TerrainParams
+- Noise/Desert/Islands/MountainTerrain, GeneratorFactory
+- codec/BitsetRLE
+- DTO: WorldHandshakeS2C, ChunkReqC2S, ChunkS2C
+
+---
+
+#### Step 2: Server bootstrap: WorldRegistry and WsTextHandler
+Add/replace these files from this zip:
+
+- `server/src/main/java/rt/server/world/WorldRegistry.java`
+- `server/src/main/java/rt/server/world/ChunkManager.java`
+- `server/src/main/java/rt/server/world/CompatWorlds.java` (simple in-VM registry)
+- `server/src/main/java/rt/server/world/CollisionService.java` (optional helper)
+- `server/src/main/resources/server-worlds.json` (config example)
+- Replace `server/src/main/java/rt/server/websocket/WsTextHandler.java` (this zip includes a full version
+  that handles "hello", "chunkReq", and "admin switchWorld ...").
+
+**MainServer.java (line 23) fix**
+If line 23 currently initializes a TileMap or loads a single map, replace that with:
+```java
+// OLD: TileMap map = TileMap.demo() / or ServerConfig.mapPath...
+WorldRegistry worldReg = CompatWorlds.initFromClasspathConfig();
+// Pass worldReg into your WsTextHandler constructor:
+WsTextHandler ws = new WsTextHandler(worldReg /*, other deps you already had */);
+```
+If your handler is created in a different place (e.g. via Spring bean), inject `WorldRegistry` there.
+
+---
+
+#### Step 3: Client net/render
+Replace these files from this zip:
+- `client/src/main/java/rt/client/net/NetClient.java` (keeps only "worldHandshake" and "chunk")
+- `client/src/main/java/rt/client/game/ui/GameCanvas.java` (renders chunks only)
+- `client/src/main/java/rt/client/game/view/{Camera2D,TileAtlas,ChunkRenderer}.java`
+- `client/src/main/java/rt/client/game/chunk/ChunkCache.java`
+- Keep `client/src/main/resources/tiles/*.png` (tileset images)
+
+---
+
+#### Quick test
+1) Run server; ensure it logs worlds from `server-worlds.json`.
+2) Run client; you should see worldHandshake in logs.
+3) Client will request chunks around (0,0) and render tiles.
+4) Admin text command: `switchWorld desert` -> client receives new handshake and requests/render desert chunks.
+
+If you hit compile errors, remove the leftover "map" references as in Step 0,
+and ensure `WorldRegistry` is injected where WsTextHandler is constructed.
 
 
 

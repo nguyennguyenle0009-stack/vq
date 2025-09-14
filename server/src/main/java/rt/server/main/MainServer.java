@@ -12,15 +12,17 @@ import rt.server.game.loop.GameLoop;
 import rt.server.game.loop.SnapshotStreamer;
 import rt.server.session.SessionRegistry;
 import rt.server.websocket.WsServer;
-import rt.server.world.TileMap;
+import rt.server.world.CompatWorlds;
 import rt.server.world.World;
+import rt.server.world.WorldRegistry;
 
 public class MainServer {
 	public static void main(String[] args) throws Exception {
 		
+		WorldRegistry worldReg = CompatWorlds.initFromClasspathConfig();
 	    var sessions = new SessionRegistry();
 	    var inputs   = new InputQueue();
-	    var world    = new World(sessions);
+	    var world    = new World(sessions, worldReg);
 	    var cfg = ServerConfig.load();
 	    var ws = new WsServer(cfg, sessions, inputs, world);
 	    
@@ -31,13 +33,9 @@ public class MainServer {
 	    System.setProperty("LOG_STAMP",
         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss")));
 	    
-	    //world.setMap(TileMap.loadResource(cfg.mapResourcePath));
-	    world.setMap(rt.server.world.TiledJsonLoader.loadResource(cfg.mapResourcePath)); // nếu mapResourcePath là .json Tiled
-	    
 	    ws.start();
 
 	    org.slf4j.LoggerFactory.getLogger("rt.server").info("Starting with {}", cfg);
-	    //System.out.println("Server started at ws://localhost:" + cfg.port +"/ws");
 
 	    Thread loop   = new Thread(new GameLoop(world, inputs, cfg.tps), "loop-" + cfg.tps + "tps");
 	    Thread stream = new Thread(new SnapshotStreamer(sessions, world, cfg.snapshotHz), "stream-" + cfg.snapshotHz + "hz");

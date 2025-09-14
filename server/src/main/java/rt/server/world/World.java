@@ -1,5 +1,6 @@
 package rt.server.world;
 
+import rt.common.map.Grid;
 import rt.common.net.dto.EntityState;
 import rt.common.net.dto.StateS2C;
 import rt.server.session.SessionRegistry;
@@ -21,14 +22,26 @@ public class World {
 
     // Tốc độ: tile/giây
     private static final double SPEED = 3.0;
+    
+    private final WorldRegistry worldReg;
+    private final ConcurrentHashMap<String, String> playerWorld = new ConcurrentHashMap<>();
+    
+    public World(SessionRegistry sessions, WorldRegistry worldReg) { 
+    	this.sessions = sessions; 
+    	this.worldReg = worldReg;
+    }
 
-    // Bản đồ
-    private volatile TileMap map = TileMap.demo();
-
-    public World(SessionRegistry sessions) { this.sessions = sessions; }
-
-    public void setMap(TileMap m){ this.map = Objects.requireNonNull(m); }
-    public TileMap map(){ return map; }
+    private String worldOf(String playerId){ 
+    	return playerWorld.getOrDefault(playerId, worldReg.defaultWorld()); 
+    }
+    
+    private boolean blocked(String playerId, int tx, int ty){
+        var ctx = worldReg.get(worldOf(playerId));
+        int cx = Grid.chunkX(tx), cy = Grid.chunkY(ty);
+        var ch = ctx.chunks.get(cx, cy);
+        int lx = Grid.localX(tx), ly = Grid.localY(ty);
+        return ch.blocked(lx, ly);
+    }
 
     private P ensure(String id){
         return players.computeIfAbsent(id, k -> {
@@ -50,27 +63,25 @@ public class World {
 
     /** 1 tick logic theo dt (giây). Collision theo tile với sweep trục X rồi Y. */
     public void step(double dt) {
-        TileMap m = this.map;
+        final double v = SPEED;
         lastInput.forEach((id, dir) -> {
             P p = ensure(id);
-            double nx = p.x + dir.x * SPEED * dt;
-            double ny = p.y + dir.y * SPEED * dt;
+            double nx = p.x + dir.x * v * dt;
+            double ny = p.y + dir.y * v * dt;
+            if (!Double.isFinite(nx) || Math.abs(nx) > 1e9) nx = p.x;
+            if (!Double.isFinite(ny) || Math.abs(ny) > 1e9) ny = p.y;
 
-            // Clamp map bounds (điểm player nằm trong map)
-            nx = Math.max(0, Math.min(nx, m.w - 1e-3));
-            ny = Math.max(0, Math.min(ny, m.h - 1e-3));
-
-            // Sweep X
+            // sweep X
             int tx = (int)Math.floor(nx);
-            int ty = (int)Math.floor(p.y); // Y tạm giữ
-            if (!m.blocked(tx, ty)) p.x = nx;
+            int ty = (int)Math.floor(p.y);
+            if (!blocked(id, tx, ty)) p.x = nx;
 
-            // Sweep Y
+            // sweep Y
             tx = (int)Math.floor(p.x);
             ty = (int)Math.floor(ny);
-            if (!m.blocked(tx, ty)) p.y = ny;
+            if (!blocked(id, tx, ty)) p.y = ny;
 
-            // Phản chiếu sang session (để streamer đọc nếu đang dùng Session.x/y)
+            // (nếu streamer đọc session.x/y)
             for (var s : sessions.all()) {
                 if (s.playerId.equals(id)) { s.x = p.x; s.y = p.y; break; }
             }
@@ -98,21 +109,4 @@ public class World {
         players.remove(id);
         lastInput.remove(id);
     }
-    
-    public boolean teleport(String id, double x, double y) {
-        TileMap m = this.map;
-        if (x < 0 || y < 0 || x >= m.w || y >= m.h) return false;
-        int tx = (int)Math.floor(x), ty = (int)Math.floor(y);
-        if (m.blocked(tx, ty)) return false;
-        P p = ensure(id);
-        p.x = x; p.y = y;
-        sessions.all().forEach(s -> { if (s.playerId.equals(id)) { s.x = x; s.y = y; } });
-        return true;
-    }
-    
-    public boolean reloadMap(String resourcePath) {
-        try { setMap(TileMap.loadResource(resourcePath)); return true; }
-        catch (Exception e) { return false; }
-    }
-
 }

@@ -72,10 +72,6 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
 	            HelloC2S msg = Jsons.OM.treeToValue(node, HelloC2S.class);
 	            log.info("hello from {} name={}", s.playerId, msg.name());
 	            s.send(new HelloS2C(s.playerId));
-	
-	            // Gửi map một lần sau hello
-	            var m = world.map(); // thêm field world vào WsTextHandler (xem chú thích bên dưới)
-	            s.send(new MapS2C(m.tile, m.w, m.h, m.solidLines()));
 	        }
 	        case "input" -> {
 	            var in = Jsons.OM.treeToValue(node, rt.common.net.dto.InputC2S.class);
@@ -98,14 +94,6 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
 	                    StringBuilder sb = new StringBuilder();
 	                    sessions.all().forEach(x -> sb.append(x.playerId).append(' '));
 	                    s.send(new rt.common.net.dto.AdminResultS2C(true, "sessions: " + sb.toString().trim()));
-	                } else if (cmd.startsWith("teleport ")) {
-	                    String[] p = cmd.split("\\s+");
-	                    if (p.length != 4) { s.send(new rt.common.net.dto.AdminResultS2C(false,"usage: teleport <id> <x> <y>")); break; }
-	                    boolean ok = world.teleport(p[1], Double.parseDouble(p[2]), Double.parseDouble(p[3]));
-	                    s.send(new rt.common.net.dto.AdminResultS2C(ok, ok ? "teleported" : "failed (blocked/out-of-bounds)"));
-	                } else if (cmd.equals("reloadMap")) {
-	                    boolean ok = world.reloadMap(cfg.mapResourcePath);
-	                    s.send(new rt.common.net.dto.AdminResultS2C(ok, ok ? "map reloaded" : "reload failed"));
 	                } else {
 	                    s.send(new rt.common.net.dto.AdminResultS2C(false, "unknown cmd"));
 	                }
