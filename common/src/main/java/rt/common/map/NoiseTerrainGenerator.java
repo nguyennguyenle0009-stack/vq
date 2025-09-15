@@ -12,7 +12,24 @@ public final class NoiseTerrainGenerator implements TerrainGenerator {
         z ^= (z >>> 31);
         return (int) z;
     }
-    @Override public TileChunk generate(long seed, int cx, int cy) {
+    
+    @Override 
+    public TileChunk generate(long seed, int cx, int cy) {
+        int W=Grid.CHUNK,H=Grid.CHUNK; short[] tiles=new short[W*H]; java.util.BitSet solid=new java.util.BitSet(W*H);
+        for (int ly=0; ly<H; ly++) for (int lx=0; lx<W; lx++){
+            int worldX=cx*W+lx, worldY=cy*H+ly;
+            // BASE: luôn vẽ tile 0 làm nền
+            // OVERLAY (collision): thưa thớt, tile 1 và set solid
+            boolean object = (Math.abs(h2(seed, worldX, worldY)) % 20)==0;
+            int idx = ly*W+lx;
+            tiles[idx] = (short)(object ? 1 : 0);
+            if (object) solid.set(idx);
+        }
+        return new TileChunk(cx, cy, W, H, tiles, solid, 1);
+    }
+
+    
+    public TileChunk generateA(long seed, int cx, int cy) {
         int W=Grid.CHUNK,H=Grid.CHUNK; short[] tiles=new short[W*H]; java.util.BitSet solid=new java.util.BitSet(W*H);
         for (int ly=0; ly<H; ly++) for (int lx=0; lx<W; lx++){
             int worldX=cx*W+lx, worldY=cy*H+ly;

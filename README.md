@@ -441,3 +441,6 @@ This skeleton is drop-in and does not pull AWT into server. Integrate with your 
 
 	Tileset Load, Chunk DTOs (2025‑09‑14)
 
+## 1.0.27
+
+	Fix di chuyển vào vùng âm(-y)

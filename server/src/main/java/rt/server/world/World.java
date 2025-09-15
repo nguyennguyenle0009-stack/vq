@@ -67,7 +67,7 @@ public class World {
             if (!Double.isFinite(nx) || Math.abs(nx) > 1e9) nx = p.x;
             if (!Double.isFinite(ny) || Math.abs(ny) > 1e9) ny = p.y;
 
-            // sweep X
+         // sweep X
             int tx = (int)Math.floor(nx);
             int ty = (int)Math.floor(p.y);
             if (!blocked(tx, ty)) p.x = nx;

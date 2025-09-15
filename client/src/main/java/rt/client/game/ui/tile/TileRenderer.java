@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory;
 import rt.client.model.WorldModel;
 
 public final class TileRenderer {
+	private static final int COLLISION_SPRITE_INDEX = 1;
+	
     private static final Logger log = LoggerFactory.getLogger(TileRenderer.class);
 
     private static final String DEFAULT_TILESET = "/tiles/overworld.png";
@@ -93,6 +95,20 @@ public final class TileRenderer {
             for (int y = 0; y < mm.h; y++)
                 for (int x = 0; x < mm.w; x++)
                     if (mm.solid[y][x]) g2.drawImage(wall, x * T, y * T, null);
+        }
+        
+        if (wall != null) {
+            for (int y = 0; y < mm.h; y++) {
+                for (int x = 0; x < mm.w; x++) if (mm.solid[y][x]) {
+                    g2.drawImage(wall, x*T, y*T, null);
+                    // vẽ khung để rõ ô va chạm
+                    Stroke oldS = g2.getStroke();
+                    g2.setStroke(new BasicStroke(1f));
+                    g2.setColor(new Color(255, 50, 50, 120));
+                    g2.drawRect(x*T, y*T, T-1, T-1);
+                    g2.setStroke(oldS);
+                }
+            }
         }
     }
 }
