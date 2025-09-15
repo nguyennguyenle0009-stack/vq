@@ -23,25 +23,21 @@ public class World {
     // Tốc độ: tile/giây
     private static final double SPEED = 3.0;
     
-    private final WorldRegistry worldReg;
+    //private final WorldRegistry worldReg;
     private final ConcurrentHashMap<String, String> playerWorld = new ConcurrentHashMap<>();
     
-    public World(SessionRegistry sessions, WorldRegistry worldReg) { 
-    	this.sessions = sessions; 
-    	this.worldReg = worldReg;
-    }
-
-    private String worldOf(String playerId){ 
-    	return playerWorld.getOrDefault(playerId, worldReg.defaultWorld()); 
-    }
+    private final rt.server.world.CollisionService collision;
     
-    private boolean blocked(String playerId, int tx, int ty){
-        var ctx = worldReg.get(worldOf(playerId));
-        int cx = Grid.chunkX(tx), cy = Grid.chunkY(ty);
-        var ch = ctx.chunks.get(cx, cy);
-        int lx = Grid.localX(tx), ly = Grid.localY(ty);
-        return ch.blocked(lx, ly);
-    }
+    public World(SessionRegistry sessions, rt.server.world.WorldRegistry reg){
+    	this.sessions = sessions;
+    	this.collision = new rt.server.world.CollisionService(reg.get(reg.defaultWorld()));
+    	}
+    
+    private boolean blocked(double x, double y){
+    	int tx = (int)Math.floor(x);
+    	int ty = (int)Math.floor(y);
+    	return collision.blockedTile(tx, ty);
+    	}
 
     private P ensure(String id){
         return players.computeIfAbsent(id, k -> {
@@ -74,12 +70,12 @@ public class World {
             // sweep X
             int tx = (int)Math.floor(nx);
             int ty = (int)Math.floor(p.y);
-            if (!blocked(id, tx, ty)) p.x = nx;
+            if (!blocked(tx, ty)) p.x = nx;
 
             // sweep Y
             tx = (int)Math.floor(p.x);
             ty = (int)Math.floor(ny);
-            if (!blocked(id, tx, ty)) p.y = ny;
+            if (!blocked(tx, ty)) p.y = ny;
 
             // (nếu streamer đọc session.x/y)
             for (var s : sessions.all()) {

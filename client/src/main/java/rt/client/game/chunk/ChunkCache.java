@@ -23,10 +23,10 @@ public final class ChunkCache {
     private final ConcurrentHashMap<Long, ChunkView> map = new ConcurrentHashMap<>();
     private static long key(int cx,int cy){ return (((long)cx)<<32) ^ (cy & 0xffffffffL); }
 
-    public void put(ChunkS2C m){
-        BitSet solid = BitsetRLE.decode(m.solidRLE(), m.w()*m.h());
-        map.put(key(m.cx(), m.cy()), new ChunkView(m.cx(), m.cy(), m.w(), m.h(), m.tiles(), solid));
-    }
+//    public void put(ChunkS2C m){
+//        BitSet solid = BitsetRLE.decode(m.solidRLE(), m.w()*m.h());
+//        map.put(key(m.cx(), m.cy()), new ChunkView(m.cx(), m.cy(), m.w(), m.h(), m.tiles(), solid));
+//    }
 
     public ChunkView get(int cx,int cy){ return map.get(key(cx,cy)); }
 

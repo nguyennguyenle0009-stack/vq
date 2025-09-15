@@ -4,6 +4,7 @@ import okhttp3.*;
 import okio.ByteString;
 import rt.client.model.MapModel;
 import rt.client.model.WorldModel;
+import rt.common.map.codec.BitsetRLE;
 import rt.common.net.Jsons;
 import rt.common.net.dto.*;
 
@@ -13,7 +14,11 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.util.Base64;
+import java.util.BitSet;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -38,10 +43,55 @@ public class NetClient {
     private final ScheduledExecutorService pingSes =
     	    Executors.newSingleThreadScheduledExecutor(r -> { var t=new Thread(r,"net-ping"); t.setDaemon(true); return t; });
 
+ // ==== handshake / chunk state (tối thiểu) ====
+    private volatile String worldId = null;
+    private volatile int tileSizeHs = 16, chunkSizeHs = 32, viewDist = 2;
+
+    // theo dõi vị trí của chính bạn từ gói state
+    private volatile double youX = 0, youY = 0;
+
+    // throttle yêu cầu chunk
+    private Integer lastCx = null, lastCy = null;
+    private long lastReqAt = 0L;
+    private static final long CHUNK_KEEPALIVE_MS = 1000L;
+
+    // cache tạm (chưa render chunk, chỉ lưu để sẵn)
+    private final ConcurrentMap<Long, int[]> chunkTiles = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Long, BitSet> chunkSolid = new ConcurrentHashMap<>();
+    private static long ckey(int cx, int cy){ return (((long)cx)<<32) ^ (cy & 0xffffffffL); }
+    
     public NetClient(String url, WorldModel model) {
         this.url = url;
         this.model = model;
     }
+    
+    private void maybeRequestChunks() {
+        if (worldId == null || ws == null) return;
+
+        // quy vị trí tile -> chunk
+        int centerCx = (int) Math.floor(youX / (double) chunkSizeHs);
+        int centerCy = (int) Math.floor(youY / (double) chunkSizeHs);
+        int radius   = Math.max(1, viewDist);
+
+        long now = System.currentTimeMillis();
+        boolean crossed = lastCx == null || lastCy == null || centerCx != lastCx || centerCy != lastCy;
+        boolean keepAlive = (now - lastReqAt) >= CHUNK_KEEPALIVE_MS;
+
+        if (crossed || keepAlive) {
+            try {
+                // gửi JSON thuần để không lệ thuộc constructor DTO
+                ws.send(OM.writeValueAsString(Map.of(
+                    "type", "chunkReq",
+                    "worldId", worldId,
+                    "centerCx", centerCx,
+                    "centerCy", centerCy,
+                    "radius", radius
+                )));
+            } catch (Exception e) { log.warn("send chunkReq failed", e); }
+            lastCx = centerCx; lastCy = centerCy; lastReqAt = now;
+        }
+    }
+
 
     public void connect(String playerName) {
         OkHttpClient http = new OkHttpClient.Builder()
@@ -62,29 +112,12 @@ public class NetClient {
         	        }, 1000, 1000, TimeUnit.MILLISECONDS);
         	    } catch (Exception e) { e.printStackTrace(); }
         	}
-        	
-//        	@Override
-//        	public void onOpen(WebSocket webSocket, Response response) {
-//			    try {
-//			    	ws.send(Jsons.OM.writeValueAsString(new HelloC2S("hello", playerName)));
-//			    	// gửi cping mỗi 3s
-//			    	pinger = Executors.newSingleThreadScheduledExecutor();
-//			    	pinger.scheduleAtFixedRate(() -> {
-//			    		try {
-//			    			
-//			    			long ts = System.currentTimeMillis();
-//			    			ws.send(Jsons.OM.writeValueAsString(Map.of("type","cping","ts", ts)));
-//				        } catch (Exception ignore) {} 
-//		    		}, 1000, 3000, TimeUnit.MILLISECONDS);
-//		    	 } catch (Exception e) { e.printStackTrace(); }
-//    		 }
 
 			@Override 
 			public void onMessage(WebSocket webSocket, String text) {
 			  try {
 				  JsonNode node = Jsons.OM.readTree(text);
 				  String type = node.hasNonNull("type") ? node.get("type").asText() : "";
-//				  String type = node.path("type").asText(null);
 			        if (type == null) { log.warn("missing type"); return; }
 				  switch (type) {
 				      case "hello" -> {
@@ -108,6 +141,9 @@ public class NetClient {
 				          if (you != null && st.ents()!=null) {
 				              var es = st.ents().get(you);
 				              if (es != null) model.reconcileFromServer(es.x(), es.y(), model.lastAck());
+				              // NEW: cập nhật vị trí của bạn và thử gửi chunkReq
+				              youX = es.x(); youY = es.y();
+				              maybeRequestChunks();
 				          }
 				      }
 				      case "dev_stats" -> {
@@ -117,45 +153,47 @@ public class NetClient {
 				      case "error" -> {
 				          ErrorS2C er = Jsons.OM.treeToValue(node, ErrorS2C.class);
 				          log.warn("server error {}: {}", er.code(), er.message());
-				      }
-			            case "cpong" -> {
-			                long rttMs = -1;
-			                if (node.has("ns")) {
-			                    long ns = node.path("ns").asLong();
-			                    rttMs = Math.max(0, (System.nanoTime() - ns) / 1_000_000L);
-			                } else if (node.has("ts")) {
-			                    long ts = node.path("ts").asLong();
-			                    rttMs = Math.max(0, System.currentTimeMillis() - ts);
-			                }
-			                if (rttMs >= 0 && rttMs <= 5000) model.setPingMs(rttMs);
-			            }
-
-			            case "ping" -> {
+				      }case "cpong" -> {
+			               long rttMs = -1;
+			               if (node.has("ns")) {
+			                   long ns = node.path("ns").asLong();
+			                   rttMs = Math.max(0, (System.nanoTime() - ns) / 1_000_000L);
+			               } else if (node.has("ts")) {
+			                   long ts = node.path("ts").asLong();
+			                   rttMs = Math.max(0, System.currentTimeMillis() - ts);
+			               }
+			               if (rttMs >= 0 && rttMs <= 5000) model.setPingMs(rttMs);
+			           }case "ping" -> {
 			                ws.send(Jsons.OM.writeValueAsString(
 			                    java.util.Map.of("type", "pong", "ts", System.currentTimeMillis())
 			                ));
-		              }
-//				      case "ping" -> {
-//				          long ts = node.hasNonNull("ts") ? node.get("ts").asLong() : System.currentTimeMillis();
-//				          long now = System.currentTimeMillis();
-//				          model.setPingMs(Math.max(0, now - ts)); // RTT ước lượng (nếu server gửi ts của server, coi như đo “one-way”)
-//				          ws.send(Jsons.OM.writeValueAsString(new PongC2S("pong", now)));
-//				      }
-//				      case "cpong" -> {
-//				    	  // server sẽ echo lại ns (nanoTime) mà client đã gửi
-//				    	  long ns = node.path("ns").asLong(0L);
-//				    	  if (ns > 0L) {
-//				    		  long rttMs = Math.max(0, (System.nanoTime() - ns) / 1_000_000L);
-//				    		  model.setPingMs(rttMs);
-//				    		  if (onClientPong != null) onClientPong.accept(rttMs);
-//				    	  }
-//				      }
-				      default -> {
-				          log.debug("unknown type: {}", type);
-				      }
-				  }
+		               }case "worldHandshake" -> {
+		            	    WorldHandshakeS2C hs = Jsons.OM.treeToValue(node, WorldHandshakeS2C.class);
+		            	    // lưu thông số để tính chunkReq
+		            	    worldId    = hs.worldId();
+		            	    tileSizeHs = hs.tileSize();
+		            	    chunkSizeHs= hs.chunkSize();
+		            	    viewDist   = hs.viewDist();
+		            	    // gửi yêu cầu chunk đầu tiên ngay
+		            	    lastCx = lastCy = null;
+		            	    maybeRequestChunks();
+		            	}case "chunk" -> {
+		            	    ChunkS2C ch = Jsons.OM.treeToValue(node, ChunkS2C.class);
+		            	    // giải mã bitset va chạm
+		            	    byte[] rleBytes = Base64.getDecoder().decode(ch.collisionRLE());
+		            	    BitSet solid = BitsetRLE.decode(rleBytes, ch.w() * ch.h());
+		            	    // lưu cache tạm (chưa render chunk ở client)
+		            	    long k = ckey(ch.cx(), ch.cy());
+		            	    chunkTiles.put(k, ch.tiles());
+		            	    chunkSolid.put(k, solid);
+		            	    // không gọi repaint() ở đây
+		            	}
+		            	default -> {
+		            		log.debug("unknown type: {}", type);
+		            	}
+				  	}
 			    
-			  } catch (Exception e) { log.error("onMessage error", e); }
+			  	} catch (Exception e) { log.error("onMessage error", e); }
 			}
 
             @Override 

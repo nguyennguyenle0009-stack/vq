@@ -76,7 +76,7 @@ public class GameCanvas extends JPanel {
 
 
     // 1) Tiles (đã chuyển sang dùng atlas ở mục 2.2)
-    tileRenderer.draw(g2, model);
+    tileRenderer.draw(g2, model, getWidth(), getHeight());
 
 
     // 2) Grid (cache) – để dưới transform để lưới đi theo camera
