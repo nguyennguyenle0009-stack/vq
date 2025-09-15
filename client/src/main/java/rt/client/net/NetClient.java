@@ -135,16 +135,20 @@ public class NetClient {
 				          model.onAck(m.seq());
 				      }
 				      case "state" -> {
-				          StateS2C st = Jsons.OM.treeToValue(node, StateS2C.class);
-				          model.applyStateDTO(st);
-				          var you = model.you();
-				          if (you != null && st.ents()!=null) {
-				              var es = st.ents().get(you);
-				              if (es != null) model.reconcileFromServer(es.x(), es.y(), model.lastAck());
-				              // NEW: cập nhật vị trí của bạn và thử gửi chunkReq
-				              youX = es.x(); youY = es.y();
-				              maybeRequestChunks();
-				          }
+				    	    StateS2C st = Jsons.OM.treeToValue(node, StateS2C.class);
+				    	    model.applyStateDTO(st);
+				    	    var you = model.you();
+				    	    if (you != null && st.ents() != null) {
+				    	        var es = st.ents().get(you);
+				    	        if (es != null) {
+				    	            model.reconcileFromServer(es.x(), es.y(), model.lastAck());
+				    	            // cập nhật vị trí bạn để gửi chunkReq
+				    	            youX = es.x();
+				    	            youY = es.y();
+				    	            maybeRequestChunks();
+				    	        }
+				    	        // nếu es == null: bỏ qua frame này, đợi frame sau
+				    	    }
 				      }
 				      case "dev_stats" -> {
 				          DevStatsS2C ds = Jsons.OM.treeToValue(node, DevStatsS2C.class);

@@ -444,3 +444,20 @@ This skeleton is drop-in and does not pull AWT into server. Integrate with your 
 ## 1.0.27
 
 	Fix di chuyển vào vùng âm(-y)
+	
+## 1.0.28
+
+	fix bug: NullPointerException trong NetClient do gọi es.x() khi es == null.
+		Các frame state đầu tiên có thể chưa có entry của bạn trong st.ents() (server chưa stream kịp), nên es null là bình thường. Chỉ cần gói các dùng es vào cùng một if.
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
