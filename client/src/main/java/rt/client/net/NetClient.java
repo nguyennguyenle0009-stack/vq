@@ -71,7 +71,7 @@ public class NetClient {
         // quy vị trí tile -> chunk
         int centerCx = (int) Math.floor(youX / (double) chunkSizeHs);
         int centerCy = (int) Math.floor(youY / (double) chunkSizeHs);
-        int radius   = Math.max(1, viewDist);
+        int radius   = Math.max(1, viewDist) + 1;
 
         long now = System.currentTimeMillis();
         boolean crossed = lastCx == null || lastCy == null || centerCx != lastCx || centerCy != lastCy;
@@ -183,14 +183,15 @@ public class NetClient {
 		            	    maybeRequestChunks();
 		            	}case "chunk" -> {
 		            	    ChunkS2C ch = Jsons.OM.treeToValue(node, ChunkS2C.class);
-		            	    // giải mã bitset va chạm
-		            	    byte[] rleBytes = Base64.getDecoder().decode(ch.collisionRLE());
-		            	    BitSet solid = BitsetRLE.decode(rleBytes, ch.w() * ch.h());
-		            	    // lưu cache tạm (chưa render chunk ở client)
-		            	    long k = ckey(ch.cx(), ch.cy());
-		            	    chunkTiles.put(k, ch.tiles());
-		            	    chunkSolid.put(k, solid);
-		            	    // không gọi repaint() ở đây
+
+		            	    // decode collision RLE
+		            	    byte[] rleBytes = java.util.Base64.getDecoder().decode(ch.collisionRLE());
+		            	    java.util.BitSet solid = rt.common.map.codec.BitsetRLE.decode(rleBytes, ch.w() * ch.h());
+
+		            	    // LƯU VÀO MODEL để renderer dùng
+		            	    model.putChunk(ch.cx(), ch.cy(), ch.w(), ch.h(), ch.tiles(), solid);
+
+		            	    // (giữ nguyên phần còn lại, KHÔNG cần repaint() ở đây)
 		            	}
 		            	default -> {
 		            		log.debug("unknown type: {}", type);

@@ -10,5 +10,8 @@ public final class TileChunk {
     public TileChunk(int cx,int cy,int w,int h, short[] tiles, BitSet solid, int version){
         this.cx=cx; this.cy=cy; this.w=w; this.h=h; this.tiles=tiles; this.solid=solid; this.version=version;
     }
-    public boolean blocked(int lx,int ly){ return solid.get(ly*w + lx); }
+    public boolean blocked(int lx, int ly) {
+        if (lx < 0 || ly < 0 || lx >= w || ly >= h) return false; // ❗
+        return solid.get(ly * w + lx);
+    }
 }

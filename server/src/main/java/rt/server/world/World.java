@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Trạng thái game (đơn vị tile). Server là nguồn sự thật. */
 public class World {
     private final SessionRegistry sessions;
+    private static final double PLAYER_RADIUS = 0.35;
 
     // Vị trí authoritative của player (đơn vị tile)
     private static final class P { double x, y; }
@@ -33,11 +34,24 @@ public class World {
     	this.collision = new rt.server.world.CollisionService(reg.get(reg.defaultWorld()));
     	}
     
+    // kiểm tra vòng tròn đè lên ô solid:
+    /** Circle-vs-tile collision: check any solid tile in bounding box of radius r. */
+    private boolean blockedCircle(double x, double y, double r) {
+        int minTx = (int)Math.floor(x - r);
+        int maxTx = (int)Math.floor(x + r);
+        int minTy = (int)Math.floor(y - r);
+        int maxTy = (int)Math.floor(y + r);
+        for (int ty=minTy; ty<=maxTy; ty++)
+            for (int tx=minTx; tx<=maxTx; tx++)
+                if (collision.blockedTile(tx, ty)) return true;
+        return false;
+    }
+    
     private boolean blocked(double x, double y){
     	int tx = (int)Math.floor(x);
     	int ty = (int)Math.floor(y);
     	return collision.blockedTile(tx, ty);
-    	}
+	}
 
     private P ensure(String id){
         return players.computeIfAbsent(id, k -> {
@@ -67,15 +81,10 @@ public class World {
             if (!Double.isFinite(nx) || Math.abs(nx) > 1e9) nx = p.x;
             if (!Double.isFinite(ny) || Math.abs(ny) > 1e9) ny = p.y;
 
-         // sweep X
-            int tx = (int)Math.floor(nx);
-            int ty = (int)Math.floor(p.y);
-            if (!blocked(tx, ty)) p.x = nx;
-
+            // sweep X
+            if (!blockedCircle(nx, p.y, PLAYER_RADIUS)) p.x = nx;
             // sweep Y
-            tx = (int)Math.floor(p.x);
-            ty = (int)Math.floor(ny);
-            if (!blocked(tx, ty)) p.y = ny;
+            if (!blockedCircle(p.x, ny, PLAYER_RADIUS)) p.y = ny;
 
             // (nếu streamer đọc session.x/y)
             for (var s : sessions.all()) {
