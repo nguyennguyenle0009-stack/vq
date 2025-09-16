@@ -65,13 +65,13 @@ public class ClientApp {
         });
         panel.setHud(hud);
 
-//        // Ping HUD (client-side RTT)
-//        net.setOnClientPong(ns -> {
-//            long rttMs = (System.nanoTime() - ns) / 1_000_000L;
-//            panel.setPingMs(rttMs);
-//            hud.setPing(rttMs);
-//            panel.setPing(rttMs);
-//        });
+        // Ping HUD (client-side RTT)
+        net.setOnClientPong(ns -> {
+            long rttMs = (System.nanoTime() - ns) / 1_000_000L;
+            panel.setPingMs(rttMs);
+            hud.setPing(rttMs);
+            panel.setPing(rttMs);
+        });
 
         // Kết nối
         net.connect(name);

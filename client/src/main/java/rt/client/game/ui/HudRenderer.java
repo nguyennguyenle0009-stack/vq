@@ -27,6 +27,5 @@ public final class HudRenderer {
         g2.setFont(hudFont);
         g2.setColor(Color.WHITE);
         g2.drawString(String.format("FPS: %.0f   Ping: %.0f ms", fps, pingMs), 10, 20);
-        g2.drawString(String.format("X: %.2f   Y: %.2f", model.predX, model.predY), 10, 35);
     }
 }

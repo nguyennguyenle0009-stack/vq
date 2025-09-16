@@ -12,18 +12,13 @@ import rt.server.config.ServerConfig;
 import rt.server.game.input.InputQueue;
 import rt.server.session.SessionRegistry;
 import rt.server.session.SessionRegistry.Session;
-import rt.server.world.CompatWorlds;
 import rt.server.world.World;
-import rt.server.world.WorldRegistry;
 
-import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-import rt.common.map.Grid;
-import rt.common.map.codec.BitsetRLE;
 import rt.common.net.ErrorCodes;
 import rt.common.net.Jsons;
 import rt.common.net.dto.*;
@@ -77,18 +72,10 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
 	            HelloC2S msg = Jsons.OM.treeToValue(node, HelloC2S.class);
 	            log.info("hello from {} name={}", s.playerId, msg.name());
 	            s.send(new HelloS2C(s.playerId));
-	            
-	            WorldRegistry reg = CompatWorlds.reg();
-	            var worldId = reg.defaultWorld();
-	            var ctxw = reg.get(worldId);
-	            s.send(new rt.common.net.dto.WorldHandshakeS2C( 
-	            		worldId,
-			            Grid.TILE,
-			            Grid.CHUNK,
-			            reg.viewDist(),
-			            ctxw.tileset,
-			            ctxw.tilesetCols 
-		            ));
+	
+	            // Gửi map một lần sau hello
+	            var m = world.map(); // thêm field world vào WsTextHandler (xem chú thích bên dưới)
+	            s.send(new MapS2C(m.tile, m.w, m.h, m.solidLines()));
 	        }
 	        case "input" -> {
 	            var in = Jsons.OM.treeToValue(node, rt.common.net.dto.InputC2S.class);
@@ -98,6 +85,7 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
 	                java.util.Map.of("up",k.up(),"down",k.down(),"left",k.left(),"right",k.right()));
 	            s.send(new rt.common.net.dto.AckS2C(in.seq()));
 	        }
+
 	        case "admin" -> {
 	            var ad = Jsons.OM.treeToValue(node, rt.common.net.dto.AdminC2S.class);
 	            if (ad.token() == null || !ad.token().equals(cfg.adminToken)) {
@@ -110,6 +98,14 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
 	                    StringBuilder sb = new StringBuilder();
 	                    sessions.all().forEach(x -> sb.append(x.playerId).append(' '));
 	                    s.send(new rt.common.net.dto.AdminResultS2C(true, "sessions: " + sb.toString().trim()));
+	                } else if (cmd.startsWith("teleport ")) {
+	                    String[] p = cmd.split("\\s+");
+	                    if (p.length != 4) { s.send(new rt.common.net.dto.AdminResultS2C(false,"usage: teleport <id> <x> <y>")); break; }
+	                    boolean ok = world.teleport(p[1], Double.parseDouble(p[2]), Double.parseDouble(p[3]));
+	                    s.send(new rt.common.net.dto.AdminResultS2C(ok, ok ? "teleported" : "failed (blocked/out-of-bounds)"));
+	                } else if (cmd.equals("reloadMap")) {
+	                    boolean ok = world.reloadMap(cfg.mapResourcePath);
+	                    s.send(new rt.common.net.dto.AdminResultS2C(ok, ok ? "map reloaded" : "reload failed"));
 	                } else {
 	                    s.send(new rt.common.net.dto.AdminResultS2C(false, "unknown cmd"));
 	                }
@@ -138,34 +134,6 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                     // fallback: echo lại millisecond "ts"
                     long ts = ((Number) root.getOrDefault("ts", System.currentTimeMillis())).longValue();
                     s.send(Map.of("type", "cpong", "ts", ts));
-                }
-            }
-            case "chunkReq" -> {
-                var req = Jsons.OM.treeToValue(node, ChunkReqC2S.class);
-
-                WorldRegistry reg = CompatWorlds.reg();
-                var ctxw = reg.get(req.worldId());
-
-                int r = Math.max(0, Math.min(req.radius(), reg.viewDist()));
-                for (int dy = -r; dy <= r; dy++) {
-                    for (int dx = -r; dx <= r; dx++) {
-                        int cx = req.centerCx() + dx;
-                        int cy = req.centerCy() + dy;
-
-                        var ch = ctxw.chunks.get(cx, cy);
-
-                        int[] tiles = new int[ch.tiles.length];
-                        for (int i = 0; i < tiles.length; i++) tiles[i] = ch.tiles[i];
-
-                        // BitsetRLE.encode(...) trả về byte[]  → Base64 sang String cho DTO
-                        byte[] rleBytes = BitsetRLE.encode(ch.solid, ch.w * ch.h);
-                        String rleB64 = Base64.getEncoder().encodeToString(rleBytes);
-
-                        s.send(new ChunkS2C(
-                            req.worldId(), cx, cy, ch.version,
-                            ch.w, ch.h, tiles, rleB64
-                        ));
-                    }
                 }
             }
             default -> log.warn("unknown type {}", type);

@@ -12,17 +12,15 @@ import rt.server.game.loop.GameLoop;
 import rt.server.game.loop.SnapshotStreamer;
 import rt.server.session.SessionRegistry;
 import rt.server.websocket.WsServer;
-import rt.server.world.CompatWorlds;
+import rt.server.world.TileMap;
 import rt.server.world.World;
-import rt.server.world.WorldRegistry;
 
 public class MainServer {
 	public static void main(String[] args) throws Exception {
 		
-		WorldRegistry worldReg = CompatWorlds.initFromClasspathConfig();
 	    var sessions = new SessionRegistry();
 	    var inputs   = new InputQueue();
-	    var world    = new World(sessions, worldReg);
+	    var world    = new World(sessions);
 	    var cfg = ServerConfig.load();
 	    var ws = new WsServer(cfg, sessions, inputs, world);
 	    
@@ -33,6 +31,7 @@ public class MainServer {
 	    System.setProperty("LOG_STAMP",
         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss")));
 	    
+	    world.setMap(TileMap.loadResource(cfg.mapResourcePath));
 	    ws.start();
 
 	    org.slf4j.LoggerFactory.getLogger("rt.server").info("Starting with {}", cfg);

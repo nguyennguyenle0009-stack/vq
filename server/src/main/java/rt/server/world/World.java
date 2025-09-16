@@ -1,6 +1,5 @@
 package rt.server.world;
 
-import rt.common.map.Grid;
 import rt.common.net.dto.EntityState;
 import rt.common.net.dto.StateS2C;
 import rt.server.session.SessionRegistry;
@@ -11,7 +10,6 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Trạng thái game (đơn vị tile). Server là nguồn sự thật. */
 public class World {
     private final SessionRegistry sessions;
-    private static final double PLAYER_RADIUS = 0.35;
 
     // Vị trí authoritative của player (đơn vị tile)
     private static final class P { double x, y; }
@@ -23,35 +21,14 @@ public class World {
 
     // Tốc độ: tile/giây
     private static final double SPEED = 3.0;
-    
-    //private final WorldRegistry worldReg;
-    private final ConcurrentHashMap<String, String> playerWorld = new ConcurrentHashMap<>();
-    
-    private final rt.server.world.CollisionService collision;
-    
-    public World(SessionRegistry sessions, rt.server.world.WorldRegistry reg){
-    	this.sessions = sessions;
-    	this.collision = new rt.server.world.CollisionService(reg.get(reg.defaultWorld()));
-    	}
-    
-    // kiểm tra vòng tròn đè lên ô solid:
-    /** Circle-vs-tile collision: check any solid tile in bounding box of radius r. */
-    private boolean blockedCircle(double x, double y, double r) {
-        int minTx = (int)Math.floor(x - r);
-        int maxTx = (int)Math.floor(x + r);
-        int minTy = (int)Math.floor(y - r);
-        int maxTy = (int)Math.floor(y + r);
-        for (int ty=minTy; ty<=maxTy; ty++)
-            for (int tx=minTx; tx<=maxTx; tx++)
-                if (collision.blockedTile(tx, ty)) return true;
-        return false;
-    }
-    
-    private boolean blocked(double x, double y){
-    	int tx = (int)Math.floor(x);
-    	int ty = (int)Math.floor(y);
-    	return collision.blockedTile(tx, ty);
-	}
+
+    // Bản đồ
+    private volatile TileMap map = TileMap.demo();
+
+    public World(SessionRegistry sessions) { this.sessions = sessions; }
+
+    public void setMap(TileMap m){ this.map = Objects.requireNonNull(m); }
+    public TileMap map(){ return map; }
 
     private P ensure(String id){
         return players.computeIfAbsent(id, k -> {
@@ -73,20 +50,27 @@ public class World {
 
     /** 1 tick logic theo dt (giây). Collision theo tile với sweep trục X rồi Y. */
     public void step(double dt) {
-        final double v = SPEED;
+        TileMap m = this.map;
         lastInput.forEach((id, dir) -> {
             P p = ensure(id);
-            double nx = p.x + dir.x * v * dt;
-            double ny = p.y + dir.y * v * dt;
-            if (!Double.isFinite(nx) || Math.abs(nx) > 1e9) nx = p.x;
-            if (!Double.isFinite(ny) || Math.abs(ny) > 1e9) ny = p.y;
+            double nx = p.x + dir.x * SPEED * dt;
+            double ny = p.y + dir.y * SPEED * dt;
 
-            // sweep X
-            if (!blockedCircle(nx, p.y, PLAYER_RADIUS)) p.x = nx;
-            // sweep Y
-            if (!blockedCircle(p.x, ny, PLAYER_RADIUS)) p.y = ny;
+            // Clamp map bounds (điểm player nằm trong map)
+            nx = Math.max(0, Math.min(nx, m.w - 1e-3));
+            ny = Math.max(0, Math.min(ny, m.h - 1e-3));
 
-            // (nếu streamer đọc session.x/y)
+            // Sweep X
+            int tx = (int)Math.floor(nx);
+            int ty = (int)Math.floor(p.y); // Y tạm giữ
+            if (!m.blocked(tx, ty)) p.x = nx;
+
+            // Sweep Y
+            tx = (int)Math.floor(p.x);
+            ty = (int)Math.floor(ny);
+            if (!m.blocked(tx, ty)) p.y = ny;
+
+            // Phản chiếu sang session (để streamer đọc nếu đang dùng Session.x/y)
             for (var s : sessions.all()) {
                 if (s.playerId.equals(id)) { s.x = p.x; s.y = p.y; break; }
             }
@@ -114,4 +98,21 @@ public class World {
         players.remove(id);
         lastInput.remove(id);
     }
+    
+    public boolean teleport(String id, double x, double y) {
+        TileMap m = this.map;
+        if (x < 0 || y < 0 || x >= m.w || y >= m.h) return false;
+        int tx = (int)Math.floor(x), ty = (int)Math.floor(y);
+        if (m.blocked(tx, ty)) return false;
+        P p = ensure(id);
+        p.x = x; p.y = y;
+        sessions.all().forEach(s -> { if (s.playerId.equals(id)) { s.x = x; s.y = y; } });
+        return true;
+    }
+    
+    public boolean reloadMap(String resourcePath) {
+        try { setMap(TileMap.loadResource(resourcePath)); return true; }
+        catch (Exception e) { return false; }
+    }
+
 }

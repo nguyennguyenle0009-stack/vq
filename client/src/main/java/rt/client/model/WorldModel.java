@@ -18,11 +18,7 @@ public class WorldModel {
     public MapModel map(){ return map; }
     
     // ===== Interpolation buffer (đơn vị tile) =====
-    public static final class Pos { 
-    	public double x;
-    	public double y; 
-    }
-    
+    public static final class Pos { public double x, y; }
     public static final class Snapshot {
         public final long ts; public final Map<String, Pos> ents;
         Snapshot(long ts, Map<String, Pos> ents){ this.ts = ts; this.ents = ents; }
@@ -47,8 +43,7 @@ public class WorldModel {
     public void setYou(String id){ this.you=id; } public String you(){ return you; }
 
     // ===== Prediction (tile) =====
-    private volatile boolean hasPred=false; 
-    public volatile double predX, predY;
+    private volatile boolean hasPred=false; private volatile double predX, predY;
 
     // ===== Pending inputs =====
     public static final class Pending {
@@ -189,9 +184,9 @@ public class WorldModel {
         if (len>0){ vx/=len; vy/=len; }
         predX += vx * SPEED_TILES_PER_SEC * dtSec;
         predY += vy * SPEED_TILES_PER_SEC * dtSec;
-//        if (predX<0) predX=0; if (predY<0) predY=0;
-//        if (predX>WORLD_W_TILES) predX=WORLD_W_TILES;
-//        if (predY>WORLD_H_TILES) predY=WORLD_H_TILES;
+        if (predX<0) predX=0; if (predY<0) predY=0;
+        if (predX>WORLD_W_TILES) predX=WORLD_W_TILES;
+        if (predY>WORLD_H_TILES) predY=WORLD_H_TILES;
     }
 
     public Pos getPredictedYou(){
@@ -264,39 +259,4 @@ public class WorldModel {
     }
     public double pingText() { return hasPing ? (Math.round(pingMs)) : 0.0; }
     public int pingRoundedMs() { return (int)Math.round(pingMs); }
-    
- // ===== Client-side chunk cache for rendering overlay =====
-    public static final class ClientChunk {
-        public final int cx, cy, w, h;
-        public final short[] tiles; // có thể null nếu bạn không cần
-        public final java.util.BitSet solid;
-        public ClientChunk(int cx,int cy,int w,int h, short[] tiles, java.util.BitSet solid){
-            this.cx=cx; this.cy=cy; this.w=w; this.h=h; this.tiles=tiles; this.solid=solid;
-        }
-        public boolean blocked(int lx,int ly){
-            int idx = ly * w + lx;
-            return idx >= 0 && idx < w*h && solid.get(idx);
-        }
-    }
-    private final java.util.concurrent.ConcurrentHashMap<Long, ClientChunk> clientChunks = new java.util.concurrent.ConcurrentHashMap<>();
-    private static long key(int cx,int cy){ return (((long)cx)<<32) ^ (cy & 0xffffffffL); }
-
-    /** NetClient sẽ gọi để nạp chunk nhận được. */
-    public void putChunk(int cx,int cy,int w,int h,int[] tilesArr, java.util.BitSet solid) {
-        short[] tiles = null;
-        if (tilesArr != null) {
-            tiles = new short[tilesArr.length];
-            for (int i=0;i<tilesArr.length;i++) tiles[i] = (short)tilesArr[i];
-        }
-        clientChunks.put(key(cx,cy), new ClientChunk(cx,cy,w,h, tiles, solid));
-    }
-
-    /** Truy vấn va chạm theo tile world (hỗ trợ toạ độ âm). */
-    public boolean isSolidTile(int tx,int ty){
-        int N = rt.common.map.Grid.CHUNK;
-        int cx = rt.common.map.Grid.chunkX(tx), cy = rt.common.map.Grid.chunkY(ty);
-        int lx = rt.common.map.Grid.localX(tx), ly = rt.common.map.Grid.localY(ty);
-        ClientChunk c = clientChunks.get(key(cx,cy));
-        return c != null && c.blocked(lx, ly);
-    }
 }
