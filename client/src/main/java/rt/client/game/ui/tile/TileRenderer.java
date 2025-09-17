@@ -17,42 +17,37 @@ public class TileRenderer {
     };
 
     /** Vẽ theo camera hiện tại (đã translate ở GameCanvas). Không resample, không recentre. */
-    public void draw(Graphics2D g2, rt.client.model.WorldModel model,
-                     int viewW, int viewH, double camX, double camY) {
-        if (chunkCache == null) return;
+    public void draw(Graphics2D g2, rt.client.model.WorldModel model){
+        if (chunkCache == null || model == null || model.you() == null) return;
 
-        final int N = ChunkPos.SIZE;
-        final int Npx = N * tileSize;
+        // vị trí bạn (pixel thế giới)
+        rt.client.model.WorldModel.Pos p = model.getPredictedYou();
+        if (p == null) { var s = model.sampleForRender(); p = s.get(model.you()); if (p == null) return; }
+        int px = (int)Math.round(p.x * tileSize);
+        int py = (int)Math.round(p.y * tileSize);
 
-        // chunk chứa tâm camera
-        int cx = (int)Math.floor(camX / Npx);
-        int cy = (int)Math.floor(camY / Npx);
+        // viewport (đã translate camera ở GameCanvas rồi -> gốc (0,0) là pixel thế giới)
+        java.awt.Rectangle clip = g2.getClipBounds();
+        int vw = (clip!=null? clip.width  : 2000);
+        int vh = (clip!=null? clip.height : 1200);
 
-        // cắt theo viewport + 1 chunk biên
-        int halfW = (int)Math.ceil(viewW / (double)Npx) + 1;
-        int halfH = (int)Math.ceil(viewH / (double)Npx) + 1;
+        final int N      = rt.common.world.ChunkPos.SIZE;
+        final int Npx    = N * tileSize;
+        int cx0 = Math.floorDiv(px - vw/2, Npx) - 1;
+        int cy0 = Math.floorDiv(py - vh/2, Npx) - 1;
+        int cx1 = Math.floorDiv(px + vw/2, Npx) + 1;
+        int cy1 = Math.floorDiv(py + vh/2, Npx) + 1;
 
-        // fillRect +1 để tránh đường seam đen giữa ô
-        for (int dy = -halfH; dy <= halfH; dy++) {
-            for (int dx = -halfW; dx <= halfW; dx++) {
-                var d = chunkCache.get(cx + dx, cy + dy);
+        for (int cy=cy0; cy<=cy1; cy++){
+            for (int cx=cx0; cx<=cx1; cx++){
+                var d = chunkCache.get(cx, cy);
                 if (d == null) continue;
-
-                int baseX = (cx + dx) * Npx;
-                int baseY = (cy + dy) * Npx;
-
-                for (int ty = 0; ty < d.size; ty++) {
-                    for (int tx = 0; tx < d.size; tx++) {
-                        int idx = ty * d.size + tx;
-                        int id  = Byte.toUnsignedInt(d.l1[idx]); // <- dùng trường l1 của bạn
-                        Color c = (id < PALETTE.length) ? PALETTE[id] : Color.MAGENTA;
-                        g2.setColor(c);
-                        int x = baseX + tx * tileSize;
-                        int y = baseY + ty * tileSize;
-                        g2.fillRect(x, y, tileSize + 1, tileSize + 1);
-                    }
-                }
+                chunkCache.bakeImage(d, tileSize);               // đảm bảo có ảnh
+                int dx = cx * Npx;
+                int dy = cy * Npx;
+                g2.drawImage(d.img, dx, dy, null);               // BLIT 1 phát
             }
         }
     }
+
 }

@@ -17,17 +17,23 @@ import rt.server.world.World;
 public class MainServer {
 	public static void main(String[] args) throws Exception {
 		
-	    var sessions = new SessionRegistry();
-	    var inputs   = new InputQueue();
-	    var world    = new World(sessions);
-	    var cfg = ServerConfig.load();
-	    var gen = new rt.common.world.WorldGenerator(
-	    	    new rt.common.world.WorldGenConfig(ServerConfig.worldSeed != 0 ? ServerConfig.worldSeed : 20250917L, 0.55, 0.35));
-    	var svc = new rt.server.world.chunk.ChunkService(gen);
+		var sessions = new SessionRegistry();
+		var inputs   = new InputQueue();
+		var world    = new World(sessions);
+		var cfg      = ServerConfig.load();
 
-    	world.enableChunkMode(svc);
+		var gen = new rt.common.world.WorldGenerator(
+		    new rt.common.world.WorldGenConfig(
+		        cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L, 0.55, 0.35
+		));
+		var svc = new rt.server.world.chunk.ChunkService(gen);
 
-	    var ws = new WsServer(cfg, sessions, inputs, world, svc); 
+		// World dùng đúng instance này
+		world.enableChunkMode(svc);
+
+		// Truyền svc xuống server WS
+		var ws = new WsServer(cfg, sessions, inputs, world, svc);
+
 	    
 
 	    

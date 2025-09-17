@@ -33,10 +33,10 @@ public final class HudOverlay extends JComponent {
 	    Graphics2D g2 = (Graphics2D) g;
 	    final int w = getWidth();
 	    g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-
-	    g2.setColor(new Color(0,0,0,140)); g2.fillRoundRect(w-230,28,300,120,12,12);
-	    g2.setColor(Color.WHITE);
 	    int y=28;
+	    g2.setColor(new Color(0,0,0,140)); g2.fillRoundRect(w-240,y,190,120,12,12);y+=18;;
+	    g2.setColor(Color.WHITE);
+	    
 	    g2.drawString(String.format("FPS: %.0f   Ping: %.0f ms", fps, model.pingText()), w-230,y); y+=18;
 	    g2.drawString("Tick(render est): " + model.renderTickEstimate(), w-230,y); y+=18;
 	    g2.drawString("Ents(server/render): " + model.devEntsServer() + " / " + model.sampleForRender().size(), w-230,y); y+=18;

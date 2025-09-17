@@ -153,10 +153,14 @@ public class NetClient {
                                 }
                         }
                         case "chunk" -> {
+
                             int cx = node.get("cx").asInt(), cy = node.get("cy").asInt(), size = node.get("size").asInt();
                             byte[] l1 = node.get("layer1").binaryValue(), l2 = node.get("layer2").binaryValue();
                             java.util.BitSet coll = java.util.BitSet.valueOf(node.get("collisionBits").binaryValue());
                             chunkCache.onArrive(new rt.client.world.ChunkCache.Data(cx,cy,size,l1,l2,coll));
+                            var data = new rt.client.world.ChunkCache.Data(cx,cy,size,l1,l2,coll);
+                            chunkCache.onArrive(data);
+                            chunkCache.bakeImage(data, tileSize); // <-- bake ngay
                         }
                         default -> {
                             log.debug("unknown type: {}", type);

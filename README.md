@@ -377,3 +377,7 @@ thế giới được sinh theo chunk từ seed
 
 	fix nhân vật khi di chuyển bị giật(khi set màn hình đi theo nhân vật)
 
+## 1.0.28
+
+	spawn tại lục địa
+	fix nhân vật giật giật khi di chuyển (tốn hiệu CPU hơn)

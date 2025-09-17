@@ -37,7 +37,7 @@ public class GameCanvas extends JPanel {
         tileRenderer.setTileSize(tileSize);
     }
     
-    private boolean showGrid = true;
+    private boolean showGrid = false;
     public void setShowGrid(boolean v){ showGrid = v; }
 
     public GameCanvas(WorldModel model) {
@@ -56,46 +56,39 @@ public class GameCanvas extends JPanel {
         if (hud != null) hud.onFrame();
     }
 
+    private double camX = 0, camY = 0;
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        final int w = getWidth(), h = getHeight();
+        Graphics2D g2 = (Graphics2D) g;
 
-        Graphics2D g2 = (Graphics2D) g.create();
-        // Tiles/pixel art cần OFF AA, stroke thuần để khỏi rung
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
         g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
         g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
-        g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 
-        // ==== SAMPLE 1 LẦN (giữ nhất quán toàn khung) ====
-        var snap = model.sampleForRender();                 // <-- chỉ gọi 1 lần
-        rt.client.model.WorldModel.Pos youPos = null;
-        String you = model.you();
-        if (you != null) youPos = snap.get(you);
-        if (youPos == null) youPos = model.getPredictedYou(); // fallback nếu chưa có state
-        if (youPos == null) { youPos = new rt.client.model.WorldModel.Pos(); youPos.x = 0; youPos.y = 0; }
+        int w = getWidth(), h = getHeight();
 
-        // ==== CAMERA: dịch bằng double, KHÔNG làm tròn ====
-        double camX = youPos.x * TILE;
-        double camY = youPos.y * TILE;
+        var youId = model.you();
+        rt.client.model.WorldModel.Pos you = model.getPredictedYou();
+        if (you == null && youId != null) {
+            var snap = model.sampleForRender(); // có thể tối ưu thành sampleOne(id)
+            you = snap.get(youId);
+        }
+        if (you != null) {
+            double targetX = you.x * TILE, targetY = you.y * TILE;
+            double alpha = 0.18; // 0.1–0.25 tuỳ gu mượt
+            camX += (targetX - camX) * alpha;
+            camY += (targetY - camY) * alpha;
+        }
 
-        var oldTx = g2.getTransform();
-        g2.translate(w / 2.0 - camX, h / 2.0 - camY);
+        g2.translate(w/2 - (int)Math.round(camX), h/2 - (int)Math.round(camY));
 
-        // 1) Tiles – dùng camera hiện tại, không tự recentre/không resample nữa
-        tileRenderer.draw(g2, model, w, h, camX, camY);
-
-        // 2) Grid (tuỳ chọn). Nếu thấy rung, tắt đi.
-        if (showGrid) gridRenderer.drawWorldAligned(g2, w, h, TILE);
-
-        // 3) Entities – vẽ theo snapshot đã lấy ở trên (không gọi sample lại)
+        tileRenderer.draw(g2, model);                 // vẽ chunk-images
+        if (showGrid) gridRenderer.draw(g2, w, h, TILE, getGraphicsConfiguration());
         entityRenderer.draw(g2, model, TILE);
 
-        // reset transform trước khi vẽ HUD
-        g2.setTransform(oldTx);
-
-        // 4) HUD
+        g2.translate(0,0); // (không cần trả transform if not re-used)
         hudRenderer.draw(g2, model, hud);
         if (hud != null) hud.onFrame();
         g2.dispose();

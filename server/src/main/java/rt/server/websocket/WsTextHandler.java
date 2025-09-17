@@ -63,7 +63,6 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
         var gen = new rt.common.world.WorldGenerator(
                 new rt.common.world.WorldGenConfig(ServerConfig.worldSeed, 0.55, 0.35));
         this.chunkservice = new rt.server.world.chunk.ChunkService(gen);
-        world.enableChunkMode(chunkservice);
     }
 
     @Override
@@ -219,5 +218,18 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                     "Too many inputs (> " + INPUT_MAX_PER_SEC + "/s). Some inputs are dropped."));
         }
         return false;
+    }
+    
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        super.channelActive(ctx);
+
+        // Tạo & đăng ký session từ channel hiện tại
+        var s = sessions.attach(ctx.channel());
+        s.send(new HelloS2C(s.playerId));
+
+        // Gửi seed cho client (lấy từ cfg instance, không dùng field static)
+        long seed = (cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L);
+        s.send(new SeedS2C(seed, rt.common.world.ChunkPos.SIZE, 32)); // tileSize tùy bạn
     }
 }
