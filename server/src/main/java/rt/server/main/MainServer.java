@@ -22,7 +22,7 @@ public class MainServer {
 	    var world    = new World(sessions);
 	    var cfg = ServerConfig.load();
 	    var gen = new rt.common.world.WorldGenerator(
-	    	    new rt.common.world.WorldGenConfig(cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L, 0.55, 0.35));
+	    	    new rt.common.world.WorldGenConfig(ServerConfig.worldSeed != 0 ? ServerConfig.worldSeed : 20250917L, 0.55, 0.35));
     	var svc = new rt.server.world.chunk.ChunkService(gen);
 
     	world.enableChunkMode(svc);
@@ -37,6 +37,8 @@ public class MainServer {
 	    System.setProperty("VQ_LOG_DIR", base.toString());
 	    System.setProperty("LOG_STAMP",
         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss")));
+	    
+	    org.slf4j.LoggerFactory.getLogger("rt.server").info("ChunkService {}", System.identityHashCode(svc));
 	    
 	    ws.start();
 

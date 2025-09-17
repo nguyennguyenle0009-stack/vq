@@ -41,12 +41,10 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     private final InputQueue inputs;
     private final World world;
     private final ServerConfig cfg;
-    private final ChunkService chunkservice;
+    private ChunkService chunkservice;
 
 
     // ====== NEW: Overworld (chunk) foundation ======
-    private final rt.server.world.chunk.ChunkService chunkService;
-    private static final long CHUNK_SEED = 20250917L; // tạm hard-code; không đụng ServerConfig
     private static final int  TILE_SIZE  = 32;
     
     public WsTextHandler(
@@ -63,9 +61,9 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
 
         // Khởi tạo world-gen và dịch vụ chunk (Phase 1)
         var gen = new rt.common.world.WorldGenerator(
-                new rt.common.world.WorldGenConfig(CHUNK_SEED, 0.55, 0.35));
-        this.chunkService = new rt.server.world.chunk.ChunkService(gen);
-        world.enableChunkMode(chunkService);
+                new rt.common.world.WorldGenConfig(ServerConfig.worldSeed, 0.55, 0.35));
+        this.chunkservice = new rt.server.world.chunk.ChunkService(gen);
+        world.enableChunkMode(chunkservice);
     }
 
     @Override
@@ -74,6 +72,7 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
         Session s = new Session(ctx.channel(), id);
         sessions.attach(s);
         log.info("channel added {}", id);
+        log.info("Use ChunkService {}", System.identityHashCode(this.chunkservice));
         s.send(Map.of("type", "hello", "you", id));
     }
 
@@ -94,14 +93,14 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                 s.send(new HelloS2C(s.playerId));
 
                 // === PHASE 1: bật chế độ chunk ở client bằng seed ===
-                s.send(new SeedS2C(CHUNK_SEED, rt.common.world.ChunkPos.SIZE, TILE_SIZE));
+                s.send(new SeedS2C(ServerConfig.worldSeed, rt.common.world.ChunkPos.SIZE, TILE_SIZE));
             }
 
             // === PHASE 1: client xin chunk (cx,cy) ===
             case "chunk_req" -> {
                 int cx = node.get("cx").asInt();
                 int cy = node.get("cy").asInt();
-                var cd = this.chunkService.get(cx, cy);
+                var cd = this.chunkservice.get(cx, cy);
                 s.send(new ChunkS2C(cd.cx, cd.cy, cd.size, cd.layer1, cd.layer2, cd.collision.toByteArray()));
             }
 

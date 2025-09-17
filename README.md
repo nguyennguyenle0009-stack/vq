@@ -368,6 +368,9 @@ thế giới được sinh theo chunk từ seed
 	Xóa map cũ tránh lẫn lộn
 	fix va chạm
 
+## 1.0.26
 
+	Thêm map lớn biển và lục địa	
+	fix lỗi render
 
 

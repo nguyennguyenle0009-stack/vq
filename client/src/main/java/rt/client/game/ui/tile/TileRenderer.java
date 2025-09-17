@@ -37,7 +37,7 @@ public final class TileRenderer {
                     for (int tx = 0; tx < d.size; tx++) {
                         int idx = ty * d.size + tx;
                         g2.setColor(BiomePalette.color(d.l1[idx]));
-                        g2.fillRect(baseX + tx * tileSize, baseY + ty * tileSize, tileSize, tileSize);
+                        g2.fillRect(baseX + tx * tileSize, baseY + ty * tileSize, tileSize + 1, tileSize + 1);
                     }
                 }
             }
