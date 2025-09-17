@@ -1,43 +1,55 @@
 package rt.client.game.ui.tile;
 
-import java.awt.Graphics2D;
-
-import rt.client.model.WorldModel;
-import rt.client.world.BiomePalette;
-import rt.client.world.ChunkCache;
 import rt.common.world.ChunkPos;
+import java.awt.*;
 
-public final class TileRenderer {
-    private ChunkCache chunkCache;
+public class TileRenderer {
+    private rt.client.world.ChunkCache chunkCache;
     private int tileSize = 32;
 
-    public void setChunkCache(ChunkCache cc){ this.chunkCache = cc; }
+    public void setChunkCache(rt.client.world.ChunkCache cc){ this.chunkCache = cc; }
     public void setTileSize(int px){ this.tileSize = px; }
 
-    public void draw(Graphics2D g2, WorldModel model) {
-        if (chunkCache == null || model == null) return;
+    private static final Color[] PALETTE = {
+        new Color(0x1B5E9C), Color.BLACK,
+        new Color(0xC8E6C9), new Color(0x2E7D32),
+        new Color(0xD7CCC8), new Color(0x6D4C41)
+    };
 
-        // LẤY VỊ TRÍ ĐÚNG CÁCH: youPos() trả WorldModel.Pos (x, y)
-        int px = (int)Math.round(model.youX() * tileSize);
-        int py = (int)Math.round(model.youY() * tileSize);
+    /** Vẽ theo camera hiện tại (đã translate ở GameCanvas). Không resample, không recentre. */
+    public void draw(Graphics2D g2, rt.client.model.WorldModel model,
+                     int viewW, int viewH, double camX, double camY) {
+        if (chunkCache == null) return;
 
-        int Npx = ChunkPos.SIZE * tileSize;
-        int centerCx = Math.floorDiv(px, Npx);
-        int centerCy = Math.floorDiv(py, Npx);
+        final int N = ChunkPos.SIZE;
+        final int Npx = N * tileSize;
 
-        for (int dy = -ChunkCache.R; dy <= ChunkCache.R; dy++) {
-            for (int dx = -ChunkCache.R; dx <= ChunkCache.R; dx++) {
-                var d = chunkCache.get(centerCx + dx, centerCy + dy);
+        // chunk chứa tâm camera
+        int cx = (int)Math.floor(camX / Npx);
+        int cy = (int)Math.floor(camY / Npx);
+
+        // cắt theo viewport + 1 chunk biên
+        int halfW = (int)Math.ceil(viewW / (double)Npx) + 1;
+        int halfH = (int)Math.ceil(viewH / (double)Npx) + 1;
+
+        // fillRect +1 để tránh đường seam đen giữa ô
+        for (int dy = -halfH; dy <= halfH; dy++) {
+            for (int dx = -halfW; dx <= halfW; dx++) {
+                var d = chunkCache.get(cx + dx, cy + dy);
                 if (d == null) continue;
 
-                int baseX = (centerCx + dx) * d.size * tileSize;
-                int baseY = (centerCy + dy) * d.size * tileSize;
+                int baseX = (cx + dx) * Npx;
+                int baseY = (cy + dy) * Npx;
 
                 for (int ty = 0; ty < d.size; ty++) {
                     for (int tx = 0; tx < d.size; tx++) {
                         int idx = ty * d.size + tx;
-                        g2.setColor(BiomePalette.color(d.l1[idx]));
-                        g2.fillRect(baseX + tx * tileSize, baseY + ty * tileSize, tileSize + 1, tileSize + 1);
+                        int id  = Byte.toUnsignedInt(d.l1[idx]); // <- dùng trường l1 của bạn
+                        Color c = (id < PALETTE.length) ? PALETTE[id] : Color.MAGENTA;
+                        g2.setColor(c);
+                        int x = baseX + tx * tileSize;
+                        int y = baseY + ty * tileSize;
+                        g2.fillRect(x, y, tileSize + 1, tileSize + 1);
                     }
                 }
             }

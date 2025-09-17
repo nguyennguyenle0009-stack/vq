@@ -37,4 +37,15 @@ public final class GridRenderer {
 
         gg.dispose();
     }
+    
+    public void drawWorldAligned(Graphics2D g2, int w, int h, int tile) {
+        Rectangle clip = g2.getClipBounds();
+        int x0 = clip.x - (clip.x % tile);
+        int y0 = clip.y - (clip.y % tile);
+
+        g2.setColor(new Color(255,255,255,20));
+        for (int x = x0; x < clip.x + clip.width; x += tile) g2.drawLine(x, clip.y, x, clip.y + clip.height);
+        for (int y = y0; y < clip.y + clip.height; y += tile) g2.drawLine(clip.x, y, clip.x + clip.width, y);
+    }
+
 }

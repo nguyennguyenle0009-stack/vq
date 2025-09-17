@@ -373,4 +373,7 @@ thế giới được sinh theo chunk từ seed
 	Thêm map lớn biển và lục địa	
 	fix lỗi render
 
+## 1.0.27
+
+	fix nhân vật khi di chuyển bị giật(khi set màn hình đi theo nhân vật)
 
