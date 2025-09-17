@@ -11,6 +11,7 @@ import rt.server.config.ServerConfig;
 import rt.server.game.input.InputQueue;
 import rt.server.session.SessionRegistry;
 import rt.server.world.World;
+import rt.server.world.chunk.ChunkService;
 
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -20,12 +21,15 @@ public class WsChannelInitializer extends ChannelInitializer<SocketChannel> {
     private final InputQueue inputs;
     private final World world;
     private final ServerConfig cfg;
+    private final ChunkService chunkservice;
 
-    public WsChannelInitializer(SessionRegistry sessions, InputQueue inputs, ServerConfig cfg, World world) {
+    public WsChannelInitializer(SessionRegistry sessions, InputQueue inputs, ServerConfig cfg, World world, 
+    		ChunkService chunkservice) {
         this.sessions = sessions;
         this.inputs = inputs;
         this.cfg = cfg;
         this.world = world;
+        this.chunkservice = chunkservice;
     }
 
     @Override
@@ -60,6 +64,6 @@ public class WsChannelInitializer extends ChannelInitializer<SocketChannel> {
         p.addLast(new WsExceptionHandler());
 
         // Handler nghiệp vụ
-        p.addLast(new WsTextHandler(sessions, inputs, world, cfg));
+        p.addLast(new WsTextHandler(sessions, inputs, world, cfg, chunkservice));
     }
 }

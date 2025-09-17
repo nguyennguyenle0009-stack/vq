@@ -15,6 +15,7 @@ import rt.server.game.input.InputQueue;
 import rt.server.session.SessionRegistry;
 import rt.server.session.SessionRegistry.Session;
 import rt.server.world.World;
+import rt.server.world.chunk.ChunkService;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,22 +41,31 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     private final InputQueue inputs;
     private final World world;
     private final ServerConfig cfg;
+    private final ChunkService chunkservice;
+
 
     // ====== NEW: Overworld (chunk) foundation ======
     private final rt.server.world.chunk.ChunkService chunkService;
-    private static final long CHUNK_SEED = 202509134437L; // tạm hard-code; không đụng ServerConfig
+    private static final long CHUNK_SEED = 20250917L; // tạm hard-code; không đụng ServerConfig
     private static final int  TILE_SIZE  = 32;
-
-    public WsTextHandler(SessionRegistry sessions, InputQueue inputs, World world, ServerConfig cfg) {
+    
+    public WsTextHandler(
+    		SessionRegistry sessions, 
+    		InputQueue inputs, 
+    		World world, 
+    		ServerConfig cfg, 
+    		ChunkService chunkservice) {
         this.sessions = sessions;
         this.inputs   = inputs;
         this.world    = world;
         this.cfg      = cfg;
+        this.chunkservice = chunkservice;
 
         // Khởi tạo world-gen và dịch vụ chunk (Phase 1)
         var gen = new rt.common.world.WorldGenerator(
                 new rt.common.world.WorldGenConfig(CHUNK_SEED, 0.55, 0.35));
         this.chunkService = new rt.server.world.chunk.ChunkService(gen);
+        world.enableChunkMode(chunkService);
     }
 
     @Override
@@ -85,9 +95,6 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
 
                 // === PHASE 1: bật chế độ chunk ở client bằng seed ===
                 s.send(new SeedS2C(CHUNK_SEED, rt.common.world.ChunkPos.SIZE, TILE_SIZE));
-
-                // (Giữ nguyên đường cũ MapS2C nếu client cũ vẫn cần — bạn có thể tắt dòng dưới)
-                // var m = world.map(); if (m != null) s.send(new MapS2C(m.tile, m.w, m.h, m.solidLines()));
             }
 
             // === PHASE 1: client xin chunk (cx,cy) ===

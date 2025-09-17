@@ -14,6 +14,7 @@ import rt.server.config.ServerConfig;
 import rt.server.game.input.InputQueue;
 import rt.server.session.SessionRegistry;
 import rt.server.world.World;
+import rt.server.world.chunk.ChunkService;
 
 //Lớp WsServer chịu trách nhiệm khởi động WebSocket server bằng Netty.
 //Nó quản lý vòng đời server (start/stop), accept kết nối client và chuyển dữ liệu
@@ -25,16 +26,19 @@ public class WsServer {
   	private final SessionRegistry sessions; // Quản lý danh sách phiên (session) của các client kết nối.
   	private final InputQueue inputs; // Hàng đợi input từ client gửi lên (để game loop xử lý).
   	private final World world;
+  	private final ChunkService chunkservice;
   	private EventLoopGroup bossGroup; // Nhóm thread quản lý kết nối "chấp nhận socket" (boss).
   	private EventLoopGroup workerGroup; // Nhóm thread xử lý I/O cho từng kết nối (worker).
   	private Channel serverChannel; // Channel đại diện cho server socket (cổng WebSocket).
 
   	// Constructor: khởi tạo server với cổng, registry quản lý session và input queue.
-    public WsServer(ServerConfig cfg, SessionRegistry sessions, InputQueue inputs, World world) {
+    public WsServer(ServerConfig cfg, SessionRegistry sessions, InputQueue inputs, World world,
+    		ChunkService chunkservice) {
         this.cfg = cfg; 
         this.sessions = sessions; 
         this.inputs = inputs;
         this.world = world;
+        this.chunkservice = chunkservice;
     }
 
 	// Bắt đầu chạy server WebSocket.
@@ -49,7 +53,7 @@ public class WsServer {
             .childOption(ChannelOption.SO_KEEPALIVE, cfg.soKeepAlive)
 	        .childOption(ChannelOption.WRITE_BUFFER_WATER_MARK,
 	        		 new WriteBufferWaterMark(cfg.writeBufferLowKB * 1024, cfg.writeBufferHighKB * 1024))
-	        .childHandler(new WsChannelInitializer(sessions, inputs, cfg, world));
+	        .childHandler(new WsChannelInitializer(sessions, inputs, cfg, world, chunkservice));
 	    serverChannel = b.bind(cfg.port).sync().channel();	// Bind server vào cổng và chạy đồng bộ (sync để block đến khi bind xong).
 	    log.info("Server started at ws://localhost:{}/ws", cfg.port);
 	}

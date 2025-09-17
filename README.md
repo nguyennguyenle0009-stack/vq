@@ -363,7 +363,10 @@ server/src/main/java/rt/server/world/chunk/ChunkService.java – cache + truy xu
 
 thế giới được sinh theo chunk từ seed
 
+## 1.0.25
 
+	Xóa map cũ tránh lẫn lộn
+	fix va chạm
 
 
 

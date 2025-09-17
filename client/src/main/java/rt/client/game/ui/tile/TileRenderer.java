@@ -18,8 +18,8 @@ public final class TileRenderer {
         if (chunkCache == null || model == null) return;
 
         // LẤY VỊ TRÍ ĐÚNG CÁCH: youPos() trả WorldModel.Pos (x, y)
-        int px = (int)Math.round(model.predX * tileSize);
-        int py = (int)Math.round(model.predY * tileSize);
+        int px = (int)Math.round(model.youX() * tileSize);
+        int py = (int)Math.round(model.youY() * tileSize);
 
         int Npx = ChunkPos.SIZE * tileSize;
         int centerCx = Math.floorDiv(px, Npx);

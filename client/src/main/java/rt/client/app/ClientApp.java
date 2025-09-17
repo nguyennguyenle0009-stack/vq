@@ -40,7 +40,10 @@ public class ClientApp {
         NetClient net = new NetClient(url, model);
         GameCanvas panel = new GameCanvas(model);
         
+        // ClientApp.java — sau khi tạo GameCanvas panel, NetClient net
         panel.bindChunk(net.chunkCache(), net.tileSize());
+        // khi nhận seed => tileSize có thể đổi, bind lại:
+        net.setOnTileSizeChanged(ts -> panel.bindChunk(net.chunkCache(), ts));
 
         // UI
         JFrame f = new JFrame("VQ Client - " + name);

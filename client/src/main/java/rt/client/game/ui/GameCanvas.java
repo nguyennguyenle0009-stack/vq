@@ -89,7 +89,7 @@ public class GameCanvas extends JPanel {
 
 
     // 2) Grid (cache) – để dưới transform để lưới đi theo camera
-    gridRenderer.draw(g2, w, h, TILE, getGraphicsConfiguration());
+    //gridRenderer.draw(g2, w, h, TILE, getGraphicsConfiguration());
 
 
     // 3) Entities

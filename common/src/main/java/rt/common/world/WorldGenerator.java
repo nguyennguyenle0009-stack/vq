@@ -21,7 +21,7 @@ public final class WorldGenerator {
 
                 // Continental mask: <0.35 là biển (ID=0)
                 double cont = noise(cfg.seed*0x9E37L, gx*0xA24BL, gy*0x9FB2L);
-                if (cont < 0.35) { l1[idx] = 0; continue; } // OCEAN
+                if (cont < 0.35) { l1[idx] = 0; coll.set(idx); continue; } // OCEAN
 
                 // Biome cấp 3: plain / forest / desert
                 double bio = noise(cfg.seed*0x94D0L, gx*0xC2B2L, gy*0x1656L);

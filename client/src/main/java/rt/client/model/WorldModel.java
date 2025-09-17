@@ -10,6 +10,23 @@ import static rt.common.game.Units.*;
 
 public class WorldModel {
 	
+	public Pos youPos() {
+	    // ưu tiên ảnh chụp nội suy từ server
+	    Map<String, Pos> snap = sampleForRender();
+	    if (you != null) {
+	        Pos p = snap.get(you);
+	        if (p != null) return p;
+	    }
+	    // fallback: prediction nếu có
+	    if (you != null && hasPred) {
+	        Pos p = new Pos(); p.x = predX; p.y = predY; return p;
+	    }
+	    return null;
+	}
+
+	public double youX() { Pos p = youPos(); return p==null ? 0.0 : p.x; }
+	public double youY() { Pos p = youPos(); return p==null ? 0.0 : p.y; }
+	
     private volatile long lastTick = 0;
     public long lastTick(){ return lastTick; }
 

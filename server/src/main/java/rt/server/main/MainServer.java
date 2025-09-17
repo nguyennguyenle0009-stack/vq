@@ -12,7 +12,6 @@ import rt.server.game.loop.GameLoop;
 import rt.server.game.loop.SnapshotStreamer;
 import rt.server.session.SessionRegistry;
 import rt.server.websocket.WsServer;
-import rt.server.world.TileMap;
 import rt.server.world.World;
 
 public class MainServer {
@@ -22,7 +21,15 @@ public class MainServer {
 	    var inputs   = new InputQueue();
 	    var world    = new World(sessions);
 	    var cfg = ServerConfig.load();
-	    var ws = new WsServer(cfg, sessions, inputs, world);
+	    var gen = new rt.common.world.WorldGenerator(
+	    	    new rt.common.world.WorldGenConfig(cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L, 0.55, 0.35));
+    	var svc = new rt.server.world.chunk.ChunkService(gen);
+
+    	world.enableChunkMode(svc);
+
+	    var ws = new WsServer(cfg, sessions, inputs, world, svc); 
+	    
+
 	    
 	    //Log
 	    var base = DesktopDir.resolve().resolve("Vương quyền").resolve("server");
