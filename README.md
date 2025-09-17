@@ -320,9 +320,48 @@ server/
 	
 	Sửa lỗi người chơi hiển thị sau khi thoát khỏi máy khách
 
+## 1.0.24
+ 
+1) Mục tiêu
+• Thêm nền tảng sinh thế giới dạng CHUNK (deterministic theo seed) mà không phá vỡ luồng map tĩnh hiện có.
+• Stream chunk theo yêu cầu từ client (C2S: chunk_req → S2C: chunk).
+• Giữ nguyên World/map tĩnh để server vẫn chạy an toàn; collision theo chunk sẽ bật ở giai đoạn sau.
+2) Phạm vi (Giai đoạn 1 trong kế hoạch)
+• Biome cơ bản: Ocean / Plain / Forest / Desert + điểm Mountain có collision (BitSet).
+• Chưa bật collision trong World.step (sẽ thực hiện ở Giai đoạn 2).
+• Không đổi cấu trúc Session/Config, không xóa hệ map tĩnh hiện có.
+3) Các file mới
+common/src/main/java/rt/common/world/ChunkPos.java – định nghĩa kích thước chunk và toạ độ (cx,cy).
+common/src/main/java/rt/common/world/ChunkData.java – dữ liệu 1 chunk: layer1, layer2, collision BitSet.
+common/src/main/java/rt/common/world/WorldGenConfig.java – tham số seed và tỉ lệ biome.
+common/src/main/java/rt/common/world/WorldGenerator.java – generate(cx,cy) sinh chunk từ seed.
+common/src/main/java/rt/common/net/dto/SeedS2C.java – S2C: bật chế độ chunk ở client (seed, chunkSize, tileSize).
+common/src/main/java/rt/common/net/dto/ChunkReqC2S.java – C2S: yêu cầu một chunk.
+common/src/main/java/rt/common/net/dto/ChunkS2C.java – S2C: trả dữ liệu chunk.
+server/src/main/java/rt/server/world/chunk/ChunkService.java – cache + truy xuất chunk từ WorldGenerator.
+4) Cập nhật WsTextHandler
+• Thêm field ChunkService;
+• constructor: khởi tạo WorldGenerator(seed) và ChunkService (seed tạm thời là hằng cố).
+• case "hello": gửi SeedS2C(seed, ChunkPos.SIZE, tileSize=32).
+• case "chunk_req": gọi chunkService.get(cx,cy) và gửi ChunkS2C.
+5) Luồng chạy mới (E2E)
+1. Client kết nối và gửi "hello".
+2. Server trả HelloS2C, rồi SeedS2C(seed, chunkSize=64, tileSize=32).
+3. Client chuyển sang chế độ chunk và gửi ChunkReqC2S cho các chunk cần hiển thị.
+4. Server lấy dữ liệu từ ChunkService và gửi ChunkS2C.
+5. Client vẽ tile theo layer1 (palette đơn giản) và cache để cuộn mượt khi di chuyển.
+6) Phần chưa thay đổi (cố ý)
+• World.java chưa bật collision theo chunk, để tránh rủi ro sớm.
+• Hệ map tĩnh/MapS2C chưa xóa để tương thích ngược, có thể tắt khi POC chunk ổn.
+7) Kiểm thử nhanh
+• Client nhận được SeedS2C sau khi hello.
+• Gửi {"type":"chunk_req","cx":0,"cy":0} → nhận "chunk" với layer/collision.
+• Vẽ 3×3 chunk quanh nhân vật/camera; tự động xin chunk khi sang chunk mới.
+8) DoD – Giai đoạn 1
+• Stream được các chunk khác nhau theo cx,cy với cùng seed cho kết quả lặp lại.
+• Không crash khi yêu cầu nhiều chunk; cache hoạt động.
 
-
-a
+thế giới được sinh theo chunk từ seed
 
 
 

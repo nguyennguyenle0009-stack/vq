@@ -31,7 +31,6 @@ public class MainServer {
 	    System.setProperty("LOG_STAMP",
         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss")));
 	    
-	    world.setMap(TileMap.loadResource(cfg.mapResourcePath));
 	    ws.start();
 
 	    org.slf4j.LoggerFactory.getLogger("rt.server").info("Starting with {}", cfg);

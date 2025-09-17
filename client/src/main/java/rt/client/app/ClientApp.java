@@ -38,10 +38,12 @@ public class ClientApp {
 
         WorldModel model = new WorldModel();
         NetClient net = new NetClient(url, model);
+        GameCanvas panel = new GameCanvas(model);
+        
+        panel.bindChunk(net.chunkCache(), net.tileSize());
 
         // UI
         JFrame f = new JFrame("VQ Client - " + name);
-        GameCanvas panel = new GameCanvas(model);
         f.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         f.setSize(1100, 700);
         f.setLocationRelativeTo(null);

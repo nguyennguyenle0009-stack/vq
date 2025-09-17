@@ -43,7 +43,8 @@ public class WorldModel {
     public void setYou(String id){ this.you=id; } public String you(){ return you; }
 
     // ===== Prediction (tile) =====
-    private volatile boolean hasPred=false; private volatile double predX, predY;
+    private volatile boolean hasPred=false; 
+    public volatile double predX, predY;
 
     // ===== Pending inputs =====
     public static final class Pending {

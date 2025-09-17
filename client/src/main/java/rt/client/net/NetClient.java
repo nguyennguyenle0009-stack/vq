@@ -38,6 +38,15 @@ public class NetClient {
     private final ScheduledExecutorService pingSes =
     	    Executors.newSingleThreadScheduledExecutor(r -> { var t=new Thread(r,"net-ping"); t.setDaemon(true); return t; });
 
+ // === CHUNK FIELDS ===
+    private final rt.client.world.ChunkCache chunkCache = new rt.client.world.ChunkCache();
+    private long seed; private int chunkSize = 64; private int tileSize = 32;
+    private int lastCenterCx = Integer.MIN_VALUE, lastCenterCy = Integer.MIN_VALUE;
+
+    // expose cho UI/renderer nếu cần
+    public rt.client.world.ChunkCache chunkCache(){ return chunkCache; }
+    public int tileSize(){ return tileSize; }
+    
     public NetClient(String url, WorldModel model) {
         this.url = url;
         this.model = model;
@@ -63,28 +72,11 @@ public class NetClient {
         	    } catch (Exception e) { e.printStackTrace(); }
         	}
         	
-//        	@Override
-//        	public void onOpen(WebSocket webSocket, Response response) {
-//			    try {
-//			    	ws.send(Jsons.OM.writeValueAsString(new HelloC2S("hello", playerName)));
-//			    	// gửi cping mỗi 3s
-//			    	pinger = Executors.newSingleThreadScheduledExecutor();
-//			    	pinger.scheduleAtFixedRate(() -> {
-//			    		try {
-//			    			
-//			    			long ts = System.currentTimeMillis();
-//			    			ws.send(Jsons.OM.writeValueAsString(Map.of("type","cping","ts", ts)));
-//				        } catch (Exception ignore) {} 
-//		    		}, 1000, 3000, TimeUnit.MILLISECONDS);
-//		    	 } catch (Exception e) { e.printStackTrace(); }
-//    		 }
-
 			@Override 
 			public void onMessage(WebSocket webSocket, String text) {
 			  try {
 				  JsonNode node = Jsons.OM.readTree(text);
 				  String type = node.hasNonNull("type") ? node.get("type").asText() : "";
-//				  String type = node.path("type").asText(null);
 			        if (type == null) { log.warn("missing type"); return; }
 				  switch (type) {
 				      case "hello" -> {
@@ -104,10 +96,16 @@ public class NetClient {
 				      case "state" -> {
 				          StateS2C st = Jsons.OM.treeToValue(node, StateS2C.class);
 				          model.applyStateDTO(st);
-				          var you = model.you();
-				          if (you != null && st.ents()!=null) {
-				              var es = st.ents().get(you);
-				              if (es != null) model.reconcileFromServer(es.x(), es.y(), model.lastAck());
+				       // sau khi model.apply(state);
+				          int px = (int)Math.round(model.predX * tileSize);
+				          int py = (int)Math.round(model.predY * tileSize);
+				          int Npx = chunkSize * tileSize;
+				          int cx = Math.floorDiv(px, Npx), cy = Math.floorDiv(py, Npx);
+				          if (cx != lastCenterCx || cy != lastCenterCy) {
+				              lastCenterCx = cx; lastCenterCy = cy;
+				              for (int dy=-rt.client.world.ChunkCache.R; dy<=rt.client.world.ChunkCache.R; dy++)
+				                for (int dx=-rt.client.world.ChunkCache.R; dx<=rt.client.world.ChunkCache.R; dx++)
+				                  ws.send(rt.common.net.Jsons.OM.writeValueAsString(new rt.common.net.dto.ChunkReqC2S(cx+dx, cy+dy)));
 				          }
 				      }
 				      case "dev_stats" -> {
@@ -134,22 +132,24 @@ public class NetClient {
 			                ws.send(Jsons.OM.writeValueAsString(
 			                    java.util.Map.of("type", "pong", "ts", System.currentTimeMillis())
 			                ));
-		              }
-//				      case "ping" -> {
-//				          long ts = node.hasNonNull("ts") ? node.get("ts").asLong() : System.currentTimeMillis();
-//				          long now = System.currentTimeMillis();
-//				          model.setPingMs(Math.max(0, now - ts)); // RTT ước lượng (nếu server gửi ts của server, coi như đo “one-way”)
-//				          ws.send(Jsons.OM.writeValueAsString(new PongC2S("pong", now)));
-//				      }
-//				      case "cpong" -> {
-//				    	  // server sẽ echo lại ns (nanoTime) mà client đã gửi
-//				    	  long ns = node.path("ns").asLong(0L);
-//				    	  if (ns > 0L) {
-//				    		  long rttMs = Math.max(0, (System.nanoTime() - ns) / 1_000_000L);
-//				    		  model.setPingMs(rttMs);
-//				    		  if (onClientPong != null) onClientPong.accept(rttMs);
-//				    	  }
-//				      }
+		              }case "seed" -> {
+		            	    seed = node.get("seed").asLong();
+		            	    chunkSize = node.get("chunkSize").asInt();
+		            	    tileSize  = node.get("tileSize").asInt();
+		            	    // tắt map tĩnh nếu đang có (tuỳ model của bạn)
+		            	    model.setMap(null);
+
+		            	    // xin 3×3 chunk quanh (0,0) tạm thời
+		            	    for (int dy=-rt.client.world.ChunkCache.R; dy<=rt.client.world.ChunkCache.R; dy++)
+		            	      for (int dx=-rt.client.world.ChunkCache.R; dx<=rt.client.world.ChunkCache.R; dx++)
+		            	        ws.send(rt.common.net.Jsons.OM.writeValueAsString(new rt.common.net.dto.ChunkReqC2S(dx,dy)));
+		            	}
+		            	case "chunk" -> {
+		            	    int cx = node.get("cx").asInt(), cy = node.get("cy").asInt(), size = node.get("size").asInt();
+		            	    byte[] l1 = node.get("layer1").binaryValue(), l2 = node.get("layer2").binaryValue();
+		            	    java.util.BitSet coll = java.util.BitSet.valueOf(node.get("collisionBits").binaryValue());
+		            	    chunkCache.put(cx,cy,size,l1,l2,coll);
+		            	}
 				      default -> {
 				          log.debug("unknown type: {}", type);
 				      }
