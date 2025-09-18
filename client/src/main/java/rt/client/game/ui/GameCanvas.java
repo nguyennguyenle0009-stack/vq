@@ -9,6 +9,10 @@ import rt.client.game.ui.tile.TileRenderer;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Point2D;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.function.BiConsumer;
 
 /** Canvas vẽ mượt, tách riêng renderers: grid / tile / entity / HUD text. */
 public class GameCanvas extends JPanel {
@@ -21,6 +25,9 @@ public class GameCanvas extends JPanel {
     private final TileRenderer tileRenderer = new TileRenderer();
     private final EntityRenderer entityRenderer = new EntityRenderer(10);
     private final HudRenderer hudRenderer = new HudRenderer();
+    private final MinimapRenderer minimapRenderer = new MinimapRenderer();
+
+    private BiConsumer<Double, Double> minimapTeleport;
 
     // HUD dev (đã có sẵn trong dự án)
     private volatile boolean showDev = false;
@@ -35,8 +42,14 @@ public class GameCanvas extends JPanel {
     public void bindChunk(rt.client.world.ChunkCache cache, int tileSize) {
         tileRenderer.setChunkCache(cache);
         tileRenderer.setTileSize(tileSize);
+        minimapRenderer.setChunkCache(cache);
+        minimapRenderer.setChunkTileSizePx(tileSize);
     }
-    
+
+    public void setOnMinimapTeleport(BiConsumer<Double, Double> cb) {
+        this.minimapTeleport = cb;
+    }
+
     private boolean showGrid = false;
     public void setShowGrid(boolean v){ showGrid = v; }
 
@@ -44,6 +57,18 @@ public class GameCanvas extends JPanel {
         this.model = model;
         setBackground(Color.BLACK);
         setDoubleBuffered(true);
+
+        addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (!SwingUtilities.isRightMouseButton(e)) return;
+                Point2D.Double world = minimapRenderer.screenToWorld(e.getX(), e.getY());
+                if (world == null) return;
+                if (minimapTeleport != null) {
+                    minimapTeleport.accept(world.x, world.y);
+                }
+            }
+        });
     }
 
     // Giữ API cũ để không làm hỏng code cũ
@@ -82,14 +107,17 @@ public class GameCanvas extends JPanel {
             camY += (targetY - camY) * alpha;
         }
 
+        AffineTransform oldTransform = g2.getTransform();
+
         g2.translate(w/2 - (int)Math.round(camX), h/2 - (int)Math.round(camY));
 
         tileRenderer.draw(g2, model);                 // vẽ chunk-images
         if (showGrid) gridRenderer.draw(g2, w, h, TILE, getGraphicsConfiguration());
         entityRenderer.draw(g2, model, TILE);
 
-        g2.translate(0,0); // (không cần trả transform if not re-used)
+        g2.setTransform(oldTransform);
         hudRenderer.draw(g2, model, hud);
+        minimapRenderer.draw(g2, model, w, h);
         if (hud != null) hud.onFrame();
         g2.dispose();
     }

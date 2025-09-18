@@ -42,6 +42,13 @@ public final class ChunkCache {
     inflight.remove(new Key(d.cx,d.cy));
     map.put(new Key(d.cx,d.cy), d);
   }
+
+  /** Ảnh chụp các chunk đang có trong cache (dùng cho minimap/UI). */
+  public java.util.Collection<Data> snapshot(){
+    synchronized (map) {
+      return new java.util.ArrayList<>(map.values());
+    }
+  }
   
   public void bakeImage(Data d, int tileSize) {
     if (d.img != null && d.bakedTileSize == tileSize) return;
