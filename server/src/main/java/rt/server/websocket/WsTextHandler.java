@@ -41,7 +41,7 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     private final InputQueue inputs;
     private final World world;
     private final ServerConfig cfg;
-    private ChunkService chunkservice;
+    private final ChunkService chunkservice;
 
 
     // ====== NEW: Overworld (chunk) foundation ======
@@ -52,17 +52,12 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     		InputQueue inputs, 
     		World world, 
     		ServerConfig cfg, 
-    		ChunkService chunkservice) {
+                ChunkService chunkservice) {
         this.sessions = sessions;
         this.inputs   = inputs;
         this.world    = world;
         this.cfg      = cfg;
         this.chunkservice = chunkservice;
-
-        // Khởi tạo world-gen và dịch vụ chunk (Phase 1)
-        var gen = new rt.common.world.WorldGenerator(
-                new rt.common.world.WorldGenConfig(ServerConfig.worldSeed, 0.55, 0.35));
-        this.chunkservice = new rt.server.world.chunk.ChunkService(gen);
     }
 
     @Override
@@ -92,7 +87,8 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                 s.send(new HelloS2C(s.playerId));
 
                 // === PHASE 1: bật chế độ chunk ở client bằng seed ===
-                s.send(new SeedS2C(ServerConfig.worldSeed, rt.common.world.ChunkPos.SIZE, TILE_SIZE));
+                var genCfg = this.chunkservice.config();
+                s.send(new SeedS2C(ServerConfig.worldSeed, rt.common.world.ChunkPos.SIZE, TILE_SIZE, genCfg.plainRatio, genCfg.forestRatio));
             }
 
             // === PHASE 1: client xin chunk (cx,cy) ===

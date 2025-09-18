@@ -1,7 +1,12 @@
 // rt/client/world/ChunkCache.java
 package rt.client.world;
 
-import java.util.*; import java.util.concurrent.*; import java.util.BitSet;
+import rt.common.world.BiomeId;
+import rt.common.world.OverlayId;
+
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.BitSet;
 
 public final class ChunkCache {
   public static final int R = 2;           // tải 5×5 quanh nhân vật (mượt hơn)
@@ -39,30 +44,64 @@ public final class ChunkCache {
   }
   
   public void bakeImage(Data d, int tileSize) {
-	    if (d.img != null && d.bakedTileSize == tileSize) return;
+    if (d.img != null && d.bakedTileSize == tileSize) return;
 
-	    final int N = d.size, W = N * tileSize, H = W;
-	    var img = new java.awt.image.BufferedImage(W, H, java.awt.image.BufferedImage.TYPE_INT_ARGB);
-	    int[] buf = ((java.awt.image.DataBufferInt) img.getRaster().getDataBuffer()).getData();
+    final int N = d.size, W = N * tileSize, H = W;
+    var img = new java.awt.image.BufferedImage(W, H, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+    int[] buf = ((java.awt.image.DataBufferInt) img.getRaster().getDataBuffer()).getData();
 
-	    // bảng màu tối giản (đổi theo palette của bạn)
-	    final int OCEAN=0xFF1E5AA8, PLAIN=0xFFBFDCA6, FOREST=0xFF3D7A3A, DESERT=0xFFE9DFB3, MOUNTAIN=0xFF6E6E6E;
-	    final int[] color = { OCEAN, 0, PLAIN, FOREST, DESERT, MOUNTAIN };
+    for (int ty = 0; ty < N; ty++) {
+      for (int tx = 0; tx < N; tx++) {
+        int baseId = d.l1[ty * N + tx] & 0xFF;
+        int overlayId = d.l2[ty * N + tx] & 0xFF;
+        int baseColor = colorForBase(baseId);
+        int overlayColor = colorForOverlay(overlayId);
 
-	    for (int ty=0; ty<N; ty++) {
-	        for (int tx=0; tx<N; tx++) {
-	            int id = d.l1[ty*N + tx] & 0xFF;
-	            int c  = color[Math.min(id, color.length-1)];
-	            // vẽ block tileSize×tileSize vào buffer
-	            int x0 = tx*tileSize, y0 = ty*tileSize;
-	            for (int sy=0; sy<tileSize; sy++) {
-	                int row = (y0+sy) * W + x0;
-	                for (int sx=0; sx<tileSize; sx++) buf[row+sx] = c;
-	            }
-	        }
-	    }
-	    d.img = img;
-	    d.bakedTileSize = tileSize;
-	}
+        int x0 = tx * tileSize, y0 = ty * tileSize;
+        for (int sy = 0; sy < tileSize; sy++) {
+          int row = (y0 + sy) * W + x0;
+          Arrays.fill(buf, row, row + tileSize, baseColor);
+          if (overlayColor != 0) {
+            Arrays.fill(buf, row, row + tileSize, overlayColor);
+          }
+        }
+      }
+    }
+
+    d.img = img;
+    d.bakedTileSize = tileSize;
+  }
+
+  private static int colorForBase(int id) {
+    return switch (id) {
+      case BiomeId.OCEAN -> 0xFF1E5AA8;
+      case BiomeId.LAND -> 0xFF9FB18C;
+      case BiomeId.PLAIN -> 0xFFBFDCA6;
+      case BiomeId.DESERT -> 0xFFE9DFB3;
+      case BiomeId.PLAIN_WEIRD -> 0xFFC6E8D0;
+      case BiomeId.FOREST -> 0xFF3D7A3A;
+      case BiomeId.FOREST_FOG -> 0xFF4B8A6A;
+      case BiomeId.FOREST_MAGIC -> 0xFF6B6CCF;
+      case BiomeId.FOREST_WEIRD -> 0xFF3F5E2F;
+      case BiomeId.FOREST_DARK -> 0xFF24351F;
+      case BiomeId.LAKE -> 0xFF1A6FAF;
+      case BiomeId.RIVER -> 0xFF2A95E8;
+      case BiomeId.MOUNTAIN_SNOW -> 0xFFE7ECEF;
+      case BiomeId.MOUNTAIN_VOLCANO -> 0xFF9C3B24;
+      case BiomeId.MOUNTAIN_FOREST -> 0xFF527153;
+      case BiomeId.MOUNTAIN_ROCK -> 0xFF7C7C7C;
+      case BiomeId.VILLAGE -> 0xFFCEB58C;
+      default -> 0xFF646464;
+    };
+  }
+
+  private static int colorForOverlay(int id) {
+    return switch (id) {
+      case OverlayId.HOUSE -> 0xFF6E3B1B;
+      case OverlayId.ROAD -> 0xFFB39C7F;
+      case OverlayId.FARM -> 0xFFA3C178;
+      default -> 0;
+    };
+  }
 
 }

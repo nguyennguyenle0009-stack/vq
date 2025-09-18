@@ -13,6 +13,7 @@ import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -39,7 +40,14 @@ public class ClientApp {
         WorldModel model = new WorldModel();
         NetClient net = new NetClient(url, model);
         GameCanvas panel = new GameCanvas(model);
-        
+        panel.setLookup(net.worldLookup());
+        panel.setMinimapTeleportHandler((tx, ty) -> {
+            String you = model.you();
+            if (you == null) return;
+            if (ADMIN_TOKEN == null || ADMIN_TOKEN.isBlank()) return;
+            net.sendAdmin(ADMIN_TOKEN, String.format(Locale.US, "teleport %s %.2f %.2f", you, tx, ty));
+        });
+
         // ClientApp.java — sau khi tạo GameCanvas panel, NetClient net
         panel.bindChunk(net.chunkCache(), net.tileSize());
         // khi nhận seed => tileSize có thể đổi, bind lại:

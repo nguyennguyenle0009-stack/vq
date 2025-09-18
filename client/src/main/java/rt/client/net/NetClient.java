@@ -40,11 +40,14 @@ public class NetClient {
 
     // === CHUNK FIELDS ===
     private final rt.client.world.ChunkCache chunkCache = new rt.client.world.ChunkCache();
+    private final WorldLookup worldLookup = new WorldLookup();
     private long seed; private int chunkSize = 64; private int tileSize = 32;
     private int lastCenterCx = Integer.MIN_VALUE, lastCenterCy = Integer.MIN_VALUE;
 
     // expose cho UI/renderer
     public rt.client.world.ChunkCache chunkCache(){ return chunkCache; }
+
+    public WorldLookup worldLookup(){ return worldLookup; }
     private java.util.function.IntConsumer onTileSizeChanged;
     public void setOnTileSizeChanged(java.util.function.IntConsumer c){ this.onTileSizeChanged = c; }
     public int tileSize(){ return tileSize; }
@@ -139,6 +142,9 @@ public class NetClient {
                             seed = node.get("seed").asLong();
                             chunkSize = node.get("chunkSize").asInt();
                             tileSize  = node.get("tileSize").asInt();
+                            double plainRatio = node.path("plainRatio").asDouble(0.55);
+                            double forestRatio = node.path("forestRatio").asDouble(0.35);
+                            worldLookup.configure(seed, plainRatio, forestRatio);
 
                             model.setMap(null); // tắt map tĩnh nếu còn
                             if (onTileSizeChanged!=null) onTileSizeChanged.accept(tileSize);
@@ -157,7 +163,6 @@ public class NetClient {
                             int cx = node.get("cx").asInt(), cy = node.get("cy").asInt(), size = node.get("size").asInt();
                             byte[] l1 = node.get("layer1").binaryValue(), l2 = node.get("layer2").binaryValue();
                             java.util.BitSet coll = java.util.BitSet.valueOf(node.get("collisionBits").binaryValue());
-                            chunkCache.onArrive(new rt.client.world.ChunkCache.Data(cx,cy,size,l1,l2,coll));
                             var data = new rt.client.world.ChunkCache.Data(cx,cy,size,l1,l2,coll);
                             chunkCache.onArrive(data);
                             chunkCache.bakeImage(data, tileSize); // <-- bake ngay
