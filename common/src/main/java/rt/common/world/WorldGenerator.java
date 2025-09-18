@@ -526,7 +526,7 @@ public final class WorldGenerator {
     }
 
     private static final class Village {
-        static final Village NONE = new Village(false, 0, 0, 0, 0, 0, 0, 0);
+        static final Village NONE = new Village(false, 0, 0, 0, 0, 0, 0, 0, 0);
 
         final boolean exists;
         final long continentId;

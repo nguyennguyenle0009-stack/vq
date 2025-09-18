@@ -15,7 +15,7 @@ public class World {
     private final Map<String,P> players = new ConcurrentHashMap<>();
     private static final class Dir { final double x,y; Dir(double x,double y){this.x=x;this.y=y;} }
     private final Map<String,Dir> lastInput = new ConcurrentHashMap<>();
-    private static final double SPEED = 3.0;
+    private static final double SPEED = rt.common.game.Units.SPEED_TILES_PER_SEC;
 
     // ===== CHUNK =====
     private static final int CHUNK_SIZE = rt.common.world.ChunkPos.SIZE;
