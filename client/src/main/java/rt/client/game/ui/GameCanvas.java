@@ -61,7 +61,7 @@ public class GameCanvas extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        Graphics2D g2 = (Graphics2D) g;
+        Graphics2D g2 = (Graphics2D) g.create();;
 
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
         g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
@@ -87,11 +87,13 @@ public class GameCanvas extends JPanel {
         tileRenderer.draw(g2, model);                 // vẽ chunk-images
         if (showGrid) gridRenderer.draw(g2, w, h, TILE, getGraphicsConfiguration());
         entityRenderer.draw(g2, model, TILE);
-
-        g2.translate(0,0); // (không cần trả transform if not re-used)
-        hudRenderer.draw(g2, model, hud);
+        //g2.translate(0,0); // (không cần trả transform if not re-used)
+        g2.dispose(); // kết thúc world space
+        
+        Graphics2D gh = (Graphics2D) g.create();
+        hudRenderer.draw(gh, model, hud);
         if (hud != null) hud.onFrame();
-        g2.dispose();
+        gh.dispose();
     }
 
 }

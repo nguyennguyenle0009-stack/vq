@@ -381,3 +381,60 @@ thế giới được sinh theo chunk từ seed
 
 	spawn tại lục địa
 	fix nhân vật giật giật khi di chuyển (tốn hiệu CPU hơn)
+	
+## 1.0.29
+
+	Mục tiêu
+		Chuẩn hoá “địa hình” + ID/Name (server/common)
+		Có enum địa hình (Ocean, Plain, Forest, Desert, Mountain…) kèm id, name, blocked.
+		Toàn bộ generator và client render dùng đúng ID này → dễ debug, log, HUD.
+		Quản lý LỤC ĐỊA (continent) có ID/Name riêng (server)
+		Lọc “đất/biển” bằng mặt nạ continental (đã có), nhưng bổ sung labeling: lục địa = thành phần liên thông của “đất”.
+		Dò/labeled lười (lazy) theo “macro-grid” (ô lớn, ví dụ 128–256 tile/ô), chỉ tính nơi có người chơi đi qua.
+		Mỗi lục địa có continentId (ổn định theo seed) + tên (deterministic từ seed) + bbox, tâm, diện tích ước lượng.
+		Admin lệnh: cont here, cont list, cont goto <id> → test rất nhanh.
+		Biomes cấp 3 theo đúng tỷ lệ trong kế hoạch (client giữ màu, server sinh)
+		Thay vì ngưỡng noise cố định, mỗi lục địa có ngưỡng riêng để đạt mục tiêu: Đồng bằng ~40–60%, Rừng ~30–50%, Sa mạc ~10–20%.
+		Cách đơn giản: dùng 1 noise, nhưng thay ngưỡng theo percent đặt cho lục địa; tính percent bằng sampling nhanh trên macro-grid của lục địa đó (deterministic theo seed).
+		Thiện tại Plain/Forest/Desert đang là placeholder theo noise (đúng). Sang bước 3, đưa chúng về đúng tỷ lệ như bảng kế hoạch.
+	
+	Enum địa hình (ID/Name/blocked) + rt/common/world/Terrain.java
+	Bổ sung tham số “scale/tỷ lệ” trong config generator + rt/common/world/WorldGenConfig.java
+	Generator dùng “macro-scale” + rt/common/world/WorldGenerator.generate(...)
+	ContinentIndex (label lục địa + admin lệnh) + rt/server/world/geo/ContinentIndex.java
+		Tạo một instance ContinentIndex trong MainServer cùng với WorldGenerator (tiêm vào ChunkService nếu muốn dùng trong GUI/dev), hoặc để trong WsTextHandler như một service dùng chung (không tạo mỗi connection).
+		Admin lệnh (trong WsTextHandler):
+		cont here → lấy pos của player, truy vấn idAtTile, trả id + name.	
+		cont list → liệt kê vài meta đã có.
+		cont goto <id> → tìm tâm gần anchor (ví dụ anchorcell + cell8,8) rồi world.teleport.
+		Đây là skeleton đủ để đặt tên & ID cho lục địa, test nhanh, và sẽ mở rộng dần.
+	Quy ước ID & tên (để bạn dùng luôn)
+		Terrain IDs (ổn định):
+		0: Biển (blocked)
+		2: Đồng bằng
+		3: Rừng rậm
+		4: Sa mạc
+		5: Núi (blocked)
+		Continent ID: số nguyên dương ổn định theo seed + anchor (không đụng nhau xác suất cao).
+		Tên: sinh từ seed+ID (deterministic), ví dụ “Aron”, “Calen”… có thể thay bảng âm tiết tiếng Việt sau.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

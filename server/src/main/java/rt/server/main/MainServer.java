@@ -22,20 +22,18 @@ public class MainServer {
 		var world    = new World(sessions);
 		var cfg      = ServerConfig.load();
 
-		var gen = new rt.common.world.WorldGenerator(
-		    new rt.common.world.WorldGenConfig(
-		        cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L, 0.55, 0.35
-		));
-		var svc = new rt.server.world.chunk.ChunkService(gen);
+		var cfgGen = new rt.common.world.WorldGenConfig(
+		        cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L,
+		        0.55, 0.35,        // plainRatio, forestRatio
+		        6000, 800, 400,    // continentScaleTiles, biomeScaleTiles, mountainScaleTiles
+		        0.35, 0.82         // landThreshold, mountainThreshold
+		);
+		var gen  = new rt.common.world.WorldGenerator(cfgGen);
+		var svc  = new rt.server.world.chunk.ChunkService(gen);
+		var cont = new rt.server.world.geo.ContinentIndex(cfgGen);   // <-- thêm dòng này
 
-		// World dùng đúng instance này
 		world.enableChunkMode(svc);
-
-		// Truyền svc xuống server WS
-		var ws = new WsServer(cfg, sessions, inputs, world, svc);
-
-	    
-
+		var ws = new WsServer(cfg, sessions, inputs, world, svc, cont); // truyền thêm cont
 	    
 	    //Log
 	    var base = DesktopDir.resolve().resolve("Vương quyền").resolve("server");

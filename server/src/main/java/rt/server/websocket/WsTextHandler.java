@@ -16,6 +16,7 @@ import rt.server.session.SessionRegistry;
 import rt.server.session.SessionRegistry.Session;
 import rt.server.world.World;
 import rt.server.world.chunk.ChunkService;
+import rt.server.world.geo.ContinentIndex;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -42,6 +43,7 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     private final World world;
     private final ServerConfig cfg;
     private ChunkService chunkservice;
+    private final ContinentIndex continents;
 
 
     // ====== NEW: Overworld (chunk) foundation ======
@@ -52,12 +54,14 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     		InputQueue inputs, 
     		World world, 
     		ServerConfig cfg, 
-    		ChunkService chunkservice) {
+    		ChunkService chunkservice,
+    		ContinentIndex continents) {
         this.sessions = sessions;
         this.inputs   = inputs;
         this.world    = world;
         this.cfg      = cfg;
         this.chunkservice = chunkservice;
+        this.continents = continents;
 
         // Khởi tạo world-gen và dịch vụ chunk (Phase 1)
         var gen = new rt.common.world.WorldGenerator(
@@ -132,6 +136,25 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                     } else if (cmd.equals("reloadMap")) {
                         boolean ok = world.reloadMap(cfg.mapResourcePath);
                         s.send(new AdminResultS2C(ok, ok ? "map reloaded" : "reload failed"));
+                    } else if (cmd.equals("cont here")) {
+                        long tx = Math.round(s.x), ty = Math.round(s.y);
+                        int cid = continents.idAtTile(tx, ty);
+                        var m = continents.meta(cid);
+                        s.send(new AdminResultS2C(true,
+                            "contId=" + cid + (m!=null? (" name="+m.name+" areaCells="+m.areaCells) : "")));
+                    } else if (cmd.equals("cont list")) {
+                        StringBuilder sb = new StringBuilder();
+                        for (var m : continents.all())
+                            sb.append(m.id).append(' ').append(m.name).append(" area=").append(m.areaCells).append('\n');
+                        s.send(new AdminResultS2C(true, sb.length()==0? "(empty)" : sb.toString()));
+                    } else if (cmd.startsWith("cont goto ")) {
+                        int cid = Integer.parseInt(cmd.substring(9).trim());
+                        var m = continents.meta(cid);
+                        if (m == null) { s.send(new AdminResultS2C(false, "unknown continent id")); break; }
+                        int C = continents.cellSizeTiles();
+                        double tx = m.ax * (double)C + C * 0.5, ty = m.ay * (double)C + C * 0.5;
+                        boolean ok = world.teleport(s.playerId, tx, ty);
+                        s.send(new AdminResultS2C(ok, ok? ("teleported to "+m.name+" (#"+cid+")") : "teleport failed"));
                     } else {
                         s.send(new AdminResultS2C(false, "unknown cmd"));
                     }

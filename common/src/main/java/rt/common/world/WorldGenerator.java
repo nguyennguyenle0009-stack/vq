@@ -28,49 +28,42 @@ public final class WorldGenerator {
     public ChunkData generate(int cx, int cy) {
         final int N = ChunkPos.SIZE;
         byte[] l1 = new byte[N*N], l2 = new byte[N*N];
-        BitSet coll = new BitSet(N*N);
+        java.util.BitSet coll = new java.util.BitSet(N*N);
 
-        long x0 = (long) cx * N, y0 = (long) cy * N;
+        for (int ty=0; ty<N; ty++) for (int tx=0; tx<N; tx++){
+            long gx = (long)cx*N + tx, gy = (long)cy*N + ty;
+            int idx = ty*N + tx;
 
-        for (int ty=0; ty<N; ty++) {
-            for (int tx=0; tx<N; tx++) {
-                long gx = x0 + tx, gy = y0 + ty;
-                int  idx = ty * N + tx;
+            // ===== Continental mask (macro): scale theo continentScaleTiles
+            long cgx = Math.floorDiv(gx, cfg.continentScaleTiles);
+            long cgy = Math.floorDiv(gy, cfg.continentScaleTiles);
+            double cont = noise(cfg.seed*0x9E37L, cgx*0xA24BL, cgy*0x9FB2L);
+            if (cont < cfg.landThreshold) {  // ocean
+                l1[idx] = (byte) rt.common.world.Terrain.OCEAN.id;
+                coll.set(idx);               // biển bị chặn
+                continue;
+            }
 
-                // ===== 1) Ocean vs Continent mask =====
-                Continent c = continentAt(gx, gy);
-                if (c == null) { // ocean
-                    l1[idx] = 0; coll.set(idx); // WATER = blocked
-                    continue;
-                }
-                double inland = c.field; // >0: càng sâu trong lục địa càng lớn
+            // ===== Biome (macro vừa): scale theo biomeScaleTiles
+            long bgx = Math.floorDiv(gx, cfg.biomeScaleTiles);
+            long bgy = Math.floorDiv(gy, cfg.biomeScaleTiles);
+            double bio = noise(cfg.seed*0x94D0L, bgx*0xC2B2L, bgy*0x1656L);
+            if (bio < cfg.plainRatio)                           l1[idx] = (byte) rt.common.world.Terrain.PLAIN.id;
+            else if (bio < cfg.plainRatio + cfg.forestRatio)    l1[idx] = (byte) rt.common.world.Terrain.FOREST.id;
+            else                                                l1[idx] = (byte) rt.common.world.Terrain.DESERT.id;
 
-                // ===== 2) Biome cấp 3 trong lục địa (tỉ lệ theo config) =====
-                double bio = noise(cfg.seed * 0x94D0L, gx * 0xC2B2L, gy * 0x1656L);
-                double plainRatio  = clamp01(cfg.plainRatio  + (inland-0.5) * 0.20); // sâu trong lục địa có nhiều plain hơn
-                double forestRatio = clamp01(cfg.forestRatio + (0.5-inland) * 0.05);
-                double desertRatio = clamp01(1.0 - plainRatio - forestRatio);
-                double sum = plainRatio + forestRatio + desertRatio;
-                plainRatio  /= sum; forestRatio /= sum; desertRatio /= sum;
-
-                int id;
-                if (bio < plainRatio) id = 2;                                   // PLAIN
-                else if (bio < plainRatio + forestRatio) id = 3;                 // FOREST
-                else id = 4;                                                     // DESERT
-
-                // giảm sa mạc sát bờ -> chuyển bớt về plain
-                if (id == 4 && inland < 0.15 && noise(cfg.seed*0x9AB5L, gx, gy) < DESERT_BIAS_NEAR_WATER)
-                    id = 2;
-
-                // ===== 3) Núi (solid) — rải theo ridge noise, tạo đèo tự nhiên =====
-                double m = ridgeNoise(cfg.seed * 0xD6E8L, gx * 0xBF58L, gy * 0x94D0L);
-                if (m > MOUNTAIN_RIDGE) { id = 5; coll.set(idx); } // MOUNTAIN = blocked phần lớn
-
-                l1[idx] = (byte) id;
+            // ===== Mountain (fine)
+            long mgx = Math.floorDiv(gx, cfg.mountainScaleTiles);
+            long mgy = Math.floorDiv(gy, cfg.mountainScaleTiles);
+            double m = noise(cfg.seed*0xD6E8L, mgx*0xBF58L, mgy*0x94D0L);
+            if (m > cfg.mountainThreshold) {
+                l1[idx] = (byte) rt.common.world.Terrain.MOUNTAIN.id;
+                coll.set(idx);
             }
         }
         return new ChunkData(cx, cy, N, l1, l2, coll);
     }
+
 
     // ====== Continent field ======
     private static final class Continent { final double field; Continent(double f){field=f;} }
