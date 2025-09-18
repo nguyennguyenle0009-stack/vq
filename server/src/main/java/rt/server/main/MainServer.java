@@ -22,11 +22,12 @@ public class MainServer {
 		var world    = new World(sessions);
 		var cfg      = ServerConfig.load();
 
-		var gen = new rt.common.world.WorldGenerator(
-		    new rt.common.world.WorldGenConfig(
-		        cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L, 0.55, 0.35
-		));
-		var svc = new rt.server.world.chunk.ChunkService(gen);
+                var gen = new rt.common.world.WorldGenerator(
+                    new rt.common.world.WorldGenConfig(
+                        cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L, 0.55, 0.35
+                ));
+                var storage = rt.server.world.chunk.ChunkStorage.createDefault();
+                var svc = new rt.server.world.chunk.ChunkService(gen, storage);
 
 		// World dùng đúng instance này
 		world.enableChunkMode(svc);
