@@ -24,7 +24,9 @@ public class MainServer {
 
                 var gen = new rt.common.world.WorldGenerator(
                     new rt.common.world.WorldGenConfig(
-                        cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L, 0.55, 0.35
+                        cfg.worldSeed != 0 ? cfg.worldSeed : ServerConfig.DEFAULT_WORLD_SEED,
+                        0.55,
+                        0.35
                 ));
                 var storage = rt.server.world.chunk.ChunkStorage.createDefault();
                 var svc = new rt.server.world.chunk.ChunkService(gen, storage);

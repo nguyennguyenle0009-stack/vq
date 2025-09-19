@@ -32,7 +32,9 @@ public class ServerConfig {
     public String adminToken = "dev-secret-123";
     public String mapResourcePath = "/maps/test01.json";
     
-    public static final long worldSeed = 20250917L;
+    public static final long DEFAULT_WORLD_SEED = 20250917L;
+
+    public long worldSeed = DEFAULT_WORLD_SEED;
 
     public static ServerConfig load() {
         ObjectMapper om = new ObjectMapper();

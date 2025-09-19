@@ -88,7 +88,7 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
 
                 // === PHASE 1: bật chế độ chunk ở client bằng seed ===
                 var genCfg = this.chunkservice.config();
-                s.send(new SeedS2C(ServerConfig.worldSeed, rt.common.world.ChunkPos.SIZE, TILE_SIZE, genCfg.plainRatio, genCfg.forestRatio));
+                s.send(new SeedS2C(genCfg.seed, rt.common.world.ChunkPos.SIZE, TILE_SIZE, genCfg.plainRatio, genCfg.forestRatio));
             }
 
             // === PHASE 1: client xin chunk (cx,cy) ===
@@ -224,8 +224,8 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
         var s = sessions.attach(ctx.channel());
         s.send(new HelloS2C(s.playerId));
 
-        // Gửi seed cho client (lấy từ cfg instance, không dùng field static)
-        long seed = (cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L);
-        s.send(new SeedS2C(seed, rt.common.world.ChunkPos.SIZE, 32)); // tileSize tùy bạn
+        // Gửi seed cho client dựa trên cấu hình generator hiện tại
+        var genCfg = this.chunkservice.config();
+        s.send(new SeedS2C(genCfg.seed, rt.common.world.ChunkPos.SIZE, 32, genCfg.plainRatio, genCfg.forestRatio)); // tileSize tùy bạn
     }
 }
