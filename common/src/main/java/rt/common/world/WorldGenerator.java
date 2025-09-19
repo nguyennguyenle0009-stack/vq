@@ -150,10 +150,10 @@ public final class WorldGenerator {
         }
 
         chain.add(oceanFeature(cont.info, gx, gy));
-        chain.add(cont.feature);
+        chain.add(cont.feature());
 
         Region region = regionAt(cont, gx, gy, caches);
-        chain.add(region.feature);
+        chain.add(region.feature());
 
         int base = region.baseBiome();
         boolean blocked = false;
@@ -167,7 +167,7 @@ public final class WorldGenerator {
 
         MountainSample mountain = mountainAt(cont, gx, gy);
         if (mountain != null) {
-            chain.add(mountain.feature);
+            chain.add(mountain.feature());
             base = mountain.id;
             blocked = mountain.blocked;
         } else {
@@ -210,8 +210,9 @@ public final class WorldGenerator {
                 double dx = gx - info.cx;
                 double dy = gy - info.cy;
                 double r = Math.hypot(dx, dy);
-                double wobble = (noise(cfg.seed * 0x814B5ABL, (gx + dy) * 0xBF58476D1CE4E5B9L,
-                        (gy - dx) * 0x94D049BB133111EBL) - 0.5) * REGION_SHAPE_NOISE;
+                long wobbleX = Double.doubleToLongBits((double) gx + dy) ^ 0xBF58476D1CE4E5B9L;
+                long wobbleY = Double.doubleToLongBits((double) gy - dx) ^ 0x94D049BB133111EBL;
+                double wobble = (noise(cfg.seed * 0x814B5ABL, wobbleX, wobbleY) - 0.5) * REGION_SHAPE_NOISE;
                 double f = 1.0 - (r / info.radius) + wobble;
                 if (f > bestField) {
                     bestField = f;
@@ -748,7 +749,7 @@ public final class WorldGenerator {
     }
 
     private static final class Village {
-        static final Village NONE = new Village(false, 0, 0, 0, 0, 0, 0, 0, null);
+        static final Village NONE = new Village(false, 0, 0, 0, 0, 0, 0, 0, 0, null);
 
         final boolean exists;
         final long continentId;
