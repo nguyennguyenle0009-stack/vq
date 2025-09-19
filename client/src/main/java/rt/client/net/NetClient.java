@@ -41,11 +41,13 @@ public class NetClient {
     // === CHUNK FIELDS ===
     private final rt.client.world.ChunkCache chunkCache = new rt.client.world.ChunkCache();
     private final WorldLookup worldLookup = new WorldLookup();
+    private final rt.client.world.WorldAtlasClient atlasClient = new rt.client.world.WorldAtlasClient();
     private long seed; private int chunkSize = 64; private int tileSize = 32;
     private int lastCenterCx = Integer.MIN_VALUE, lastCenterCy = Integer.MIN_VALUE;
 
     // expose cho UI/renderer
     public rt.client.world.ChunkCache chunkCache(){ return chunkCache; }
+    public rt.client.world.WorldAtlasClient worldAtlasClient(){ return atlasClient; }
 
     public WorldLookup worldLookup(){ return worldLookup; }
     private java.util.function.IntConsumer onTileSizeChanged;
@@ -55,6 +57,7 @@ public class NetClient {
     public NetClient(String url, WorldModel model) {
         this.url = url;
         this.model = model;
+        this.chunkCache.setListener((cx, cy) -> atlasClient.invalidateByChunk(cx, cy));
     }
 
     public void connect(String playerName) {
@@ -123,15 +126,16 @@ public class NetClient {
                         }
                         case "cpong" -> {
                             long rttMs = -1;
+                            long sentNs = -1;
                             if (node.has("ns")) {
-                                long ns = node.path("ns").asLong();
-                                rttMs = Math.max(0, (System.nanoTime() - ns) / 1_000_000L);
+                                sentNs = node.path("ns").asLong();
+                                rttMs = Math.max(0, (System.nanoTime() - sentNs) / 1_000_000L);
                             } else if (node.has("ts")) {
                                 long ts = node.path("ts").asLong();
                                 rttMs = Math.max(0, System.currentTimeMillis() - ts);
                             }
                             if (rttMs >= 0 && rttMs <= 5000) model.setPingMs(rttMs);
-                            if (onClientPong != null && rttMs >= 0) onClientPong.accept(System.nanoTime());
+                            if (onClientPong != null && sentNs >= 0) onClientPong.accept(sentNs);
                         }
                         case "ping" -> {
                             ws.send(Jsons.OM.writeValueAsString(
@@ -145,6 +149,7 @@ public class NetClient {
                             double plainRatio = node.path("plainRatio").asDouble(0.55);
                             double forestRatio = node.path("forestRatio").asDouble(0.35);
                             worldLookup.configure(seed, plainRatio, forestRatio);
+                            atlasClient.configure(url);
 
                             model.setMap(null); // tắt map tĩnh nếu còn
                             if (onTileSizeChanged!=null) onTileSizeChanged.accept(tileSize);

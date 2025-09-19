@@ -40,6 +40,8 @@ public class WsChannelInitializer extends ChannelInitializer<SocketChannel> {
         p.addLast(new HttpServerCodec());
         p.addLast(new HttpObjectAggregator(8 * 1024)); // đủ cho handshake/headers
 
+        p.addLast(new AtlasHttpHandler(cfg));
+
         // Kiểm tra Origin (nếu có header, web browser). Desktop client thường không có -> cho qua.
         if (cfg.checkOrigin) {
             p.addLast(new OriginCheckHandler(Set.copyOf(cfg.allowedOrigins)));

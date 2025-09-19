@@ -12,5 +12,6 @@
   "writeBufferLowKB": 32,
   "writeBufferHighKB": 64,
   "adminToken": "dev-secret-123",
-  "mapResourcePath": "/maps/test01.json"
+  "mapResourcePath": "/maps/test01.json",
+  "atlasDir": "atlas"
 }

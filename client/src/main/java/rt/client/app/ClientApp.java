@@ -41,6 +41,7 @@ public class ClientApp {
         NetClient net = new NetClient(url, model);
         GameCanvas panel = new GameCanvas(model);
         panel.setLookup(net.worldLookup());
+        panel.setAtlasClient(net.worldAtlasClient());
         panel.setMinimapTeleportHandler((tx, ty) -> {
             String you = model.you();
             if (you == null) return;

@@ -42,6 +42,7 @@ public class GameCanvas extends JPanel {
     public void bindChunk(rt.client.world.ChunkCache cache, int tileSize) {
         tileRenderer.setChunkCache(cache);
         tileRenderer.setTileSize(tileSize);
+        minimap.setChunkCache(cache);
     }
     
     private boolean showGrid = false;
@@ -53,6 +54,9 @@ public class GameCanvas extends JPanel {
         if (minimap != null) {
             minimap.setLookup(lookup);
         }
+    }
+    public void setAtlasClient(rt.client.world.WorldAtlasClient atlas) {
+        minimap.setAtlasClient(atlas);
     }
     public void setMinimapTeleportHandler(BiConsumer<Double, Double> handler) {
         minimap.setTeleportHandler(handler);
@@ -124,6 +128,14 @@ public class GameCanvas extends JPanel {
         hudRenderer.draw(g2, model, hud, lookup);
         if (hud != null) hud.onFrame();
         g2.dispose();
+    }
+
+    public void toggleMinimapScale() {
+        minimap.toggleScale();
+    }
+
+    public void toggleMinimapOrientation() {
+        minimap.toggleOrientation();
     }
 
 }

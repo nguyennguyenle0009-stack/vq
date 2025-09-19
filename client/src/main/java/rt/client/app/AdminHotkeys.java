@@ -39,6 +39,8 @@ public class AdminHotkeys extends KeyAdapter {
                 panel.setDevHud(devHudVisible);
                 if (hud != null) hud.setVisible(devHudVisible);
             }
+            case KeyEvent.VK_M -> panel.toggleMinimapScale();
+            case KeyEvent.VK_N -> panel.toggleMinimapOrientation();
             default -> {}
         }
     }

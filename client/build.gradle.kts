@@ -1,6 +1,8 @@
-plugins { 
-	java 
-	id("application")
+import org.gradle.api.tasks.JavaExec
+
+plugins {
+        java
+        id("application")
 }
 
 dependencies {
@@ -16,4 +18,8 @@ dependencies {
 
 application {
     mainClass.set("rt.client.app.ClientApp")
+}
+
+tasks.named<JavaExec>("run") {
+    jvmArgs("-Xms256m", "-Xmx1024m", "-XX:+UseG1GC")
 }

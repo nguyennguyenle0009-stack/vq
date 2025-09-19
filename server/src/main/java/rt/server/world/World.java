@@ -1,9 +1,18 @@
 package rt.server.world;
 
+import rt.common.game.Units;
+import rt.common.map.MapV2;
+import rt.common.net.Jsons;
 import rt.common.net.dto.EntityState;
+import rt.common.net.dto.MapS2C;
 import rt.common.net.dto.StateS2C;
 import rt.server.session.SessionRegistry;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -15,7 +24,7 @@ public class World {
     private final Map<String,P> players = new ConcurrentHashMap<>();
     private static final class Dir { final double x,y; Dir(double x,double y){this.x=x;this.y=y;} }
     private final Map<String,Dir> lastInput = new ConcurrentHashMap<>();
-    private static final double SPEED = 3.0;
+    private volatile MapS2C cachedMap;
 
     // ===== CHUNK =====
     private static final int CHUNK_SIZE = rt.common.world.ChunkPos.SIZE;
@@ -116,8 +125,19 @@ public class World {
     public void step(double dt){
         lastInput.forEach((id,dir)->{
             P p = ensure(id);
-            double nx = p.x + dir.x * SPEED * dt;
-            double ny = p.y + dir.y * SPEED * dt;
+            double vx = dir.x;
+            double vy = dir.y;
+            double len = Math.hypot(vx, vy);
+            if (len > 0) {
+                vx /= len;
+                vy /= len;
+            } else {
+                vx = 0;
+                vy = 0;
+            }
+            double speed = Units.SPEED_TILES_PER_SEC;
+            double nx = p.x + vx * speed * dt;
+            double ny = p.y + vy * speed * dt;
 
             // Sweep X
             int tx = (int)Math.floor(nx), ty = (int)Math.floor(p.y);
@@ -152,5 +172,47 @@ public class World {
         return true;
     }
 
-    public boolean reloadMap(String resourcePath){ return false; } // chunk-only
+    public MapS2C mapSnapshot() { return cachedMap; }
+
+    public boolean reloadMap(String resourcePath){
+        try {
+            if (resourcePath == null || resourcePath.isBlank()) {
+                cachedMap = null;
+                return true;
+            }
+
+            byte[] bytes;
+            try (InputStream in = openResource(resourcePath)) {
+                bytes = in.readAllBytes();
+            }
+
+            MapS2C msg;
+            var root = Jsons.OM.readTree(bytes);
+            if (root.has("layers")) {
+                MapV2 v2 = MapV2.parse(root);
+                String[] solid = v2.collisionAsSolidLines();
+                msg = new MapS2C(v2.tileSize(), v2.width(), v2.height(), solid);
+            } else {
+                TileMap map = TileMap.load(new ByteArrayInputStream(bytes));
+                msg = new MapS2C(map.tile, map.w, map.h, map.solidLines());
+            }
+
+            cachedMap = msg;
+            for (var s : sessions.all()) {
+                s.send(msg);
+            }
+            return true;
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return false;
+        }
+    }
+
+    private InputStream openResource(String path) throws IOException {
+        InputStream fromCp = World.class.getResourceAsStream(path);
+        if (fromCp != null) return fromCp;
+        Path fsPath = Path.of(path);
+        if (Files.exists(fsPath)) return Files.newInputStream(fsPath);
+        throw new IOException("map not found: " + path);
+    }
 }

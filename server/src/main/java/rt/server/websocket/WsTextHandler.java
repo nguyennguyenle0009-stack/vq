@@ -89,6 +89,10 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                 // === PHASE 1: bật chế độ chunk ở client bằng seed ===
                 var genCfg = this.chunkservice.config();
                 s.send(new SeedS2C(genCfg.seed, rt.common.world.ChunkPos.SIZE, TILE_SIZE, genCfg.plainRatio, genCfg.forestRatio));
+                MapS2C map = world.mapSnapshot();
+                if (map != null) {
+                    s.send(map);
+                }
             }
 
             // === PHASE 1: client xin chunk (cx,cy) ===

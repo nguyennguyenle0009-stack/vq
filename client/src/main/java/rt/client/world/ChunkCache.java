@@ -4,51 +4,87 @@ package rt.client.world;
 import rt.common.world.BiomeId;
 import rt.common.world.OverlayId;
 
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferInt;
 import java.util.*;
-import java.util.concurrent.*;
 import java.util.BitSet;
+import java.util.concurrent.*;
 
 public final class ChunkCache {
   public static final int R = 2;           // tải 5×5 quanh nhân vật (mượt hơn)
-  private static final int MAX = 512;      // tối đa giữ 512 chunk (tuỳ RAM)
+  private static final int MAX = 128;      // giới hạn cache ảnh chunk
 
   private static record Key(int cx,int cy){}
 
   public static final class Data {
-	  public volatile java.awt.image.BufferedImage img;   // ảnh baked của chunk
-	  public volatile int bakedTileSize = 0;              // tileSize dùng để bake
-	  public final int cx,cy,size; public final byte[] l1,l2; public final BitSet coll;
-	  public Data(int cx,int cy,int size,byte[] l1,byte[] l2,BitSet coll){
+          public volatile BufferedImage img;   // ảnh baked của chunk
+          public volatile int bakedTileSize = 0;              // tileSize dùng để bake
+          public final int cx,cy,size; public final byte[] l1,l2; public final BitSet coll;
+          public Data(int cx,int cy,int size,byte[] l1,byte[] l2,BitSet coll){
       this.cx=cx; this.cy=cy; this.size=size; this.l1=l1; this.l2=l2; this.coll=coll; }
   }
 
   // LRU theo access-order
   private final Map<Key,Data> map = Collections.synchronizedMap(
     new LinkedHashMap<>(128,0.75f,true){
-      @Override protected boolean removeEldestEntry(Map.Entry<Key,Data> e){ return size()>MAX; }
+      @Override protected boolean removeEldestEntry(Map.Entry<Key,Data> e){
+        if (size()>MAX) {
+          Data d = e.getValue();
+          if (d != null && d.img != null) { d.img.flush(); d.img = null; }
+          return true;
+        }
+        return false;
+      }
     });
+
+  public interface Listener { void onChunkArrive(int cx,int cy); }
+  private volatile Listener listener;
+  public void setListener(Listener l){ this.listener = l; }
+
+  private final java.util.concurrent.atomic.AtomicLong epoch = new java.util.concurrent.atomic.AtomicLong();
+  public long epoch(){ return epoch.get(); }
 
   // set các chunk đang yêu cầu (tránh gửi trùng)
   private final Set<Key> inflight = ConcurrentHashMap.newKeySet();
 
   public boolean has(int cx,int cy){ return map.containsKey(new Key(cx,cy)); }
   public Data get(int cx,int cy){ return map.get(new Key(cx,cy)); }
-  public void clear(){ map.clear(); inflight.clear(); }
+  public void clear(){
+    synchronized (map) {
+      for (Data d : map.values()) {
+        if (d != null && d.img != null) d.img.flush();
+      }
+      map.clear();
+    }
+    inflight.clear();
+    epoch.incrementAndGet();
+  }
 
   /** Gắn cờ đã request; trả true nếu vừa gắn (tức là chưa gửi trùng). */
   public boolean markRequested(int cx,int cy){ return inflight.add(new Key(cx,cy)); }
   /** Khi chunk về: xoá cờ in-flight và lưu cache. */
   public void onArrive(Data d){
     inflight.remove(new Key(d.cx,d.cy));
-    map.put(new Key(d.cx,d.cy), d);
+    Key key = new Key(d.cx,d.cy);
+    Data prev = map.put(key, d);
+    if (prev != null && prev.img != null) prev.img.flush();
+    epoch.incrementAndGet();
+    Listener l = listener;
+    if (l != null) l.onChunkArrive(d.cx, d.cy);
   }
-  
+
   public void bakeImage(Data d, int tileSize) {
     if (d.img != null && d.bakedTileSize == tileSize) return;
 
     final int N = d.size, W = N * tileSize, H = W;
-    var img = new java.awt.image.BufferedImage(W, H, java.awt.image.BufferedImage.TYPE_INT_ARGB);
-    int[] buf = ((java.awt.image.DataBufferInt) img.getRaster().getDataBuffer()).getData();
+    if (W > 8192 || H > 8192) throw new IllegalArgumentException("chunk image too large: " + W + "x" + H);
+    BufferedImage img = d.img;
+    if (img == null || img.getWidth() != W || img.getHeight() != H) {
+      if (img != null) img.flush();
+      img = new BufferedImage(W, H, BufferedImage.TYPE_INT_ARGB);
+      d.img = img;
+    }
+    int[] buf = ((DataBufferInt) img.getRaster().getDataBuffer()).getData();
 
     for (int ty = 0; ty < N; ty++) {
       for (int tx = 0; tx < N; tx++) {
@@ -68,7 +104,6 @@ public final class ChunkCache {
       }
     }
 
-    d.img = img;
     d.bakedTileSize = tileSize;
   }
 

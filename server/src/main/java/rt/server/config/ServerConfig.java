@@ -28,10 +28,11 @@ public class ServerConfig {
     public boolean soKeepAlive = true;
     public int writeBufferLowKB = 32;
     public int writeBufferHighKB = 64;
-    
+
     public String adminToken = "dev-secret-123";
     public String mapResourcePath = "/maps/test01.json";
-    
+    public String atlasDir = "atlas";
+
     public static final long DEFAULT_WORLD_SEED = 20250917L;
 
     public long worldSeed = DEFAULT_WORLD_SEED;

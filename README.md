@@ -353,6 +353,8 @@ server/src/main/java/rt/server/world/chunk/ChunkService.java – cache + truy xu
 6) Phần chưa thay đổi (cố ý)
 • World.java chưa bật collision theo chunk, để tránh rủi ro sớm.
 • Hệ map tĩnh/MapS2C chưa xóa để tương thích ngược, có thể tắt khi POC chunk ổn.
+• Map v2 (JSON nhiều layer) hiện được parse bởi `common/map/MapV2`; server tự chuyển layer `collision` thành chuỗi `solidLines` và gửi `MapS2C` cho client cũ trong quá trình reload/hello.
+• Tool atlas thế giới (`WorldAtlasBaker`) có thể prebake tile PNG theo chuẩn TMS vào thư mục `atlas/`. Server phục vụ qua `/atlas/{z}/{x}/{y}.png` và client sẽ cache bằng `WorldAtlasClient` với invalidation khi chunk thay đổi.
 7) Kiểm thử nhanh
 • Client nhận được SeedS2C sau khi hello.
 • Gửi {"type":"chunk_req","cx":0,"cy":0} → nhận "chunk" với layer/collision.

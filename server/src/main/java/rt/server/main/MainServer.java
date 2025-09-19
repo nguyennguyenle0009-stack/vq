@@ -28,11 +28,12 @@ public class MainServer {
                         0.55,
                         0.35
                 ));
-                var storage = rt.server.world.chunk.ChunkStorage.createDefault();
-                var svc = new rt.server.world.chunk.ChunkService(gen, storage);
+        var storage = rt.server.world.chunk.ChunkStorage.createDefault();
+        var svc = new rt.server.world.chunk.ChunkService(gen, storage);
 
-		// World dùng đúng instance này
-		world.enableChunkMode(svc);
+        // World dùng đúng instance này
+        world.enableChunkMode(svc);
+        world.reloadMap(cfg.mapResourcePath);
 
 		// Truyền svc xuống server WS
 		var ws = new WsServer(cfg, sessions, inputs, world, svc);
