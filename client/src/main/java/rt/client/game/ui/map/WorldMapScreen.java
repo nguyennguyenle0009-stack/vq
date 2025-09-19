@@ -61,7 +61,11 @@ public final class WorldMapScreen extends JDialog {
         mapPanel.getActionMap().put("close", new AbstractAction(){ public void actionPerformed(java.awt.event.ActionEvent e){ dispose(); } });
 
         // lần đầu vẽ
-        mapPanel.refresh();
+        //mapPanel.refresh();
+        setLayout(new BorderLayout());
+        add(left, BorderLayout.WEST);
+        add(mapPanel, BorderLayout.CENTER);
+        SwingUtilities.invokeLater(mapPanel::refresh);
     }
 
     private JPanel buildLeftControls(){
@@ -142,12 +146,16 @@ public final class WorldMapScreen extends JDialog {
             });
         }
 
-        void refresh(){
-            img = renderer.render(originX, originY, tilesPerPixel, getWidth(), getHeight());
+        void refresh() {
+            int w = getWidth(), h = getHeight();
+            if (w <= 0 || h <= 0) return;              // <<< quan trọng: tránh width/height=0
+            img = renderer.render(originX, originY, tilesPerPixel, w, h);
             repaint();
         }
+        
         @Override protected void paintComponent(Graphics g){
             super.paintComponent(g);
+            if (img == null) refresh();                // lazy lần đầu sau khi có kích thước
             if (img != null) g.drawImage(img, 0, 0, null);
 
             // marker người chơi

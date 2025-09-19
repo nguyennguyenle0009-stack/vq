@@ -444,16 +444,40 @@ thế giới được sinh theo chunk từ seed
 		ClientApp – đăng ký seed callback + phím M
 		Palette trong MapRenderer
 
+## 1.0.31
 
+#### Bug
 
+	lag do mini-map render toàn bộ ảnh mỗi frame trên EDT và mỗi pixel lại generate() cả chunk.
+	
+#### Fix
 
+	Giảm vùng phủ mini-map (zoom hợp lý).
+	Render theo chunk có cache (mỗi chunk chỉ sinh 1 lần/khung).
+	Không render trên EDT mỗi frame → render nền (background) có “throttle”, khung vẽ chỉ hiển thị ảnh cache.
 
+####
 
+	A) MapRenderer – cache chunk + palette nhanh
+	B) MiniMapRenderer – render nền + throttle (không block EDT)
+		Lưu ý: giảm tilesPerPixel (4–8) giúp mini-map chỉ hiển thị khu vực quanh người chơi → rất nhẹ. Bản đồ toàn màn hình (phím M) sẽ lo việc pan xa.
+	C) GameCanvas – gọi mini-map đúng cách (không render trong EDT)
+	D) ClientApp – giữ callback seed như trước
 
+#### Kết quả mong đợi
 
-
-
-
+	FPS trở lại ~60 vì EDT không còn generate map; mini-map cập nhật ~5 lần/giây tối đa, mượt đủ dùng.
+	CPU không spike khi mở game.
+	Nếu còn tụt FPS khi mở bản đồ toàn màn hình (phím M), mình sẽ áp dụng cùng chiến lược: render nền + cache + pan theo block.
+	
+	xuất hiện bug IllegalArgumentException
+		Sửa nhanh (2 chỗ)
+			WorldMapScreen — đừng refresh() khi chưa có kích thước
+				Bỏ gọi mapPanel.refresh() trực tiếp trong constructor.
+				Gọi sau khi layout xong bằng SwingUtilities.invokeLater(...).
+				refresh() tự bỏ qua khi w/h <= 0.
+			Bảo hiểm trong MapRenderer.render(...) + if (w <= 0 || h <= 0) return new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+		Nhấn M tụt FPS khi mở map full - áp dụng cơ chế render nền + cache cho World Map giống mini-map để mượt hẳn.
 
 
 

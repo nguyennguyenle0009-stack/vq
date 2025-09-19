@@ -98,7 +98,7 @@ public class GameCanvas extends JPanel {
         
         Graphics2D gh = (Graphics2D) g.create();
         hudRenderer.draw(gh, model, hud);
-        miniMapRenderer.draw(gh, model, getWidth());
+        miniMapRenderer.draw(gh, model, getWidth(), this);
         if (hud != null) hud.onFrame();
         gh.dispose();
     }
