@@ -15,4 +15,8 @@ public class InputState {
             default -> {}
         }
     }
+
+    public void clear() {
+        up = down = left = right = false;
+    }
 }

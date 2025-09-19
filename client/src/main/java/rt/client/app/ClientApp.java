@@ -49,6 +49,7 @@ public class ClientApp {
         panel.setOnMinimapTeleport((wx, wy) -> {
             String you = model.you();
             if (you == null) return;
+            net.chunkCache().clear();
             String cmd = String.format(Locale.US, "teleport %s %.2f %.2f", you, wx, wy);
             net.sendAdmin(ADMIN_TOKEN, cmd);
         });
@@ -93,8 +94,22 @@ public class ClientApp {
         InputState input = new InputState();
         // Lắng nghe phím chuyển động
         f.addKeyListener(new KeyAdapter() {
-            @Override public void keyPressed(KeyEvent e) { input.set(e, true); }
-            @Override public void keyReleased(KeyEvent e) { input.set(e, false); }
+            @Override public void keyPressed(KeyEvent e) {
+                if (panel.handleKeyPressed(e)) {
+                    if (panel.isMinimapPanelOpen()) {
+                        input.clear();
+                    }
+                    return;
+                }
+                if (panel.isMinimapPanelOpen()) return;
+                input.set(e, true);
+            }
+
+            @Override public void keyReleased(KeyEvent e) {
+                if (panel.handleKeyReleased(e)) return;
+                if (panel.isMinimapPanelOpen()) return;
+                input.set(e, false);
+            }
         });
         // Lắng nghe phím admin/hotkeys
         f.addKeyListener(new AdminHotkeys(net, model, panel, hud, ADMIN_TOKEN));

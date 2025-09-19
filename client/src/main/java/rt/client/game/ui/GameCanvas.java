@@ -10,8 +10,10 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionAdapter;
 import java.util.function.BiConsumer;
 
 /** Canvas vẽ mượt, tách riêng renderers: grid / tile / entity / HUD text. */
@@ -28,6 +30,15 @@ public class GameCanvas extends JPanel {
     private final MinimapRenderer minimapRenderer = new MinimapRenderer();
 
     private BiConsumer<Double, Double> minimapTeleport;
+    private boolean minimapDrag = false;
+    private int minimapLastDragX = 0;
+    private int minimapLastDragY = 0;
+    private boolean minimapToggleHeld = false;
+    private boolean minimapPanUp = false;
+    private boolean minimapPanDown = false;
+    private boolean minimapPanLeft = false;
+    private boolean minimapPanRight = false;
+    private long minimapLastPanNs = System.nanoTime();
 
     // HUD dev (đã có sẵn trong dự án)
     private volatile boolean showDev = false;
@@ -50,6 +61,10 @@ public class GameCanvas extends JPanel {
         this.minimapTeleport = cb;
     }
 
+    public boolean isMinimapPanelOpen() {
+        return minimapRenderer.isPanelOpen();
+    }
+
     private boolean showGrid = false;
     public void setShowGrid(boolean v){ showGrid = v; }
 
@@ -57,18 +72,138 @@ public class GameCanvas extends JPanel {
         this.model = model;
         setBackground(Color.BLACK);
         setDoubleBuffered(true);
+        setFocusable(true);
 
         addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (!SwingUtilities.isRightMouseButton(e)) return;
+                if (!minimapRenderer.isPanelOpen()) return;
                 Point2D.Double world = minimapRenderer.screenToWorld(e.getX(), e.getY());
                 if (world == null) return;
                 if (minimapTeleport != null) {
                     minimapTeleport.accept(world.x, world.y);
                 }
             }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (!minimapRenderer.isPanelOpen()) return;
+                if (!SwingUtilities.isLeftMouseButton(e)) return;
+                if (!minimapRenderer.contains(e.getX(), e.getY())) return;
+                minimapDrag = true;
+                minimapLastDragX = e.getX();
+                minimapLastDragY = e.getY();
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                if (SwingUtilities.isLeftMouseButton(e)) {
+                    minimapDrag = false;
+                }
+            }
         });
+
+        addMouseMotionListener(new MouseMotionAdapter() {
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (!minimapRenderer.isPanelOpen() || !minimapDrag) return;
+                int dx = e.getX() - minimapLastDragX;
+                int dy = e.getY() - minimapLastDragY;
+                if (dx != 0 || dy != 0) {
+                    minimapRenderer.panByScreen(dx, dy);
+                    minimapLastDragX = e.getX();
+                    minimapLastDragY = e.getY();
+                    repaint();
+                }
+            }
+        });
+    }
+
+    public boolean handleKeyPressed(KeyEvent e) {
+        if (e.getKeyCode() == KeyEvent.VK_M) {
+            if (!minimapToggleHeld) {
+                toggleMinimapPanel();
+            }
+            minimapToggleHeld = true;
+            return true;
+        }
+        if (!minimapRenderer.isPanelOpen()) return false;
+
+        return switch (e.getKeyCode()) {
+            case KeyEvent.VK_ESCAPE -> {
+                setMinimapPanelOpen(false);
+                yield true;
+            }
+            case KeyEvent.VK_W, KeyEvent.VK_UP -> { minimapPanUp = true; yield true; }
+            case KeyEvent.VK_S, KeyEvent.VK_DOWN -> { minimapPanDown = true; yield true; }
+            case KeyEvent.VK_A, KeyEvent.VK_LEFT -> { minimapPanLeft = true; yield true; }
+            case KeyEvent.VK_D, KeyEvent.VK_RIGHT -> { minimapPanRight = true; yield true; }
+            case KeyEvent.VK_SPACE -> {
+                minimapRenderer.recenterOnPlayer(model);
+                repaint();
+                yield true;
+            }
+            default -> false;
+        };
+    }
+
+    public boolean handleKeyReleased(KeyEvent e) {
+        if (e.getKeyCode() == KeyEvent.VK_M) {
+            minimapToggleHeld = false;
+            return true;
+        }
+        if (!minimapRenderer.isPanelOpen()) return false;
+
+        return switch (e.getKeyCode()) {
+            case KeyEvent.VK_W, KeyEvent.VK_UP -> { minimapPanUp = false; yield true; }
+            case KeyEvent.VK_S, KeyEvent.VK_DOWN -> { minimapPanDown = false; yield true; }
+            case KeyEvent.VK_A, KeyEvent.VK_LEFT -> { minimapPanLeft = false; yield true; }
+            case KeyEvent.VK_D, KeyEvent.VK_RIGHT -> { minimapPanRight = false; yield true; }
+            default -> false;
+        };
+    }
+
+    private void toggleMinimapPanel() {
+        setMinimapPanelOpen(!minimapRenderer.isPanelOpen());
+    }
+
+    private void setMinimapPanelOpen(boolean open) {
+        if (open == minimapRenderer.isPanelOpen()) return;
+        minimapRenderer.setPanelOpen(open, model);
+        minimapPanUp = minimapPanDown = minimapPanLeft = minimapPanRight = false;
+        minimapDrag = false;
+        minimapLastPanNs = System.nanoTime();
+        repaint();
+    }
+
+    private void tickMinimapPan() {
+        if (!minimapRenderer.isPanelOpen()) {
+            minimapLastPanNs = System.nanoTime();
+            return;
+        }
+        long now = System.nanoTime();
+        double dt = (now - minimapLastPanNs) / 1_000_000_000.0;
+        minimapLastPanNs = now;
+        if (dt <= 0) return;
+
+        double vx = 0;
+        double vy = 0;
+        if (minimapPanLeft) vx -= 1;
+        if (minimapPanRight) vx += 1;
+        if (minimapPanUp) vy -= 1;
+        if (minimapPanDown) vy += 1;
+
+        if (vx == 0 && vy == 0) return;
+
+        double len = Math.hypot(vx, vy);
+        if (len > 0) {
+            vx /= len;
+            vy /= len;
+        }
+
+        final double SPEED = 120.0; // tiles per second
+        minimapRenderer.panByWorld(vx * SPEED * dt, vy * SPEED * dt);
     }
 
     // Giữ API cũ để không làm hỏng code cũ
@@ -117,6 +252,7 @@ public class GameCanvas extends JPanel {
 
         g2.setTransform(oldTransform);
         hudRenderer.draw(g2, model, hud);
+        tickMinimapPan();
         minimapRenderer.draw(g2, model, w, h);
         if (hud != null) hud.onFrame();
         g2.dispose();
