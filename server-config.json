@@ -12,5 +12,14 @@
   "writeBufferLowKB": 32,
   "writeBufferHighKB": 64,
   "adminToken": "dev-secret-123",
-  "mapResourcePath": "/maps/test01.json"
+  "mapResourcePath": "/maps/test01.json",
+
+
+  "worldSeed": 20250917,
+  "chunkSize": 64,
+  "tileSize": 32,
+  "streamRadius": 1,
+  "stateHz": 20,
+  "inputHz": 30,
+  "playerSpeed": 3.5
 }

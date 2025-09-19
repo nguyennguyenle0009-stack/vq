@@ -9,11 +9,12 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+import java.util.concurrent.ExecutorService;
 
 /** Dialog toàn màn hình hiển thị world map. Bước 1: pan + xem tọa độ (6). */
 public final class WorldMapScreen extends JDialog {
     // --- cấu hình đơn giản cho bước 1 ---
-    private static final double DEFAULT_TILES_PER_PIXEL = 32.0; // zoom 1: 1px ~ 32 tiles
+    private static final double DEFAULT_TILES_PER_PIXEL = 2.0; // zoom 1: 1px ~ 32 tiles
     private static final int PAN_STEP_TILES = 128;              // bước pan với nút 2/3/4/5
 
     private final JLabel coordLabel = new JLabel("X,Y: -");
@@ -27,9 +28,14 @@ public final class WorldMapScreen extends JDialog {
 
     private long lastClickGX, lastClickGY;
 
-    public static void showModal(Window owner, WorldModel wm, WorldGenConfig cfg){
+//    public static void showModal(Window owner, WorldModel wm, WorldGenConfig cfg){
+//        WorldMapScreen dlg = new WorldMapScreen(owner, wm, cfg);
+//        dlg.setVisible(true);
+//    }
+    public static WorldMapScreen showModal(Window owner, WorldModel wm, WorldGenConfig cfg){
         WorldMapScreen dlg = new WorldMapScreen(owner, wm, cfg);
         dlg.setVisible(true);
+        return dlg;              // <<< trả về instance
     }
 
     private WorldMapScreen(Window owner, WorldModel wm, WorldGenConfig cfg){
@@ -119,6 +125,8 @@ public final class WorldMapScreen extends JDialog {
 
     private final class MapPanel extends JPanel {
         private BufferedImage img;
+        private final ExecutorService exec = java.util.concurrent.Executors.newSingleThreadExecutor(r->{var t=new Thread(r,"worldmap-render");t.setDaemon(true);return t;});
+        private volatile boolean busy=false;
 
         MapPanel(){
             // right-click menu
@@ -145,18 +153,27 @@ public final class WorldMapScreen extends JDialog {
                 }
             });
         }
-
-        void refresh() {
-            int w = getWidth(), h = getHeight();
-            if (w <= 0 || h <= 0) return;              // <<< quan trọng: tránh width/height=0
-            img = renderer.render(originX, originY, tilesPerPixel, w, h);
-            repaint();
-        }
         
+        void refresh(){ refreshAsync(); }
+        
+        private void refreshAsync(){
+            int w = getWidth(), h = getHeight();
+            if (w<=0 || h<=0 || busy) return;
+            busy = true;
+            final long ox = originX, oy = originY;
+            final double tpp = tilesPerPixel;
+            exec.submit(() -> {
+                var newImg = renderer.render(ox, oy, tpp, w, h);
+                javax.swing.SwingUtilities.invokeLater(() -> {
+                    this.img = newImg; busy=false; repaint();
+                });
+            });
+        }
+
         @Override protected void paintComponent(Graphics g){
             super.paintComponent(g);
-            if (img == null) refresh();                // lazy lần đầu sau khi có kích thước
-            if (img != null) g.drawImage(img, 0, 0, null);
+            if (img==null && !busy) refreshAsync();     // lazy render
+            if (img!=null) g.drawImage(img,0,0,null);
 
             // marker người chơi
             long px = Math.round(worldModel.youX());

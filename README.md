@@ -22,44 +22,84 @@ Gradle Wrapper đã có sẵn (gradlew, gradlew.bat), không cần cài Gradle.
 2) Cấu trúc thư mục tiêu chuẩn Gradle
 
 Mỗi module đều theo chuẩn:
+# note
 
-<module>/
-└─ src/
-   ├─ main/
-   │  ├─ java/       # code chạy thật (bắt buộc)
-   │  └─ resources/  # tài nguyên đi kèm jar (ảnh, cấu hình, SQL, ...)
-   └─ test/
-      ├─ java/       # test tự động (không bắt buộc lúc đầu)
-      └─ resources/  # tài nguyên dùng riêng cho test
-      
-<Module server>/
-server/
- └─ src/main/java/rt/server/
-    ├─ main/
-    │	├─ MainServer.java             // Điểm vào duy nhất
-    ├─ websocket/
-    │   ├─ WsServer.java           // bootstrap Netty
-    │   ├─ WsInitializer.java      // pipeline
-    │   └─ WsTextHandler.java      // xử lý text frames
-    ├─ game/
-    │	└─loop/
-    │   	├─ GameLoop.java           // 60 TPS
-    │   	├─ SnapshotStreamer.java   // 10–15 Hz đẩy state
-    │   	└─ SnapshotBuffer.java
-    ├─ world/
-    │   └─ World.java              // game state, step(dt), capture(tick)
-    ├─ session/
-    │   └─ SessionRegistry.java    // quản lý kết nối + send JSON
-    ├─ input/
-    │   └─ InputQueue.java         // hàng đợi InputEvent (record)
-    ├─ game/
-    │	└─model/                      // nếu cần tách player, entity, map...
-    │   	└─ PlayerState.java
-    ├─ game/
-    │	└─infra/                      // DB, Redis, logging… (để sau)
-    └─ config/
-        └─ ServerConfig.java       // cổng, TPS, HZ, kích thước map…
-        
+## Common (dùng chung world-gen)
+
+	rt.common.world.ChunkPos.SIZE – kích thước 1 chunk (mặc định 64 tile). Phải trùng client & server.
+	rt.common.world.WorldGenConfig
+		seed – seed 64-bit của thế giới.
+		plainRatio (mặc định 0.55), forestRatio (0.35) → tỉ lệ Plain/Forest trong lục địa; Desert = 1 − (plain+forest).
+	rt.common.world.WorldGenerator (bản nền GĐ1)
+		OCEAN_THRESHOLD ~ 0.35 (mask lục địa/biển).
+		MOUNTAIN_THRESHOLD ~ 0.82 (điểm núi rải nhẹ, có collision).
+		(Noise/hash mix cố định; không cần đụng nếu chưa tối ưu.)
+
+## Server
+
+	server-config.json (đọc ở ServerConfig.load()):
+		port – cổng WS.
+		adminToken (mặc định "dev-secret-123").
+		tcpNoDelay, soKeepAlive – socket options.
+		writeBufferLowKB, writeBufferHighKB – Netty watermarks (KB).
+		worldSeed – nếu =0 sẽ rơi về mặc định (đang hard-code fallback 20250917L).
+		mapResourcePath – đường dẫn map tĩnh (giữ cho mode cũ).
+	Tick/stream:
+		State broadcast ~20 Hz (client ước lượng 50 ms/snapshot). Nếu bạn có StateStreamer/scheduler riêng, biến Hz thường ở đó (chưa đổi trong đoạn bạn dán).
+		Input apply: chạy trong World.step(dt).
+	rt.server.world.World
+		SPEED = 3.0 (tiles/s) – tốc độ “authoritative”.
+		CHUNK_SIZE = ChunkPos.SIZE (đừng đổi lệch common).
+		Spawn tìm đất:
+			MACRO_STEP_CHUNKS = max(4, 12000/CHUNK_SIZE) – bước quét vòng.
+			MAX_RINGS = 512 – số vòng quét tối đa.
+	Chunk dịch vụ:
+		rt.server.world.chunk.ChunkService – bơm chunk cho World + WsTextHandler.
+	Gói chào seed → client:
+		SeedS2C(seed, chunkSize, tileSize) – hiện đang gửi chunkSize=ChunkPos.SIZE, tileSize=32 (bạn có thể cho tileSize vào server-config.json nếu muốn chỉnh runtime).
+
+## Client
+
+	Tốc độ dự đoán (prediction): rt.common.game.Units.SPEED_TILES_PER_SEC = 3.75 (tiles/s).
+	👉 NÊN ĐỂ TRÙNG với World.SPEED (ví dụ cả hai 4.0) để giảm drift (mình đã note việc này).
+	Render & loop
+		RenderLoop mục tiêu 60 FPS.
+		ClientApp gửi input mỗi 33 ms (~30 Hz) & client-ping 1000 ms.
+	Chunk streaming
+		rt.client.world.ChunkCache.R – bán kính nạp (mặc định 1 → 3×3 chunk). Tăng lên 2 (=5×5) nếu máy khỏe.
+		NetClient giữ:
+			chunkSize (từ server), tileSize (từ server).
+			seed – để đồng bộ world-gen client (nếu dùng vẽ client-side).
+	Nội suy & HUD: rt.client.model.WorldModel
+		interpDelayMs khởi tạo 100 ms (tự điều chỉnh theo nhịp snapshot).
+		OFFSET_ALPHA 0.12 – EMA ước lượng clock offset server–client.
+		PING_ALPHA 0.25 – EMA ping hiển thị.
+		MAX_BUF 60 – số snapshot giữ trong buffer.
+	Camera mượt (nếu bạn có center-cam):
+		Hệ số lerp mình gợi ý 0.18 (đặt thành hằng CAMERA_LERP để tiện test).
+	Hotkeys/HUD
+		F4 toggle Dev HUD (ở GameCanvas/HudOverlay).
+		AdminHotkeys dùng adminToken khi gửi lệnh.
+		
+## Màu sắc & hiển thị
+
+	TileRenderer: bảng màu theo ID (đơn giản để test). Bạn có thể gom vào Theme/Palette.
+		Gợi ý mapping hiện tại (dễ nhìn & tương phản, bạn sửa thoải mái):
+			Water/Ocean (ID 0/1): #1f5fa8
+			Plain (ID 2): #cfe6a0
+			Forest (ID 3): #2e7d32
+			Desert (ID 4): #e8df9a
+			Mountain (ID 5): #6f6f6f
+	GridRenderer: màu lưới & alpha (đường “chỉ đen”) – dùng 1 màu + alpha thấp (vd rgba(0,0,0,0.12)), hoặc tắt khi zoom xa.
+	EntityRenderer: màu chấm người chơi (vd xanh lá #2aff3b) + nhãn màu trắng.
+	
+## Những thứ cần đồng bộ (đổi 1 nơi phải đổi nơi kia)
+
+	ChunkPos.SIZE, chunkSize – common/server/client.
+	Tốc độ di chuyển: World.SPEED (server) = Units.SPEED_TILES_PER_SEC (client).
+	tileSize – server gửi cho client (đang là 32).
+	seed – duy nhất cho phiên (server phát, client dùng đúng).
+
 # Tính năng     
 
 ## Client
@@ -70,6 +110,7 @@ server/
 	Nhấn F2 → teleport chính mình về (5,5) nếu tile trống
 	Nhấn F3 → reload map từ mapResourcePath	
     Nhấn F4 → hiện Dev HUD
+    Nhấn M  → hiện bản đồ
 	
 ## Server
 	
@@ -444,19 +485,19 @@ thế giới được sinh theo chunk từ seed
 		ClientApp – đăng ký seed callback + phím M
 		Palette trong MapRenderer
 
-## 1.0.31
+## 1.0.32
 
-#### Bug
+### Bug
 
 	lag do mini-map render toàn bộ ảnh mỗi frame trên EDT và mỗi pixel lại generate() cả chunk.
 	
-#### Fix
+### Cách fix
 
 	Giảm vùng phủ mini-map (zoom hợp lý).
 	Render theo chunk có cache (mỗi chunk chỉ sinh 1 lần/khung).
 	Không render trên EDT mỗi frame → render nền (background) có “throttle”, khung vẽ chỉ hiển thị ảnh cache.
 
-####
+### vào việc
 
 	A) MapRenderer – cache chunk + palette nhanh
 	B) MiniMapRenderer – render nền + throttle (không block EDT)
@@ -464,12 +505,13 @@ thế giới được sinh theo chunk từ seed
 	C) GameCanvas – gọi mini-map đúng cách (không render trong EDT)
 	D) ClientApp – giữ callback seed như trước
 
-#### Kết quả mong đợi
+### Kết quả mong đợi
 
 	FPS trở lại ~60 vì EDT không còn generate map; mini-map cập nhật ~5 lần/giây tối đa, mượt đủ dùng.
 	CPU không spike khi mở game.
 	Nếu còn tụt FPS khi mở bản đồ toàn màn hình (phím M), mình sẽ áp dụng cùng chiến lược: render nền + cache + pan theo block.
 	
+#### Xuất hiện thêm
 	xuất hiện bug IllegalArgumentException
 		Sửa nhanh (2 chỗ)
 			WorldMapScreen — đừng refresh() khi chưa có kích thước
@@ -479,6 +521,30 @@ thế giới được sinh theo chunk từ seed
 			Bảo hiểm trong MapRenderer.render(...) + if (w <= 0 || h <= 0) return new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
 		Nhấn M tụt FPS khi mở map full - áp dụng cơ chế render nền + cache cho World Map giống mini-map để mượt hẳn.
 
+## 1.0.33
 
-
-
+	fix "Nhấn M tụt FPS khi mở map full"
+	2 vấn đề:
+		Mở map làm đơ vì WorldMapScreen đang render full ảnh trên EDT + scale quá lớn (32 tiles/pixel ⇒ phải generate rất nhiều chunk).
+		Bấm M lúc được lúc không vì game vẫn gửi input khi map mở → nhân vật di chuyển, chunk tiếp tục tải.
+	Sửa nhanh:
+		A) WorldMapScreen: render nền + giảm scale
+			Đổi zoom mặc định xuống 2.0 tiles/pixel.
+			Render ảnh off-EDT (background), không chặn UI.
+		B) Trong ClientApp: 
+			Chặn input khi map đang mở (không cho nhân vật chạy, không “kéo” chunk)
+			Hotkey M mở/đóng và set cờ:
+			Key listener: bỏ qua khi map mở.
+			Gửi input định kỳ: khi map mở, gửi all-false (không di chuyển).
+			
+	Lưu ý nhấn M viết hoa để mở bản đồ
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	

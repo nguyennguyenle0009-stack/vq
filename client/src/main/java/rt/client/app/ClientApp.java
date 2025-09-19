@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 
 public class ClientApp {
     public static void main(String[] args) throws IOException {
+    	final java.util.concurrent.atomic.AtomicBoolean mapOpen = new java.util.concurrent.atomic.AtomicBoolean(false);
         final String ADMIN_TOKEN = "dev-secret-123"; // đổi nếu đổi trong server-config.json
 
         String url = "ws://localhost:8090/ws";
@@ -41,7 +42,9 @@ public class ClientApp {
         WorldModel model = new WorldModel();
         NetClient net = new NetClient(url, model);
         GameCanvas panel = new GameCanvas(model);
-        
+        // Input
+        InputState input = new InputState();
+         
         // ClientApp.java — sau khi tạo GameCanvas panel, NetClient net
         panel.bindChunk(net.chunkCache(), net.tileSize());
         // khi nhận seed => tileSize có thể đổi, bind lại:
@@ -71,20 +74,28 @@ public class ClientApp {
             @Override public void actionPerformed(java.awt.event.ActionEvent e) { hud.setVisible(!hud.isVisible()); }
         });
         
-     // Mở world map (M)
+        // Mở world map (M)
         f.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
-         .put(KeyStroke.getKeyStroke('M'), "toggleWorldMap");
+        .put(KeyStroke.getKeyStroke('M'), "toggleWorldMap");
         f.getRootPane().getActionMap().put("toggleWorldMap", new AbstractAction() {
-            @Override public void actionPerformed(java.awt.event.ActionEvent e) {
-                long seed = net.getWorldSeed();
-                if (seed == 0L) {
-                    JOptionPane.showMessageDialog(f, "Chưa nhận seed từ server.");
-                    return;
-                }
-                WorldGenConfig cfg = new WorldGenConfig(seed, 0.50, 0.35);
-                WorldMapScreen.showModal(f, model, cfg);
-            }
-        });
+        	@Override 
+	        public void actionPerformed(java.awt.event.ActionEvent e) { 
+	        	long s = net.getWorldSeed();
+	        	if (s==0L){ JOptionPane.showMessageDialog(f,"Chưa nhận seed."); return; }
+	        	mapOpen.set(true);
+	        	rt.client.game.ui.map.WorldMapScreen.showModal(f, model, new WorldGenConfig(s,0.50,0.35))
+	        		.addWindowListener(new java.awt.event.WindowAdapter(){
+		                @Override 
+		                public void windowClosed(java.awt.event.WindowEvent e){ mapOpen.set(false); }
+		                @Override 
+		                public void windowClosing(java.awt.event.WindowEvent e){ mapOpen.set(false); }
+        		});
+ 	  		}
+      	});
+        f.addKeyListener(new KeyAdapter() {
+        	  @Override public void keyPressed(KeyEvent e){ if(!mapOpen.get()) input.set(e,true); }
+        	  @Override public void keyReleased(KeyEvent e){ if(!mapOpen.get()) input.set(e,false); }
+    	});
         panel.setHud(hud);
 
         // Ping HUD (client-side RTT)
@@ -99,8 +110,6 @@ public class ClientApp {
         net.connect(name);
         net.setOnSeedChanged(s -> panel.setWorldGenConfig(new WorldGenConfig(s, 0.50, 0.35)));
 
-        // Input
-        InputState input = new InputState();
         // Lắng nghe phím chuyển động
         f.addKeyListener(new KeyAdapter() {
             @Override public void keyPressed(KeyEvent e) { input.set(e, true); }
@@ -113,8 +122,14 @@ public class ClientApp {
         ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
         ses.scheduleAtFixedRate(() -> net.sendInput(input.up, input.down, input.left, input.right),
                 0, 33, TimeUnit.MILLISECONDS);
+        // client-ping 1s
         ses.scheduleAtFixedRate(() -> net.sendClientPing(System.nanoTime()),
                 1000, 1000, TimeUnit.MILLISECONDS);
+        // Gửi input định kỳ: khi map mở, gửi all-false (không di chuyển).
+//        ses.scheduleAtFixedRate(() -> {
+//            if (mapOpen.get()) net.sendInput(false,false,false,false);
+//            else net.sendInput(input.up, input.down, input.left, input.right);
+//        }, 0, 33, TimeUnit.MILLISECONDS);
 
         // Render loop 60 FPS
         RenderLoop render = new RenderLoop(f, panel);
