@@ -48,6 +48,18 @@ public class NetClient {
     private java.util.function.IntConsumer onTileSizeChanged;
     public void setOnTileSizeChanged(java.util.function.IntConsumer c){ this.onTileSizeChanged = c; }
     public int tileSize(){ return tileSize; }
+    
+    private volatile long worldSeed;
+    public long getWorldSeed(){ return worldSeed; }
+    
+    public NetClient setWorldSeed(long worldSeed) {
+		this.worldSeed = worldSeed;
+		return this;
+	}
+
+	private java.util.function.LongConsumer onSeedChanged = s -> {};
+    public void setOnSeedChanged(java.util.function.LongConsumer cb){ this.onSeedChanged = (cb!=null?cb:s->{}); }
+
 
     public NetClient(String url, WorldModel model) {
         this.url = url;
@@ -134,34 +146,34 @@ public class NetClient {
                             ws.send(Jsons.OM.writeValueAsString(
                                 java.util.Map.of("type", "pong", "ts", System.currentTimeMillis())
                             ));
-                        }
-                        case "seed" -> {
+                        } case "seed" -> {
                             seed = node.get("seed").asLong();
                             chunkSize = node.get("chunkSize").asInt();
                             tileSize  = node.get("tileSize").asInt();
 
-                            model.setMap(null); // tắt map tĩnh nếu còn
+                            setWorldSeed(seed);               // <<< QUAN TRỌNG
+                            onSeedChanged.accept(worldSeed);       // <<< QUAN TRỌNG
+
+                            model.setMap(null);
                             if (onTileSizeChanged!=null) onTileSizeChanged.accept(tileSize);
 
-                            // xin 3×3 quanh (0,0) lần đầu (đánh dấu in-flight để tránh trùng)
+                            // xin 3×3 quanh (0,0) lần đầu
                             for (int dy=-rt.client.world.ChunkCache.R; dy<=rt.client.world.ChunkCache.R; dy++)
                                 for (int dx=-rt.client.world.ChunkCache.R; dx<=rt.client.world.ChunkCache.R; dx++) {
-                                    int qx = dx, qy = dy;
-                                    if (chunkCache.markRequested(qx,qy)) {
-                                        ws.send(rt.common.net.Jsons.OM.writeValueAsString(new rt.common.net.dto.ChunkReqC2S(qx,qy)));
+                                    if (chunkCache.markRequested(dx,dy)) {
+                                        ws.send(Jsons.OM.writeValueAsString(new rt.common.net.dto.ChunkReqC2S(dx,dy)));
                                     }
                                 }
-                        }
-                        case "chunk" -> {
-
+                        }case "chunk" -> {
                             int cx = node.get("cx").asInt(), cy = node.get("cy").asInt(), size = node.get("size").asInt();
                             byte[] l1 = node.get("layer1").binaryValue(), l2 = node.get("layer2").binaryValue();
                             java.util.BitSet coll = java.util.BitSet.valueOf(node.get("collisionBits").binaryValue());
-                            chunkCache.onArrive(new rt.client.world.ChunkCache.Data(cx,cy,size,l1,l2,coll));
+
                             var data = new rt.client.world.ChunkCache.Data(cx,cy,size,l1,l2,coll);
-                            chunkCache.onArrive(data);
-                            chunkCache.bakeImage(data, tileSize); // <-- bake ngay
+                            chunkCache.onArrive(data);               // giữ 1 lần
+                            chunkCache.bakeImage(data, tileSize);
                         }
+
                         default -> {
                             log.debug("unknown type: {}", type);
                         }

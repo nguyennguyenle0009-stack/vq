@@ -436,8 +436,13 @@ thế giới được sinh theo chunk từ seed
 			MOUNTAIN  0.00%
 			hash=dc308be83f25082702341fcef44b51027c9936b4bccc8ff0d29dcaaf4d9080c4
 
+## 1.0.31
 
-
+	World Map (fullscreen) skeleton + panning + xem tọa độ (6) — render từ seed (client-only), nhấn M để mở/đóng.
+		NetClient – sửa case "seed" + bỏ trùng onArrive
+		GameCanvas – thêm mini-map (HUD vẫn gọi trong Canvas)
+		ClientApp – đăng ký seed callback + phím M
+		Palette trong MapRenderer
 
 
 

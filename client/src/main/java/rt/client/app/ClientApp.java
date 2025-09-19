@@ -2,8 +2,10 @@ package rt.client.app;
 
 import rt.client.model.WorldModel;
 import rt.client.net.NetClient;
+import rt.common.world.WorldGenConfig;
 import rt.client.game.ui.GameCanvas;
 import rt.client.game.ui.hud.HudOverlay;
+import rt.client.game.ui.map.WorldMapScreen;
 import rt.client.game.ui.RenderLoop;
 import rt.client.input.InputState;
 
@@ -68,6 +70,21 @@ public class ClientApp {
         f.getRootPane().getActionMap().put("toggleHud", new AbstractAction() {
             @Override public void actionPerformed(java.awt.event.ActionEvent e) { hud.setVisible(!hud.isVisible()); }
         });
+        
+     // Mở world map (M)
+        f.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+         .put(KeyStroke.getKeyStroke('M'), "toggleWorldMap");
+        f.getRootPane().getActionMap().put("toggleWorldMap", new AbstractAction() {
+            @Override public void actionPerformed(java.awt.event.ActionEvent e) {
+                long seed = net.getWorldSeed();
+                if (seed == 0L) {
+                    JOptionPane.showMessageDialog(f, "Chưa nhận seed từ server.");
+                    return;
+                }
+                WorldGenConfig cfg = new WorldGenConfig(seed, 0.50, 0.35);
+                WorldMapScreen.showModal(f, model, cfg);
+            }
+        });
         panel.setHud(hud);
 
         // Ping HUD (client-side RTT)
@@ -80,6 +97,7 @@ public class ClientApp {
 
         // Kết nối
         net.connect(name);
+        net.setOnSeedChanged(s -> panel.setWorldGenConfig(new WorldGenConfig(s, 0.50, 0.35)));
 
         // Input
         InputState input = new InputState();

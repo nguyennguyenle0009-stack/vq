@@ -1,9 +1,11 @@
 package rt.client.game.ui;
 
 import rt.client.model.WorldModel;
+import rt.common.world.WorldGenConfig;
 import rt.client.game.ui.hud.HudOverlay;
 import rt.client.game.ui.render.EntityRenderer;
 import rt.client.game.ui.render.GridRenderer;
+import rt.client.game.ui.render.MiniMapRenderer;
 import rt.client.game.ui.tile.TileRenderer;
 
 import javax.swing.*;
@@ -39,6 +41,10 @@ public class GameCanvas extends JPanel {
     
     private boolean showGrid = false;
     public void setShowGrid(boolean v){ showGrid = v; }
+    
+    private final MiniMapRenderer miniMapRenderer = new MiniMapRenderer();
+    public void setWorldGenConfig(WorldGenConfig cfg){ miniMapRenderer.setConfig(cfg); }
+
 
     public GameCanvas(WorldModel model) {
         this.model = model;
@@ -92,6 +98,7 @@ public class GameCanvas extends JPanel {
         
         Graphics2D gh = (Graphics2D) g.create();
         hudRenderer.draw(gh, model, hud);
+        miniMapRenderer.draw(gh, model, getWidth());
         if (hud != null) hud.onFrame();
         gh.dispose();
     }
