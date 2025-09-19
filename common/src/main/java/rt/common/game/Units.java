@@ -11,7 +11,7 @@ public final class Units {
     public static final int WORLD_H_TILES = 19; // ~ 600 / 32
 
     /** Tốc độ logic: ô/giây (giữ cảm giác ~120px/s => 120/32 = 3.75 tile/s) */
-    public static final double SPEED_TILES_PER_SEC = 900;
+    public static final double SPEED_TILES_PER_SEC = 3.75;
 
     // Helper cho client khi cần quy đổi
     public static int toPx(double tiles){ return (int)Math.round(tiles * TILE_PX); }

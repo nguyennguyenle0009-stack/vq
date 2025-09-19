@@ -418,8 +418,23 @@ thế giới được sinh theo chunk từ seed
 		Continent ID: số nguyên dương ổn định theo seed + anchor (không đụng nhau xác suất cao).
 		Tên: sinh từ seed+ID (deterministic), ví dụ “Aron”, “Calen”… có thể thay bảng âm tiết tiếng Việt sau.
 
-
-
+## 1.0.30 
+	
+	Thêm lớp chạy độc lập: ASCII preview + thống kê + hash kiểm định - common/src/main/java/rt/tools/MapAsciiPreview.java
+	Test JUnit khẳng định determinism theo seed - common/src/test/java/rt/common/world/WorldGeneratorDeterminismTest.java
+	Tiện chạy nhanh từ Gradle (không cần thêm plugin Application) - edit common/build.gradle.kts
+	Cách chạy
+		Test determinism: gradlew :common:test --tests rt.common.world.WorldGeneratorDeterminismTest
+			BUILD SUCCESSFUL in 9s
+			3 actionable tasks: 2 executed, 1 up-to-date
+		Xem ASCII map + thống kê + hash: gradlew :common:runPreview -Pseed=123456789
+			seed=123456789, area=16200 tiles
+			OCEAN    75.00%
+			PLAIN    25.00%
+			FOREST    0.00%
+			DESERT    0.00%
+			MOUNTAIN  0.00%
+			hash=dc308be83f25082702341fcef44b51027c9936b4bccc8ff0d29dcaaf4d9080c4
 
 
 
