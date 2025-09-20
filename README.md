@@ -561,6 +561,6 @@ thế giới được sinh theo chunk từ seed
 		Map lớn (overlay): tilesPerPixel = 2.0 → chi tiết hơn 3× so với mini-map.
 		Có thể cho zoom bậc thang: [8.0, 4.0, 2.0, 1.0] (mỗi nấc nhân đôi chi tiết).
 	
+## 1.0.35
 	
-	
-	
+	Chỉnh sửa lại bố cục
