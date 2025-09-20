@@ -5,7 +5,7 @@ import rt.client.net.NetClient;
 import rt.common.world.WorldGenConfig;
 import rt.client.game.ui.GameCanvas;
 import rt.client.game.ui.hud.HudOverlay;
-import rt.client.game.ui.map.WorldMapScreen;
+import rt.client.game.ui.map.WorldMapOverlay;
 import rt.client.game.ui.RenderLoop;
 import rt.client.input.InputState;
 
@@ -21,17 +21,15 @@ import java.util.concurrent.TimeUnit;
 
 public class ClientApp {
     public static void main(String[] args) throws IOException {
-    	final java.util.concurrent.atomic.AtomicBoolean mapOpen = new java.util.concurrent.atomic.AtomicBoolean(false);
-        final String ADMIN_TOKEN = "dev-secret-123"; // đổi nếu đổi trong server-config.json
+        final java.util.concurrent.atomic.AtomicBoolean mapOpen = new java.util.concurrent.atomic.AtomicBoolean(false);
+        final String ADMIN_TOKEN = "dev-secret-123";
 
         String url = "ws://localhost:8090/ws";
         String name = args.length > 0 ? args[0] : "Player";
 
-        // Tạo thư mục: Desktop/Vương quyền/client/<name>
+        // Thư mục log
         Path base = rt.common.util.DesktopDir.resolve().resolve("Vương quyền").resolve("client").resolve(name);
         try { Files.createDirectories(base); } catch (Exception ignored) {}
-
-        // Set system properties cho Logback
         System.setProperty("VQ_LOG_DIR", base.toString());
         System.setProperty("playerName", name);
         if (System.getProperty("LOG_STAMP") == null) {
@@ -39,18 +37,19 @@ public class ClientApp {
             System.setProperty("LOG_STAMP", stamp);
         }
 
+        // Model/Net/UI cơ bản
         WorldModel model = new WorldModel();
         NetClient net = new NetClient(url, model);
         GameCanvas panel = new GameCanvas(model);
-        // Input
+
+        // Input state (khai báo TRƯỚC khi add listeners)
         InputState input = new InputState();
-         
-        // ClientApp.java — sau khi tạo GameCanvas panel, NetClient net
+
+        // Bind chunk renderer
         panel.bindChunk(net.chunkCache(), net.tileSize());
-        // khi nhận seed => tileSize có thể đổi, bind lại:
         net.setOnTileSizeChanged(ts -> panel.bindChunk(net.chunkCache(), ts));
 
-        // UI
+        // Frame
         JFrame f = new JFrame("VQ Client - " + name);
         f.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         f.setSize(1100, 700);
@@ -68,35 +67,58 @@ public class ClientApp {
                 hud.setBounds(0, 0, f.getWidth(), f.getHeight());
             }
         });
-        // Toggle HUD bằng InputMap (F4)
         f.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("F4"), "toggleHud");
         f.getRootPane().getActionMap().put("toggleHud", new AbstractAction() {
             @Override public void actionPerformed(java.awt.event.ActionEvent e) { hud.setVisible(!hud.isVisible()); }
         });
-        
-        // Mở world map (M)
-        f.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
-        .put(KeyStroke.getKeyStroke('M'), "toggleWorldMap");
-        f.getRootPane().getActionMap().put("toggleWorldMap", new AbstractAction() {
-        	@Override 
-	        public void actionPerformed(java.awt.event.ActionEvent e) { 
-	        	long s = net.getWorldSeed();
-	        	if (s==0L){ JOptionPane.showMessageDialog(f,"Chưa nhận seed."); return; }
-	        	mapOpen.set(true);
-	        	rt.client.game.ui.map.WorldMapScreen.showModal(f, model, new WorldGenConfig(s,0.50,0.35))
-	        		.addWindowListener(new java.awt.event.WindowAdapter(){
-		                @Override 
-		                public void windowClosed(java.awt.event.WindowEvent e){ mapOpen.set(false); }
-		                @Override 
-		                public void windowClosing(java.awt.event.WindowEvent e){ mapOpen.set(false); }
-        		});
- 	  		}
-      	});
-        f.addKeyListener(new KeyAdapter() {
-        	  @Override public void keyPressed(KeyEvent e){ if(!mapOpen.get()) input.set(e,true); }
-        	  @Override public void keyReleased(KeyEvent e){ if(!mapOpen.get()) input.set(e,false); }
-    	});
         panel.setHud(hud);
+
+        // ===== World Map overlay trong khung =====
+        WorldMapOverlay wmOverlay = new WorldMapOverlay(model);
+        wmOverlay.setVisible(false);
+        layers.add(wmOverlay, JLayeredPane.DRAG_LAYER);
+
+        // Đặt bounds overlay ~80% khung, không return giá trị (sửa lỗi bạn gặp)
+        Runnable layoutOverlay = () -> {
+            int w = f.getWidth(), h = f.getHeight();
+            int ow = (int)(w * 0.80), oh = (int)(h * 0.80);
+            int ox = (w - ow)/2, oy = (h - oh)/2;
+            wmOverlay.setBounds(ox, oy, ow, oh);
+        };
+        layoutOverlay.run();
+        f.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override public void componentResized(java.awt.event.ComponentEvent e) { layoutOverlay.run(); }
+        });
+
+        // Hotkey M: bật/tắt overlay và chặn input khi mở
+        f.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(KeyStroke.getKeyStroke('M'), "toggleWorldMap");
+        f.getRootPane().getActionMap().put("toggleWorldMap", new AbstractAction() {
+            @Override public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (!wmOverlay.isVisible()) {
+                    wmOverlay.setVisible(true);
+                    wmOverlay.openAtPlayer();
+                    mapOpen.set(true);
+                } else {
+                    wmOverlay.setVisible(false);
+                    mapOpen.set(false);
+                }
+            }
+        });
+
+        // Pan overlay bằng phím mũi tên khi mapOpen
+        f.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override public void keyPressed(java.awt.event.KeyEvent e) {
+                if (!mapOpen.get()) return;
+                int step = 128; // tiles
+                switch (e.getKeyCode()) {
+                    case java.awt.event.KeyEvent.VK_UP ->    wmOverlay.panTiles(0, -step);
+                    case java.awt.event.KeyEvent.VK_DOWN ->  wmOverlay.panTiles(0,  step);
+                    case java.awt.event.KeyEvent.VK_LEFT ->  wmOverlay.panTiles(-step, 0);
+                    case java.awt.event.KeyEvent.VK_RIGHT -> wmOverlay.panTiles( step, 0);
+                }
+            }
+        });
 
         // Ping HUD (client-side RTT)
         net.setOnClientPong(ns -> {
@@ -106,36 +128,39 @@ public class ClientApp {
             panel.setPing(rttMs);
         });
 
-        // Kết nối
+        // Kết nối & seed → cấu hình renderer cho mini-map + overlay
         net.connect(name);
-        net.setOnSeedChanged(s -> panel.setWorldGenConfig(new WorldGenConfig(s, 0.50, 0.35)));
-
-        // Lắng nghe phím chuyển động
-        f.addKeyListener(new KeyAdapter() {
-            @Override public void keyPressed(KeyEvent e) { input.set(e, true); }
-            @Override public void keyReleased(KeyEvent e) { input.set(e, false); }
+        net.setOnSeedChanged(s -> {
+            var cfg = new WorldGenConfig(s, 0.50, 0.35);
+            panel.setWorldGenConfig(cfg);     // mini-map
+            wmOverlay.setWorldGenConfig(cfg); // map lớn
         });
-        // Lắng nghe phím admin/hotkeys
+
+        // Movement input: BỎ QUA khi mapOpen
+        f.addKeyListener(new KeyAdapter() {
+            @Override public void keyPressed(KeyEvent e)  { if (!mapOpen.get()) input.set(e, true); }
+            @Override public void keyReleased(KeyEvent e) { if (!mapOpen.get()) input.set(e, false); }
+        });
+
+        // Admin hotkeys (giữ nguyên)
         f.addKeyListener(new AdminHotkeys(net, model, panel, hud, ADMIN_TOKEN));
 
-        // Gửi input ~30Hz + client-ping 1s
+        // Scheduler: CHỈ MỘT lần gửi input, có guard mapOpen
         ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
-        ses.scheduleAtFixedRate(() -> net.sendInput(input.up, input.down, input.left, input.right),
-                0, 33, TimeUnit.MILLISECONDS);
+        ses.scheduleAtFixedRate(() -> {
+            if (mapOpen.get()) net.sendInput(false,false,false,false);
+            else               net.sendInput(input.up, input.down, input.left, input.right);
+        }, 0, 33, TimeUnit.MILLISECONDS);
+
         // client-ping 1s
         ses.scheduleAtFixedRate(() -> net.sendClientPing(System.nanoTime()),
                 1000, 1000, TimeUnit.MILLISECONDS);
-        // Gửi input định kỳ: khi map mở, gửi all-false (không di chuyển).
-//        ses.scheduleAtFixedRate(() -> {
-//            if (mapOpen.get()) net.sendInput(false,false,false,false);
-//            else net.sendInput(input.up, input.down, input.left, input.right);
-//        }, 0, 33, TimeUnit.MILLISECONDS);
 
         // Render loop 60 FPS
         RenderLoop render = new RenderLoop(f, panel);
         render.start();
 
-        // Shutdown gọn
+        // Shutdown
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try { render.stop(); } catch (Exception ignored) {}
             ses.shutdownNow();

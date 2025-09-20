@@ -539,11 +539,27 @@ thế giới được sinh theo chunk từ seed
 			
 	Lưu ý nhấn M viết hoa để mở bản đồ
 	
+## 1.0.34
+
+	Mở bản đồ ngay trong khung game bằng một overlay đặt trên JLayeredPane (không fullscreen, không đơ EDT).
+		Mini-map: 1 pixel bản đồ ≈ 6 tiles (hằng MINI_TPP = 6.0).
+		Bản đồ lớn (overlay): 1 pixel bản đồ ≈ 2 tiles (hằng BIG_TPP = 2.0).
+		
+	Công thức chuyển đổi:
+		Từ pixel bản đồ → tile thế giới: gx = originX + floor(px * tilesPerPixel), gy = originY + floor(py * tilesPerPixel).
+		Từ tile thế giới → pixel bản đồ: px = (gx - originX)/tilesPerPixel, py = (gy - originY)/tilesPerPixel.
+		(Trong thế giới, 1 tile ≈ tileSize px hiển thị, vd 32px; mini/large map làm việc trực tiếp trên tiles nên không phụ thuộc độ phân giải.)
 	
-	
-	
-	
-	
+	Làm map lớn trong khung game (overlay)
+		1) Tạo overlay (render nền, rất nhẹ) - rt/client/game/ui/map/WorldMapOverlay.java
+		2) Gắn overlay vào ClientApp (thay vì JDialog)
+			Hotkey M
+			(Option) Pan bản đồ lớn bằng phím mũi tên khi overlay mở:
+			
+	Tóm tắt tỉ lệ (có thể đổi ở hằng số):
+		Mini-map: tilesPerPixel = 6.0 → hiển thị vùng quanh người chơi rộng ≈ (width*6) × (height*6) tiles.
+		Map lớn (overlay): tilesPerPixel = 2.0 → chi tiết hơn 3× so với mini-map.
+		Có thể cho zoom bậc thang: [8.0, 4.0, 2.0, 1.0] (mỗi nấc nhân đôi chi tiết).
 	
 	
 	
