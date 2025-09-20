@@ -82,9 +82,15 @@ public class ClientApp {
         panel.setHud(hud);
 
         // ===== World Map overlay trong khung =====
-        WorldMapOverlay wmOverlay = new WorldMapOverlay(model);
+        WorldMapOverlay wmOverlay = new WorldMapOverlay(model, net);
         wmOverlay.setVisible(false);
-        layers.add(wmOverlay, JLayeredPane.DRAG_LAYER);
+        wmOverlay.setTeleportHandler((gx, gy) -> {
+            String you = model.you();
+            if (you != null) {
+                net.sendAdmin(ADMIN_TOKEN, "teleport " + you + " " + gx + " " + gy);
+            }
+        });
+        layers.add(wmOverlay, JLayeredPane.MODAL_LAYER);
 
         // Đặt bounds overlay theo ô (trên/trái/phải: 2 ô; dưới: 3 ô)
         Runnable layoutOverlay = () -> {

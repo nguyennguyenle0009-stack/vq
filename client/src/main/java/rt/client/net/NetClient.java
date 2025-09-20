@@ -60,7 +60,15 @@ public class NetClient {
 	private java.util.function.LongConsumer onSeedChanged = s -> {};
     public void setOnSeedChanged(java.util.function.LongConsumer cb){ this.onSeedChanged = (cb!=null?cb:s->{}); }
 
-
+    private java.util.function.Consumer<rt.client.model.GeoInfo> onGeoInfo = gi -> {};
+    public void setOnGeoInfo(java.util.function.Consumer<rt.client.model.GeoInfo> cb){
+        this.onGeoInfo = (cb!=null? cb : gi -> {});
+    }
+    public void sendGeoReq(long gx,long gy){
+        try { ws.send(OM.writeValueAsString(java.util.Map.of("type","geo_req","gx",gx,"gy",gy))); }
+        catch (Exception e){ e.printStackTrace(); }
+    }
+    
     public NetClient(String url, WorldModel model) {
         this.url = url;
         this.model = model;
@@ -172,6 +180,17 @@ public class NetClient {
                             var data = new rt.client.world.ChunkCache.Data(cx,cy,size,l1,l2,coll);
                             chunkCache.onArrive(data);               // giữ 1 lần
                             chunkCache.bakeImage(data, tileSize);
+                        }case "geo" -> {
+                            long gx = node.path("gx").asLong();
+                            long gy = node.path("gy").asLong();
+                            int terrainId = node.path("terrainId").asInt();
+                            String terrainName = node.path("terrainName").asText(null);
+                            int continentId = node.path("continentId").asInt(-1);
+                            String continentName = node.path("continentName").asText(null);
+                            int seaId = node.path("seaId").asInt(0);
+                            String seaName = node.path("seaName").asText(null);
+                            var gi = new rt.client.model.GeoInfo(gx,gy, terrainId,terrainName, continentId,continentName, seaId,seaName);
+                            onGeoInfo.accept(gi);
                         }
 
                         default -> {

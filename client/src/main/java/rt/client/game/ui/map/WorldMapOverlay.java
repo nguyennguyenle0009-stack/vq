@@ -1,190 +1,225 @@
 package rt.client.game.ui.map;
 
 import rt.client.model.WorldModel;
-import rt.client.world.map.MapRenderer;
+import rt.client.net.NetClient;
 import rt.common.world.WorldGenConfig;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
-import java.util.concurrent.*;
+import java.util.function.BiConsumer;
 
-public final class WorldMapOverlay extends JPanel {
-    private static final double BIG_TILES_PER_PIXEL = 2.0;  // tỉ lệ bản đồ lớn
-    private static final int PAN_STEP_TILES = 128;
-
+public final class WorldMapOverlay extends JComponent {
     private final WorldModel model;
-    private WorldGenConfig cfg;
-    private MapRenderer renderer;
+    private final NetClient net;
 
-    private long originX, originY;
-    private double tilesPerPixel = BIG_TILES_PER_PIXEL;
+    private rt.client.world.map.MapRenderer mapRenderer;
 
-    private final ExecutorService exec = Executors.newSingleThreadExecutor(r->{var t=new Thread(r,"worldmap-render"); t.setDaemon(true); return t;});
-    private volatile boolean busy = false;
+    // gốc hiển thị (tile) & tỉ lệ (tiles / pixel)
+    private long originX = 0, originY = 0;
+    private int tilesPerPixel = 1; // yêu cầu: mặc định 1
+    private BufferedImage lastImg;
+    private int lastRenderW = 0, lastRenderH = 0;
+    private double lastRenderTpp = tilesPerPixel;
 
-    private final JLabel coordLabel = new JLabel("X,Y:-");
-    private final JLabel scaleLabel = new JLabel("Tỉ lệ 1:" + (int)BIG_TILES_PER_PIXEL);
-    private final MapPanel mapPanel = new MapPanel();
+    private final JLabel scaleLabel = new JLabel("Tỉ lệ 1:1");
+    private final JLabel placeLabel = new JLabel("—");
+    private final JButton reloadBtn = new JButton("Reload");
 
-    private final JPopupMenu popup = new JPopupMenu();
-    private final JMenuItem mi6 = new JMenuItem("6) Xem tọa độ");
-    private final JMenuItem mi7 = new JMenuItem("7) Dịch chuyển (bật ở bước sau)");
+    private BiConsumer<Long,Long> teleportHandler;
 
-    public WorldMapOverlay(WorldModel model){
+    private final JComponent mapPanel;
+
+    // lưu vị trí click để popup dùng
+    private int lastClickX = -1, lastClickY = -1;
+
+    public WorldMapOverlay(WorldModel model, NetClient net) {
         this.model = model;
-        setOpaque(false);
+        this.net   = net;
+
         setLayout(new BorderLayout());
+        setOpaque(false);
 
-        // ===== LEFT: điều hướng — đặc, không trong suốt =====
-        JPanel left = new JPanel();
-        left.setOpaque(true);
-        left.setBackground(new Color(20,35,28)); // nền đặc tối
-        left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
-        left.setPreferredSize(new Dimension(240, 10));
+        // ==== Header ====
+        JPanel top = new JPanel(new BorderLayout());
+        top.setOpaque(true);
+        top.setBackground(new Color(0x16,0x16,0x16));
 
-        left.add(Box.createVerticalStrut(12));
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
+        left.setOpaque(false);
         scaleLabel.setForeground(Color.WHITE);
-        coordLabel.setForeground(Color.WHITE);
-        scaleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        coordLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        left.add(center(scaleLabel));
-        left.add(Box.createVerticalStrut(12));
-        left.add(center(coordLabel));
-        left.add(Box.createVerticalStrut(16));
+        placeLabel.setForeground(Color.LIGHT_GRAY);
+        left.add(scaleLabel);
+        left.add(new JLabel("  |  "));
+        left.add(placeLabel);
 
-        JPanel arrows = new JPanel(new GridBagLayout());
-        arrows.setOpaque(false);
-        GridBagConstraints c = new GridBagConstraints();
-        c.insets = new Insets(4,4,4,4);
-        JButton up = new JButton("2"), leftBtn = new JButton("3"), rightBtn = new JButton("4"), down = new JButton("5");
-        up.addActionListener(e -> panTiles(0, -PAN_STEP_TILES));
-        down.addActionListener(e -> panTiles(0,  PAN_STEP_TILES));
-        leftBtn.addActionListener(e -> panTiles(-PAN_STEP_TILES, 0));
-        rightBtn.addActionListener(e -> panTiles( PAN_STEP_TILES, 0));
-        c.gridx=1; c.gridy=0; arrows.add(up,c);
-        c.gridx=0; c.gridy=1; arrows.add(leftBtn,c);
-        c.gridx=2; c.gridy=1; arrows.add(rightBtn,c);
-        c.gridx=1; c.gridy=2; arrows.add(down,c);
-        left.add(center(arrows));
-        left.add(Box.createVerticalStrut(12));
+        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 4));
+        right.setOpaque(false);
+        reloadBtn.addActionListener(e -> { lastImg = null; refresh(); });
+        right.add(reloadBtn);
 
-        JButton reload = new JButton("Reload");
-        reload.setAlignmentX(Component.CENTER_ALIGNMENT);
-        reload.addActionListener(e -> mapPanel.forceReload());
-        left.add(center(reload));
-        left.add(Box.createVerticalGlue());
+        top.add(left, BorderLayout.WEST);
+        top.add(right, BorderLayout.EAST);
+        add(top, BorderLayout.NORTH);
 
-        add(left, BorderLayout.WEST);
+        // ==== Map panel ====
+        mapPanel = new JComponent() {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+                g2.setColor(new Color(0x12,0x13,0x14));
+                g2.fillRect(0,0,getWidth(),getHeight());
 
-        // ===== MAP AREA — nền tối =====
-        mapPanel.setOpaque(true);
-        mapPanel.setBackground(new Color(10,18,14));
-        add(mapPanel, BorderLayout.CENTER);
+                if (lastImg != null)
+                    g2.drawImage(lastImg, 0, 0, getWidth(), getHeight(), null);
 
-        // ===== Popup chỉ gắn vào mapPanel (không nổi ngoài) =====
-     // build popup
-        popup.add(mi6); popup.add(mi7);
-        // BẮT BUỘC: dùng heavyweight để nổi trên overlay
-        JPopupMenu.setDefaultLightWeightPopupEnabled(false);
-        popup.setLightWeightPopupEnabled(false);
-
-        mi6.addActionListener(e -> {
-            Point p = mapPanel.getMousePosition();
-            if (p != null) {
-                long gx = originX + (long)Math.floor(p.x * tilesPerPixel);
-                long gy = originY + (long)Math.floor(p.y * tilesPerPixel);
-                coordLabel.setText("X,Y: " + gx + "," + gy);
-            }
-        });
-        mi7.addActionListener(e -> JOptionPane.showMessageDialog(this, "Teleport sẽ bật ở bước 2"));
-    }
-
-    private static JComponent center(JComponent c){ var p=new JPanel(new FlowLayout(FlowLayout.CENTER)); p.setOpaque(false); p.add(c); return p; }
-
-    @Override protected void paintComponent(Graphics g){
-        super.paintComponent(g);
-        Graphics2D g2 = (Graphics2D) g.create();
-        g2.setColor(new Color(255,215,0,200));
-        g2.setStroke(new BasicStroke(2f));
-        g2.drawRoundRect(1,1,getWidth()-3,getHeight()-3,16,16);
-        g2.dispose();
-    }
-
-    public void setWorldGenConfig(WorldGenConfig cfg){
-        this.cfg = cfg;
-        this.renderer = (cfg != null) ? new MapRenderer(cfg) : null;
-        mapPanel.img = null;
-        scaleLabel.setText("Tỉ lệ 1:" + (int)Math.round(tilesPerPixel));
-    }
-
-    public void openAtPlayer(){
-        long px = Math.round(model.youX()), py = Math.round(model.youY());
-        int w = mapPanel.getWidth(), h = mapPanel.getHeight();
-        if (w<=0 || h<=0) { SwingUtilities.invokeLater(this::openAtPlayer); return; }
-        originX = px - (long)(w * tilesPerPixel / 2.0);
-        originY = py - (long)(h * tilesPerPixel / 2.0);
-        mapPanel.refreshAsync();
-        mapPanel.requestFocusInWindow();
-    }
-    public void activate(){ mapPanel.requestFocusInWindow(); }
-    public void deactivate(){
-        MenuSelectionManager.defaultManager().clearSelectedPath(); // đóng popup nếu đang mở
-        mapPanel.setComponentPopupMenu(null);                      // tách popup
-        mapPanel.setComponentPopupMenu(popup);                     // gắn lại (safe)
-    }
-    public void panTiles(long dx, long dy){ originX += dx; originY += dy; mapPanel.refreshAsync(); }
-
-    // ===== map panel =====
-    private final class MapPanel extends JPanel {
-    	private volatile BufferedImage img;
-
-        MapPanel(){
-            setOpaque(true);
-            setBackground(new Color(10,18,14));
-
-            addMouseListener(new MouseAdapter() {
-                @Override public void mousePressed(MouseEvent e){ maybePopup(e); }
-                @Override public void mouseReleased(MouseEvent e){ maybePopup(e); }
-                private void maybePopup(MouseEvent e){
-                    if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
-                        // show popup NGAY TẠI toạ độ click trong panel
-                        popup.show(MapPanel.this, e.getX(), e.getY());
-                        e.consume(); // không “lọt” ra ngoài
+                // vẽ vị trí người chơi
+                var you = model.getPredictedYou();
+                if (you == null && model.you()!=null) { var s=model.sampleForRender(); you=s.get(model.you()); }
+                if (you != null && lastRenderW>0 && lastRenderH>0) {
+                    double rx = (you.x - originX) / lastRenderTpp;
+                    double ry = (you.y - originY) / lastRenderTpp;
+                    double sx = getWidth()/(double)lastRenderW, sy = getHeight()/(double)lastRenderH;
+                    int px = (int)Math.round(rx*sx), py = (int)Math.round(ry*sy);
+                    if (px>=0 && py>=0 && px<getWidth() && py<getHeight()){
+                        g2.setColor(new Color(220,30,30));
+                        g2.fillOval(px-3,py-3,7,7);
+                        g2.setColor(Color.BLACK);
+                        g2.drawOval(px-3,py-3,7,7);
                     }
                 }
-            });
-        }
 
-        void forceReload(){ img = null; refreshAsync(); }
+                // viền
+                g2.setStroke(new BasicStroke(2f));
+                g2.setColor(new Color(255,210,0));
+                g2.drawRoundRect(1,1,getWidth()-3,getHeight()-3,10,10);
+                g2.dispose();
+            }
+        };
+        mapPanel.setOpaque(true);
+        mapPanel.setBackground(new Color(0x12,0x13,0x14));
+        add(mapPanel, BorderLayout.CENTER);
 
-        void refreshAsync(){
-            if (renderer == null || busy) return;
-            int w = getWidth(), h = getHeight(); if (w<=0 || h<=0) return;
-            busy = true;
-            long ox = originX, oy = originY; double tpp = tilesPerPixel;
-            exec.submit(() -> {
-                BufferedImage newImg = renderer.render(ox, oy, tpp, w, h);
-                SwingUtilities.invokeLater(() -> { img = newImg; busy=false; repaint(); });
-            });
-        }
+        addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override public void componentResized(java.awt.event.ComponentEvent e) { refresh(); }
+        });
 
-        @Override protected void paintComponent(Graphics g){
-            super.paintComponent(g);
-            if (img == null && !busy) refreshAsync();
-            if (img != null) g.drawImage(img, 0, 0, null);
+        // ==== Popup menu (chuột phải) ====
+        JPopupMenu menu = new JPopupMenu();
+        menu.setLightWeightPopupEnabled(false); // ép dùng heavyweight
+        mapPanel.setComponentPopupMenu(menu);   // để AWT tự hiện popup
+        JMenuItem miInfo = new JMenuItem("6) Xem tọa độ");
+        JMenuItem miTp   = new JMenuItem("7) Dịch chuyển");
+        menu.add(miInfo); menu.add(miTp);
 
-            // viền đỏ map-area + marker người chơi
-            Graphics2D g2 = (Graphics2D) g;
-            g2.setColor(Color.RED); g2.setStroke(new BasicStroke(2f));
-            g2.drawRect(1,1,getWidth()-3,getHeight()-3);
+        // cách 1: gán trực tiếp để AWT tự hiện popup (đảm bảo luôn thấy)
+        mapPanel.setComponentPopupMenu(menu);
 
-            long px = Math.round(model.youX()), py = Math.round(model.youY());
-            int mx = (int)Math.round((px - originX) / tilesPerPixel);
-            int my = (int)Math.round((py - originY) / tilesPerPixel);
-            g2.setColor(Color.RED); g2.fillOval(mx-4, my-4, 8, 8);
-        }
+        // cách 2: tự xử lý + lưu tọa độ click (bắt cả pressed & released + right button)
+        mapPanel.addMouseListener(new java.awt.event.MouseAdapter() {
+        	  private void showIfNeeded(java.awt.event.MouseEvent e){
+        	    lastClickX = e.getX(); lastClickY = e.getY();
+        	    if (SwingUtilities.isRightMouseButton(e) || e.isPopupTrigger()) {
+        	      menu.show(mapPanel, lastClickX, lastClickY);
+        	    }
+        	  }
+        	  @Override public void mousePressed (java.awt.event.MouseEvent e){ showIfNeeded(e); }
+        	  @Override public void mouseReleased(java.awt.event.MouseEvent e){ showIfNeeded(e); }
+        	});
+
+        miInfo.addActionListener(ev -> {
+            long[] gxy = toGlobalTile(lastClickX, lastClickY);
+            net.sendGeoReq(gxy[0], gxy[1]);
+        });
+        miTp.addActionListener(ev -> {
+            if (teleportHandler != null) {
+                long[] gxy = toGlobalTile(lastClickX, lastClickY);
+                teleportHandler.accept(gxy[0], gxy[1]);
+            }
+        });
+
+        // nhận GeoS2C → cập nhật địa danh
+        net.setOnGeoInfo(gi -> SwingUtilities.invokeLater(() -> {
+            String text = (gi.seaId() > 0)
+                ? "Biển – " + (gi.seaName()!=null? gi.seaName() : "—") + " – —"
+                : "Biển – " + (gi.continentName()!=null? gi.continentName() : "—")
+                           + " – " + (gi.terrainName()!=null? gi.terrainName() : "—");
+            placeLabel.setText(text);
+        }));
+
+        // ==== Pan + Zoom (±1, min=1, max=8) ====
+        InputMap im = getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        ActionMap am = getActionMap();
+        am.put("panL", new AbstractAction(){ public void actionPerformed(java.awt.event.ActionEvent e){ panTiles(-128,0);} });
+        am.put("panR", new AbstractAction(){ public void actionPerformed(java.awt.event.ActionEvent e){ panTiles( 128,0);} });
+        am.put("panU", new AbstractAction(){ public void actionPerformed(java.awt.event.ActionEvent e){ panTiles(0,-128);} });
+        am.put("panD", new AbstractAction(){ public void actionPerformed(java.awt.event.ActionEvent e){ panTiles(0, 128);} });
+
+        am.put("zoomIn",  new AbstractAction(){ public void actionPerformed(java.awt.event.ActionEvent e){ setScaleTilesPerPixel(tilesPerPixel - 1); }});
+        am.put("zoomOut", new AbstractAction(){ public void actionPerformed(java.awt.event.ActionEvent e){ setScaleTilesPerPixel(tilesPerPixel + 1); }});
+        im.put(KeyStroke.getKeyStroke("LEFT"),  "panL");
+        im.put(KeyStroke.getKeyStroke("RIGHT"), "panR");
+        im.put(KeyStroke.getKeyStroke("UP"),    "panU");
+        im.put(KeyStroke.getKeyStroke("DOWN"),  "panD");
+        im.put(KeyStroke.getKeyStroke('='),     "zoomIn");  // +
+        im.put(KeyStroke.getKeyStroke('-'),     "zoomOut"); // -
+
+        addHierarchyListener(e -> { if (isShowing()) requestFocusInWindow(); });
+    }
+
+    // ===== API =====
+    public void setWorldGenConfig(WorldGenConfig cfg){
+        this.mapRenderer = new rt.client.world.map.MapRenderer(cfg);
+        refresh();
+    }
+    public void setTeleportHandler(BiConsumer<Long,Long> handler){ this.teleportHandler = handler; }
+
+    public void openAtPlayer(){
+        double x=0, y=0;
+        var you = model.getPredictedYou();
+        if (you == null && model.you()!=null){ var s=model.sampleForRender(); var p=s.get(model.you()); if (p!=null){ x=p.x; y=p.y; } }
+        else if (you!=null){ x=you.x; y=you.y; }
+
+        int w = Math.max(1, mapPanel.getWidth()), h = Math.max(1, mapPanel.getHeight());
+        long visW = (long)Math.floor(w * tilesPerPixel), visH = (long)Math.floor(h * tilesPerPixel);
+        originX = (long)Math.floor(x) - visW/2; originY = (long)Math.floor(y) - visH/2;
+        refresh();
+    }
+    public void panTiles(long dx,long dy){ originX += dx; originY += dy; refresh(); }
+
+    public void setScaleTilesPerPixel(int tpp){
+        tilesPerPixel = Math.max(1, Math.min(8, tpp));
+        scaleLabel.setText("Tỉ lệ 1:" + tilesPerPixel);
+        refresh();
+    }
+    private void setScaleTilesPerPixel(double tpp){ setScaleTilesPerPixel((int)Math.round(tpp)); }
+
+    public void activate(){ setVisible(true); requestFocusInWindow(); }
+    public void deactivate(){ setVisible(false);
+        KeyboardFocusManager.getCurrentKeyboardFocusManager().clearGlobalFocusOwner();
+    }
+
+    // ===== Render =====
+    private void refresh(){
+        if (mapRenderer == null) return;
+        int w = Math.max(1, mapPanel.getWidth()), h = Math.max(1, mapPanel.getHeight());
+
+        // Adaptive: giữ ~0.8 MP
+        final int MAX_PIXELS = 800_000;
+        int wR=w, hR=h; double tpp=tilesPerPixel;
+        while ((long)wR*hR > MAX_PIXELS) { wR=Math.max(1,wR/2); hR=Math.max(1,hR/2); tpp *= 2.0; }
+
+        lastImg = mapRenderer.render(originX, originY, tpp, wR, hR);
+        lastRenderW = wR; lastRenderH = hR; lastRenderTpp = tpp;
+        repaint();
+    }
+
+    private long[] toGlobalTile(int cx, int cy){
+        double rx = cx / (getWidth() /(double)Math.max(1,lastRenderW));
+        double ry = cy / (getHeight()/(double)Math.max(1,lastRenderH));
+        long gx = originX + (long)Math.floor(rx * lastRenderTpp);
+        long gy = originY + (long)Math.floor(ry * lastRenderTpp);
+        return new long[]{gx,gy};
     }
 }

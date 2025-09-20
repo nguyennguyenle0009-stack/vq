@@ -64,6 +64,7 @@ public final class WorldGenerator {
         return new ChunkData(cx, cy, N, l1, l2, coll);
     }
 
+    
 
     // ====== Continent field ======
     private static final class Continent { final double field; Continent(double f){field=f;} }
@@ -116,6 +117,29 @@ public final class WorldGenerator {
         c.R = R_MIN + (int)(to01(hr) * R_SPAN);
         return c;
     }
+    
+    /** ID địa hình tại tile (gx,gy) – cùng công thức với generate(). */
+    public int idAt(int gx, int gy) {
+        long cgx = Math.floorDiv(gx, cfg.continentScaleTiles);
+        long cgy = Math.floorDiv(gy, cfg.continentScaleTiles);
+        double cont = noise(cfg.seed*0x9E37L, cgx*0xA24BL, cgy*0x9FB2L);
+        if (cont < cfg.landThreshold) return Terrain.OCEAN.id;
+
+        long bgx = Math.floorDiv(gx, cfg.biomeScaleTiles);
+        long bgy = Math.floorDiv(gy, cfg.biomeScaleTiles);
+        double bio = noise(cfg.seed*0x94D0L, bgx*0xC2B2L, bgy*0x1656L);
+        int id = (bio < cfg.plainRatio) ? Terrain.PLAIN.id
+              : (bio < cfg.plainRatio + cfg.forestRatio) ? Terrain.FOREST.id
+              : Terrain.DESERT.id;
+
+        long mgx = Math.floorDiv(gx, cfg.mountainScaleTiles);
+        long mgy = Math.floorDiv(gy, cfg.mountainScaleTiles);
+        double m = noise(cfg.seed*0xD6E8L, mgx*0xBF58L, mgy*0x94D0L);
+        if (m > cfg.mountainThreshold) id = Terrain.MOUNTAIN.id;
+
+        return id;
+    }
+
 
     // ===== noise helpers (deterministic, cross-platform) =====
     private static double ridgeNoise(long a, long b, long c){

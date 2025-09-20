@@ -17,6 +17,7 @@ import rt.server.session.SessionRegistry.Session;
 import rt.server.world.World;
 import rt.server.world.chunk.ChunkService;
 import rt.server.world.geo.ContinentIndex;
+import rt.server.world.geo.GeoService;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,6 +50,9 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     // ====== NEW: Overworld (chunk) foundation ======
     private static final int  TILE_SIZE  = 32;
     
+    private final GeoService geo;
+
+    
     public WsTextHandler(
     		SessionRegistry sessions, 
     		InputQueue inputs, 
@@ -67,6 +71,7 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
         var gen = new rt.common.world.WorldGenerator(
                 new rt.common.world.WorldGenConfig(ServerConfig.worldSeed, 0.55, 0.35));
         this.chunkservice = new rt.server.world.chunk.ChunkService(gen);
+        this.geo = new GeoService(new rt.common.world.WorldGenConfig(cfg.worldSeed, 0.55, 0.35));
     }
 
     @Override
@@ -180,7 +185,19 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                     long ts = ((Number) root.getOrDefault("ts", System.currentTimeMillis())).longValue();
                     s.send(Map.of("type", "cpong", "ts", ts));
                 }
+            }case "geo_req" -> {
+                long gx = node.path("gx").asLong();
+                long gy = node.path("gy").asLong();
+                var info = geo.at(gx, gy);
+                s.send(java.util.Map.of(
+                    "type","geo",
+                    "gx", gx, "gy", gy,
+                    "terrainId", info.terrainId, "terrainName", info.terrainName,
+                    "continentId", info.continentId, "continentName", info.continentName,
+                    "seaId", info.seaId, "seaName", info.seaName
+                ));
             }
+
 
             default -> log.warn("unknown type {}", type);
         }

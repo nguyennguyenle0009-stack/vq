@@ -593,9 +593,11 @@ thế giới được sinh theo chunk từ seed
 				Không còn 2 KeyListener cho movement.
 				Khi tắt map hoặc mất focus → reset input + focus lại GameCanvas
 
+## 1.0.37
 
-
-
+	 Khi bấm xem tọa độ: hiển thị dòng thứ 2 trong panel trái: 
+	Biển – Lục địa – Địa hình (theo cấp trong kế hoạch; sau này nối thêm cấp con nếu có). 
+	 Dùng phím ← ↑ → ↓ để pan bản đồ lớn (không ảnh hưởng movement khi map đóng). 
 
 
 
