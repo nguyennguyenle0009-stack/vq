@@ -50,6 +50,8 @@ public class GameCanvas extends JPanel {
         this.model = model;
         setBackground(Color.BLACK);
         setDoubleBuffered(true);
+        setFocusable(true);
+        setRequestFocusEnabled(true);
     }
 
     // Giữ API cũ để không làm hỏng code cũ

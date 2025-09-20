@@ -70,5 +70,15 @@ public final class MiniMapRenderer {
         int my = (int)Math.round((py - originY) / tilesPerPixel);
         g.setColor(Color.RED);
         g.fillOval(x + mx - 3, y + my - 3, 6, 6);
+        
+        String scale = "1:" + (int)Math.round(tilesPerPixel);
+        g.setFont(g.getFont().deriveFont(10f));
+        var fm = g.getFontMetrics();
+        int labelW = fm.stringWidth(scale);
+        g.setColor(new java.awt.Color(0,0,0,160));
+        g.fillRect(x + mmW - labelW - 8, y + 4, labelW + 6, fm.getHeight());
+        g.setColor(java.awt.Color.WHITE);
+        g.drawString(scale, x + mmW - labelW - 5, y + 4 + fm.getAscent());
+
     }
 }

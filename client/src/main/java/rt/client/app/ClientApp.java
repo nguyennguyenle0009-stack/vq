@@ -10,7 +10,6 @@ import rt.client.game.ui.RenderLoop;
 import rt.client.input.InputState;
 
 import javax.swing.*;
-import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -20,6 +19,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class ClientApp {
+
     public static void main(String[] args) throws IOException {
         final java.util.concurrent.atomic.AtomicBoolean mapOpen = new java.util.concurrent.atomic.AtomicBoolean(false);
         final String ADMIN_TOKEN = "dev-secret-123";
@@ -37,12 +37,12 @@ public class ClientApp {
             System.setProperty("LOG_STAMP", stamp);
         }
 
-        // Model/Net/UI cơ bản
+        // Model/Net/UI
         WorldModel model = new WorldModel();
         NetClient net = new NetClient(url, model);
-        GameCanvas panel = new GameCanvas(model);
+        GameCanvas panel = new GameCanvas(model); // GameCanvas đã setFocusable(true)
 
-        // Input state (khai báo TRƯỚC khi add listeners)
+        // Input state
         InputState input = new InputState();
 
         // Bind chunk renderer
@@ -57,6 +57,13 @@ public class ClientApp {
         f.setContentPane(panel);
         f.setVisible(true);
 
+        // Đảm bảo Canvas nhận focus ngay
+        SwingUtilities.invokeLater(() -> {
+            panel.setFocusable(true);
+            panel.requestFocusInWindow();
+            panel.requestFocus();
+        });
+
         // HUD dev (F4)
         HudOverlay hud = new HudOverlay(model);
         JLayeredPane layers = f.getLayeredPane();
@@ -67,7 +74,8 @@ public class ClientApp {
                 hud.setBounds(0, 0, f.getWidth(), f.getHeight());
             }
         });
-        f.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("F4"), "toggleHud");
+        f.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(KeyStroke.getKeyStroke("F4"), "toggleHud");
         f.getRootPane().getActionMap().put("toggleHud", new AbstractAction() {
             @Override public void actionPerformed(java.awt.event.ActionEvent e) { hud.setVisible(!hud.isVisible()); }
         });
@@ -78,19 +86,21 @@ public class ClientApp {
         wmOverlay.setVisible(false);
         layers.add(wmOverlay, JLayeredPane.DRAG_LAYER);
 
-        // Đặt bounds overlay ~80% khung, không return giá trị (sửa lỗi bạn gặp)
+        // Đặt bounds overlay theo ô (trên/trái/phải: 2 ô; dưới: 3 ô)
         Runnable layoutOverlay = () -> {
+            int ts = net.tileSize(); if (ts <= 0) ts = 32;
             int w = f.getWidth(), h = f.getHeight();
-            int ow = (int)(w * 0.80), oh = (int)(h * 0.80);
-            int ox = (w - ow)/2, oy = (h - oh)/2;
-            wmOverlay.setBounds(ox, oy, ow, oh);
+            int mTop = 2*ts, mLeft = 2*ts, mRight = 2*ts, mBottom = 3*ts;
+            int ow = Math.max(200, w - mLeft - mRight);
+            int oh = Math.max(150, h - mTop - mBottom);
+            wmOverlay.setBounds(mLeft, mTop, ow, oh);
         };
         layoutOverlay.run();
         f.addComponentListener(new java.awt.event.ComponentAdapter() {
-            @Override public void componentResized(java.awt.event.ComponentEvent e) { layoutOverlay.run(); }
+            @Override public void componentResized(java.awt.event.ComponentEvent e){ layoutOverlay.run(); }
         });
 
-        // Hotkey M: bật/tắt overlay và chặn input khi mở
+        // Toggle WorldMap (M)
         f.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
                 .put(KeyStroke.getKeyStroke('M'), "toggleWorldMap");
         f.getRootPane().getActionMap().put("toggleWorldMap", new AbstractAction() {
@@ -102,25 +112,73 @@ public class ClientApp {
                 } else {
                     wmOverlay.setVisible(false);
                     mapOpen.set(false);
+
+                    // ---- FIX kẹt phím & focus ----
+                    input.up = input.down = input.left = input.right = false;
+                    net.sendInput(false,false,false,false);
+                    javax.swing.MenuSelectionManager.defaultManager().clearSelectedPath();
+                    java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().clearGlobalFocusOwner();
+                    SwingUtilities.invokeLater(() -> {
+                        panel.setFocusable(true);
+                        panel.requestFocusInWindow();
+                        panel.requestFocus();
+                    });
                 }
             }
         });
 
-        // Pan overlay bằng phím mũi tên khi mapOpen
-        f.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override public void keyPressed(java.awt.event.KeyEvent e) {
-                if (!mapOpen.get()) return;
-                int step = 128; // tiles
-                switch (e.getKeyCode()) {
-                    case java.awt.event.KeyEvent.VK_UP ->    wmOverlay.panTiles(0, -step);
-                    case java.awt.event.KeyEvent.VK_DOWN ->  wmOverlay.panTiles(0,  step);
-                    case java.awt.event.KeyEvent.VK_LEFT ->  wmOverlay.panTiles(-step, 0);
-                    case java.awt.event.KeyEvent.VK_RIGHT -> wmOverlay.panTiles( step, 0);
-                }
+        // Pan overlay bằng mũi tên khi map mở
+        f.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), "mapPanUp");
+        f.getRootPane().getActionMap().put("mapPanUp", new AbstractAction() {
+            @Override public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (mapOpen.get()) wmOverlay.panTiles(0, -128);
+            }
+        });
+        f.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "mapPanDown");
+        f.getRootPane().getActionMap().put("mapPanDown", new AbstractAction() {
+            @Override public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (mapOpen.get()) wmOverlay.panTiles(0, 128);
+            }
+        });
+        f.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, 0), "mapPanLeft");
+        f.getRootPane().getActionMap().put("mapPanLeft", new AbstractAction() {
+            @Override public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (mapOpen.get()) wmOverlay.panTiles(-128, 0);
+            }
+        });
+        f.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0), "mapPanRight");
+        f.getRootPane().getActionMap().put("mapPanRight", new AbstractAction() {
+            @Override public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (mapOpen.get()) wmOverlay.panTiles(128, 0);
             }
         });
 
-        // Ping HUD (client-side RTT)
+        // ===== Movement bằng Key Bindings (WASD + mũi tên), có guard mapOpen =====
+        bindMove(f.getRootPane(), mapOpen, input,
+                KeyStroke.getKeyStroke("pressed W"), KeyStroke.getKeyStroke("released W"),
+                KeyStroke.getKeyStroke("pressed S"), KeyStroke.getKeyStroke("released S"),
+                KeyStroke.getKeyStroke("pressed A"), KeyStroke.getKeyStroke("released A"),
+                KeyStroke.getKeyStroke("pressed D"), KeyStroke.getKeyStroke("released D"));
+
+        bindMove(f.getRootPane(), mapOpen, input,
+                KeyStroke.getKeyStroke("pressed UP"),    KeyStroke.getKeyStroke("released UP"),
+                KeyStroke.getKeyStroke("pressed DOWN"),  KeyStroke.getKeyStroke("released DOWN"),
+                KeyStroke.getKeyStroke("pressed LEFT"),  KeyStroke.getKeyStroke("released LEFT"),
+                KeyStroke.getKeyStroke("pressed RIGHT"), KeyStroke.getKeyStroke("released RIGHT"));
+
+        // Nếu cửa sổ mất focus → clear input (tránh kẹt phím ngầm)
+        f.addWindowFocusListener(new java.awt.event.WindowAdapter() {
+            @Override public void windowLostFocus(java.awt.event.WindowEvent e) {
+                input.up = input.down = input.left = input.right = false;
+                net.sendInput(false,false,false,false);
+            }
+        });
+
+        // Ping HUD
         net.setOnClientPong(ns -> {
             long rttMs = (System.nanoTime() - ns) / 1_000_000L;
             panel.setPingMs(rttMs);
@@ -128,24 +186,19 @@ public class ClientApp {
             panel.setPing(rttMs);
         });
 
-        // Kết nối & seed → cấu hình renderer cho mini-map + overlay
+        // Kết nối & seed
         net.connect(name);
         net.setOnSeedChanged(s -> {
             var cfg = new WorldGenConfig(s, 0.50, 0.35);
-            panel.setWorldGenConfig(cfg);     // mini-map
-            wmOverlay.setWorldGenConfig(cfg); // map lớn
+            panel.setWorldGenConfig(cfg);
+            wmOverlay.setWorldGenConfig(cfg);
+            layoutOverlay.run();
         });
 
-        // Movement input: BỎ QUA khi mapOpen
-        f.addKeyListener(new KeyAdapter() {
-            @Override public void keyPressed(KeyEvent e)  { if (!mapOpen.get()) input.set(e, true); }
-            @Override public void keyReleased(KeyEvent e) { if (!mapOpen.get()) input.set(e, false); }
-        });
-
-        // Admin hotkeys (giữ nguyên)
+        // Admin hotkeys
         f.addKeyListener(new AdminHotkeys(net, model, panel, hud, ADMIN_TOKEN));
 
-        // Scheduler: CHỈ MỘT lần gửi input, có guard mapOpen
+        // Gửi input định kỳ
         ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
         ses.scheduleAtFixedRate(() -> {
             if (mapOpen.get()) net.sendInput(false,false,false,false);
@@ -153,8 +206,7 @@ public class ClientApp {
         }, 0, 33, TimeUnit.MILLISECONDS);
 
         // client-ping 1s
-        ses.scheduleAtFixedRate(() -> net.sendClientPing(System.nanoTime()),
-                1000, 1000, TimeUnit.MILLISECONDS);
+        ses.scheduleAtFixedRate(() -> net.sendClientPing(System.nanoTime()), 1000, 1000, TimeUnit.MILLISECONDS);
 
         // Render loop 60 FPS
         RenderLoop render = new RenderLoop(f, panel);
@@ -165,5 +217,30 @@ public class ClientApp {
             try { render.stop(); } catch (Exception ignored) {}
             ses.shutdownNow();
         }));
+    }
+
+    /** Bind WASD/Arrows vào InputState qua RootPane để không phụ thuộc focus con. */
+    private static void bindMove(JRootPane root,
+                                 java.util.concurrent.atomic.AtomicBoolean mapOpen,
+                                 InputState input,
+                                 KeyStroke upPress, KeyStroke upRelease,
+                                 KeyStroke downPress, KeyStroke downRelease,
+                                 KeyStroke leftPress, KeyStroke leftRelease,
+                                 KeyStroke rightPress, KeyStroke rightRelease) {
+
+        InputMap im = root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        ActionMap am = root.getActionMap();
+
+        im.put(upPress, "mv_up_p");     am.put("mv_up_p", new AbstractAction(){ @Override public void actionPerformed(java.awt.event.ActionEvent e){ if(!mapOpen.get()) input.up   = true; }});
+        im.put(upRelease, "mv_up_r");   am.put("mv_up_r", new AbstractAction(){ @Override public void actionPerformed(java.awt.event.ActionEvent e){ if(!mapOpen.get()) input.up   = false; }});
+
+        im.put(downPress, "mv_dn_p");   am.put("mv_dn_p", new AbstractAction(){ @Override public void actionPerformed(java.awt.event.ActionEvent e){ if(!mapOpen.get()) input.down = true; }});
+        im.put(downRelease, "mv_dn_r"); am.put("mv_dn_r", new AbstractAction(){ @Override public void actionPerformed(java.awt.event.ActionEvent e){ if(!mapOpen.get()) input.down = false; }});
+
+        im.put(leftPress, "mv_lt_p");   am.put("mv_lt_p", new AbstractAction(){ @Override public void actionPerformed(java.awt.event.ActionEvent e){ if(!mapOpen.get()) input.left = true; }});
+        im.put(leftRelease, "mv_lt_r"); am.put("mv_lt_r", new AbstractAction(){ @Override public void actionPerformed(java.awt.event.ActionEvent e){ if(!mapOpen.get()) input.left = false; }});
+
+        im.put(rightPress, "mv_rt_p");  am.put("mv_rt_p", new AbstractAction(){ @Override public void actionPerformed(java.awt.event.ActionEvent e){ if(!mapOpen.get()) input.right= true; }});
+        im.put(rightRelease, "mv_rt_r");am.put("mv_rt_r", new AbstractAction(){ @Override public void actionPerformed(java.awt.event.ActionEvent e){ if(!mapOpen.get()) input.right= false; }});
     }
 }

@@ -564,3 +564,61 @@ thế giới được sinh theo chunk từ seed
 ## 1.0.35
 	
 	Chỉnh sửa lại bố cục
+	
+## 1.0.36
+
+	Kế hoạch fix (đợt 1)
+		Menu chuột phải chỉ xuất hiện trên vùng bản đồ (không hiện ngoài game).
+		Bố cục overlay: mép bản đồ cách mép khung game trên/trái/phải 2 ô, dưới 3 ô; panel điều hướng không trong suốt; nền bản đồ tối; thêm nút Reload.
+		Đồng bộ màu giữa thế giới và bản đồ (dùng chung một bảng màu).
+		Sửa kẹt input sau khi đóng bản đồ (trả focus + clear phím).
+		Hiển thị tỉ lệ (Mini-map: góc phải trên; Bản đồ lớn: trên cùng panel điều hướng).
+
+	Kế hoạch fix (đợt 2)
+		Popup chỉ trong khu vực bản đồ.
+		Bản đồ cách mép theo ô (trên/trái/phải: 2 ô; dưới: 3 ô).
+		Panel điều hướng đặc, nền bản đồ tối, có Reload.
+		Màu bản đồ khớp thế giới (dùng chung TerrainPalette). - rt/common/world/TerrainPalette.java + rt/client/world/ChunkCache
+		Đóng bản đồ xong không kẹt phím, focus quay lại game.
+		Hiện tỉ lệ: mini-map (góc phải trên), overlay (trên cùng panel trái). - WorldMapOverlay
+		
+	Kế hoạch fix (đợt 3)
+		rt/client/world/ChunkCache.java
+			Khớp màu với bản đồ: dùng TerrainPalette.color(id) cho ảnh của chunk (thế giới).
+			Không xài bảng màu cứng nữa.
+		rt/client/app/ClientApp.java - fix mới vào game nhân vật cũng không di chuyển được
+			nguyên nhân “mới vào game không di chuyển” là do KeyListener gắn vào JFrame dễ bị hụt focus; mình chuyển sang Key Bindings (InputMap/ActionMap) ở RootPane để nhận phím ngay khi cửa sổ có focus, và chỉ còn một nơi cập nhật InputState. Đồng thời vẫn giữ pan bằng phím mũi tên khi map mở.
+			Điểm mấu chốt:
+				Movement dùng Key Bindings ở RootPane nên ngay khi cửa sổ có focus là nhận phím (không lệ thuộc component con).
+				Không còn 2 KeyListener cho movement.
+				Khi tắt map hoặc mất focus → reset input + focus lại GameCanvas
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

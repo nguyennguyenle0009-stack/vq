@@ -44,9 +44,12 @@ public final class MapRenderer {
                     if (cd == null) { cd = gen.generate(cgx, cgy); cache.put(key, cd); }
                     lastCgx = cgx;
                 }
-
+                
                 int id = cd.layer1[ty * N + tx] & 0xff;
-                img.setRGB(px, py, PALETTE[id] != 0 ? PALETTE[id] : 0xFF808080);
+                img.setRGB(px, py, TerrainPalette.color(id));
+
+//                int id = cd.layer1[ty * N + tx] & 0xff;
+//                img.setRGB(px, py, PALETTE[id] != 0 ? PALETTE[id] : 0xFF808080);
             }
         }
         return img;
