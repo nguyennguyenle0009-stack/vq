@@ -18,6 +18,7 @@ import rt.server.world.World;
 import rt.server.world.chunk.ChunkService;
 import rt.server.world.geo.ContinentIndex;
 import rt.server.world.geo.GeoService;
+import rt.server.world.geo.SeaIndex;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -51,28 +52,30 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     private static final int  TILE_SIZE  = 32;
     
     private final GeoService geo;
+    private final SeaIndex seas;
+    
+ // Geo RL
+    private static final int  GEO_MAX_PER_SEC = 5;
+    private static final long GEO_WINDOW_MS   = 1000L;
+    private static final class GeoRL { long winStart; int count; }
+    private final java.util.concurrent.ConcurrentHashMap<String, GeoRL> geoRl = new java.util.concurrent.ConcurrentHashMap<>();
+
 
     
-    public WsTextHandler(
-    		SessionRegistry sessions, 
-    		InputQueue inputs, 
-    		World world, 
-    		ServerConfig cfg, 
-    		ChunkService chunkservice,
-    		ContinentIndex continents) {
-        this.sessions = sessions;
-        this.inputs   = inputs;
-        this.world    = world;
-        this.cfg      = cfg;
-        this.chunkservice = chunkservice;
-        this.continents = continents;
-
-        // Khởi tạo world-gen và dịch vụ chunk (Phase 1)
-        var gen = new rt.common.world.WorldGenerator(
-                new rt.common.world.WorldGenConfig(ServerConfig.worldSeed, 0.55, 0.35));
-        this.chunkservice = new rt.server.world.chunk.ChunkService(gen);
-        this.geo = new GeoService(new rt.common.world.WorldGenConfig(cfg.worldSeed, 0.55, 0.35));
-    }
+    public WsTextHandler(SessionRegistry sessions, InputQueue inputs, World world, ServerConfig cfg,
+            ChunkService chunkservice, ContinentIndex continents) {
+				this.sessions = sessions;
+				this.inputs   = inputs;
+				this.world    = world;
+				this.cfg      = cfg;
+				this.chunkservice = chunkservice;          // <<< dùng cái được truyền vào
+				this.continents   = continents;
+				
+				var wcfg = new rt.common.world.WorldGenConfig(cfg.worldSeed, 0.55, 0.35);
+				this.seas = new rt.server.world.geo.SeaIndex(wcfg); // hoặc truyền từ chỗ khởi tạo server
+				this.geo  = new rt.server.world.geo.GeoService(
+				   new rt.common.world.WorldGenerator(wcfg), continents, seas);
+	}
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) {
@@ -185,17 +188,28 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                     long ts = ((Number) root.getOrDefault("ts", System.currentTimeMillis())).longValue();
                     s.send(Map.of("type", "cpong", "ts", ts));
                 }
-            }case "geo_req" -> {
+            }case "geo_reqA" -> {
                 long gx = node.path("gx").asLong();
                 long gy = node.path("gy").asLong();
-                var info = geo.at(gx, gy);
+
+                // rate-limit per session
+                GeoRL r = geoRl.computeIfAbsent(s.playerId, k -> new GeoRL());
+                long now = System.currentTimeMillis();
+                if (now - r.winStart >= GEO_WINDOW_MS) { r.winStart = now; r.count = 0; }
+                if (++r.count > GEO_MAX_PER_SEC) {
+                    // lặng lẽ bỏ qua để không nghẽn (không gửi error/pending)
+                    break;
+                }
+
+                // Truy vấn nhẹ (GeoService nên cache nội bộ)
+                var info = geo.at(gx, gy); // trả GeoInfo: terrainId/name + continent/sea
                 s.send(java.util.Map.of(
-                    "type","geo",
-                    "gx", gx, "gy", gy,
-                    "terrainId", info.terrainId, "terrainName", info.terrainName,
-                    "continentId", info.continentId, "continentName", info.continentName,
-                    "seaId", info.seaId, "seaName", info.seaName
-                ));
+                        "type","geo",
+                        "gx", gx, "gy", gy,
+                        "terrainId", info.terrainId, "terrainName", info.terrainName,
+                        "continentId", info.continentId, "continentName", info.continentName,
+                        "seaId", info.seaId, "seaName", info.seaName
+                    ));
             }
 
 

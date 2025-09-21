@@ -24,6 +24,7 @@ public final class WorldMapOverlay extends JComponent {
 
     private final JLabel scaleLabel = new JLabel("Tỉ lệ 1:1");
     private final JLabel placeLabel = new JLabel("—");
+    private final javax.swing.JLabel coordLabel = new javax.swing.JLabel("X: —   Y: —");
     private final JButton reloadBtn = new JButton("Reload");
 
     private BiConsumer<Long,Long> teleportHandler;
@@ -54,7 +55,10 @@ public final class WorldMapOverlay extends JComponent {
         left.add(placeLabel);
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 4));
+        
         right.setOpaque(false);
+        coordLabel.setForeground(java.awt.Color.WHITE);   // dễ đọc trên nền tối
+        right.add(coordLabel);
         reloadBtn.addActionListener(e -> { lastImg = null; refresh(); });
         right.add(reloadBtn);
 
@@ -137,6 +141,16 @@ public final class WorldMapOverlay extends JComponent {
                 long[] gxy = toGlobalTile(lastClickX, lastClickY);
                 teleportHandler.accept(gxy[0], gxy[1]);
             }
+        });
+        
+        miInfo.addActionListener(ev -> {
+            long[] gxy = toGlobalTile(lastClickX, lastClickY);
+            // HIỂN THỊ TỌA ĐỘ NGAY
+            javax.swing.SwingUtilities.invokeLater(() ->
+                coordLabel.setText("X: " + gxy[0] + "   Y: " + gxy[1])
+            );
+            // Gửi yêu cầu địa danh như cũ
+            net.sendGeoReq(gxy[0], gxy[1]);
         });
 
         // nhận GeoS2C → cập nhật địa danh

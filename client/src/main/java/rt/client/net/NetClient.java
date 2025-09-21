@@ -2,6 +2,7 @@ package rt.client.net;
 
 import okhttp3.*;
 import okio.ByteString;
+import rt.client.model.GeoInfo;
 import rt.client.model.MapModel;
 import rt.client.model.WorldModel;
 import rt.common.net.Jsons;
@@ -60,13 +61,35 @@ public class NetClient {
 	private java.util.function.LongConsumer onSeedChanged = s -> {};
     public void setOnSeedChanged(java.util.function.LongConsumer cb){ this.onSeedChanged = (cb!=null?cb:s->{}); }
 
-    private java.util.function.Consumer<rt.client.model.GeoInfo> onGeoInfo = gi -> {};
-    public void setOnGeoInfo(java.util.function.Consumer<rt.client.model.GeoInfo> cb){
-        this.onGeoInfo = (cb!=null? cb : gi -> {});
+
+    
+ // ==== GEO throttle ====
+    private final java.util.concurrent.atomic.AtomicBoolean geoInFlight = new java.util.concurrent.atomic.AtomicBoolean(false);
+    private volatile long queuedGx = Long.MIN_VALUE, queuedGy = Long.MIN_VALUE;
+    private volatile long lastGeoNs = 0L;
+    private static final long GEO_MIN_INTERVAL_NS = 150_000_000L; // 150ms
+
+    private java.util.function.Consumer<rt.common.net.dto.GeoS2C> onGeoInfo = gi -> {};
+    public void setOnGeoInfo(java.util.function.Consumer<rt.common.net.dto.GeoS2C> cb){
+        this.onGeoInfo = (cb!=null?cb:gi->{}); 
     }
-    public void sendGeoReq(long gx,long gy){
-        try { ws.send(OM.writeValueAsString(java.util.Map.of("type","geo_req","gx",gx,"gy",gy))); }
-        catch (Exception e){ e.printStackTrace(); }
+    
+    /** Gửi geo_req nhưng: (1) chỉ 1 in-flight, (2) throttle 150ms, (3) coalesce điểm mới nhất. */
+    public void sendGeoReq(long gx, long gy) {
+        long now = System.nanoTime();
+        // throttle trùng điểm trong 150ms
+        if (now - lastGeoNs < GEO_MIN_INTERVAL_NS && gx == queuedGx && gy == queuedGy) return;
+
+        if (geoInFlight.get()) {
+            // đang bay: chỉ nhớ điểm cuối cùng (coalesce)
+            queuedGx = gx; queuedGy = gy;
+            return;
+        }
+        lastGeoNs = now; queuedGx = gx; queuedGy = gy;
+        geoInFlight.set(true);
+        try {
+            ws.send(OM.writeValueAsString(java.util.Map.of("type","geo_req","gx", gx, "gy", gy)));
+        } catch (Exception ignore) {}
     }
     
     public NetClient(String url, WorldModel model) {
@@ -181,16 +204,19 @@ public class NetClient {
                             chunkCache.onArrive(data);               // giữ 1 lần
                             chunkCache.bakeImage(data, tileSize);
                         }case "geo" -> {
-                            long gx = node.path("gx").asLong();
-                            long gy = node.path("gy").asLong();
-                            int terrainId = node.path("terrainId").asInt();
-                            String terrainName = node.path("terrainName").asText(null);
-                            int continentId = node.path("continentId").asInt(-1);
-                            String continentName = node.path("continentName").asText(null);
-                            int seaId = node.path("seaId").asInt(0);
-                            String seaName = node.path("seaName").asText(null);
-                            var gi = new rt.client.model.GeoInfo(gx,gy, terrainId,terrainName, continentId,continentName, seaId,seaName);
-                            onGeoInfo.accept(gi);
+                            rt.common.net.dto.GeoS2C gi = Jsons.OM.treeToValue(node, rt.common.net.dto.GeoS2C.class);
+                            geoInFlight.set(false);
+                            // callback UI
+                            try { onGeoInfo.accept(gi); } catch (Exception ignore) {}
+
+                            // nếu trong lúc bay có điểm mới → gửi tiếp đúng 1 gói
+                            long gx = queuedGx, gy = queuedGy;
+                            if (gx != Long.MIN_VALUE && gy != Long.MIN_VALUE) {
+                                // reset flag & bắn lại (sẽ lại set geoInFlight true trong send)
+                                sendGeoReq(gx, gy);
+                                // xoá dấu (tránh lặp)
+                                queuedGx = Long.MIN_VALUE; queuedGy = Long.MIN_VALUE;
+                            }
                         }
 
                         default -> {
@@ -251,4 +277,6 @@ public class NetClient {
                 }
             }
     }
+    
+
 }
