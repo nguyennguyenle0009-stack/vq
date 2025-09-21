@@ -632,7 +632,10 @@ thế giới được sinh theo chunk từ seed
 		Bật “Xem tọa độ” ở biển/đất/ven bờ: không còn NPE; label luôn hiển thị chuỗi đầy đủ.
 		Pan nhanh: pending không tăng bất thường; hit-rate LRU tốt (8192 ô là đủ cho viewport + pan).
 		Không cần sửa WsTextHandler, không đổi message type hay logic hiện có.
-
+		
+	Tránh OOM khi teleport (không ảnh hưởng di chuyển thường)
+		Vấn đề: Khi teleport xa, client nhận nhiều chunk trong 1 đợt và bake ảnh ngay trong onMessage → bùng cấp phát BufferedImage.
+		Giải pháp: Không bake trong onMessage; để TileRenderer tự bake theo viewport (đã làm sẵn).
 
 
 

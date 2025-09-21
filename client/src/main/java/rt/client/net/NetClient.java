@@ -202,7 +202,7 @@ public class NetClient {
 
                             var data = new rt.client.world.ChunkCache.Data(cx,cy,size,l1,l2,coll);
                             chunkCache.onArrive(data);               // giữ 1 lần
-                            chunkCache.bakeImage(data, tileSize);
+                            //chunkCache.bakeImage(data, tileSize);
                         }case "geo" -> {
                             rt.common.net.dto.GeoS2C gi = Jsons.OM.treeToValue(node, rt.common.net.dto.GeoS2C.class);
                             geoInFlight.set(false);
