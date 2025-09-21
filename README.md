@@ -603,9 +603,35 @@ thế giới được sinh theo chunk từ seed
 
 	Fix xập server
 
+## 1.0.39
 
+	Tham số cần biết
+		tilesPerPixel: 1..8 (overlay); mini-map có thể cố định 1:10 (tuỳ bạn).
+		ChunkCache.R: 2 (5×5); lúc teleport nếu cần có thể tạm 1.
+		snapshotHz: 12–20 (tùy độ mượt).
+		Units.SPEED_TILES_PER_SEC: 6.0 (đồng bộ server/client).
+		WorldGenConfig: landThreshold≈0.35, mountainThreshold≈0.82, plain/forest ratio.
 
+## 1.0.40
 
+	1) Không bao giờ trả null (normalize)
+		Trả "—" khi không có tên.
+		Giữ quy ước id: cont <= 0 nghĩa là “không có lục địa”, sea <= 0 nghĩa là “không có biển”.
+	2) Sửa khóa LRU để không nhầm ven bờ
+		Bạn đang cache theo macro 16×16 (>>4). Ở ô ven bờ, cùng macro có thể có cả biển lẫn đất → cache sai terrainId/name. Cách an toàn nhất là cache theo tile (không shift). 8192 ô là đủ cho pan nhanh (bộ nhớ vẫn nhẹ).
+		Nếu bạn vẫn muốn macro-cache, chỉ nên dùng macro cho phần continent/sea, còn terrainId hãy tra theo tile. Nhưng bản “an toàn tuyệt đối” là tile-level cache.
+	3) Phòng thủ thêm cho Terrain.byId(tid) (nếu map id không hợp lệ)
+	
+	Giải thích ngắn gọn:
+
+		nz(...) biến null → "—" ⇒ Map.of(...) bên WS không thể NPE nữa.
+		Cache theo tile (kk = k(gx, gy)) để tránh false-hit ở ven bờ (land/sea khác nhau trong cùng macro).
+		Giữ id âm/zero nếu bạn đang dùng convention đó; phần tên đã được normalize nên WS không phải if/else.
+
+	Checklist sau khi thay
+		Bật “Xem tọa độ” ở biển/đất/ven bờ: không còn NPE; label luôn hiển thị chuỗi đầy đủ.
+		Pan nhanh: pending không tăng bất thường; hit-rate LRU tốt (8192 ô là đủ cho viewport + pan).
+		Không cần sửa WsTextHandler, không đổi message type hay logic hiện có.
 
 
 
