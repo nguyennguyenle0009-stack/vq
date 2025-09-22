@@ -1,3 +1,4 @@
+// rt/client/world/map/MapRenderer.java
 package rt.client.world.map;
 
 import rt.client.world.ChunkBaker;
@@ -7,33 +8,23 @@ import rt.common.world.ChunkPos;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
+import java.util.function.IntSupplier;
 
-/**
- * Vẽ bản đồ (world map/minimap) từ ChunkCache có sẵn ở client.
- * - Dùng ChunkBaker để đảm bảo có ảnh chunk (sprite nếu có; thiếu ảnh -> màu palette).
- * - Không đụng tới server/common.
- */
 public final class MapRenderer {
 
-    /** Cache dùng để render. Phải gán một lần khi app khởi động. */
     private static ChunkCache STATIC_CACHE;
-
-    /** GÁN CACHE TỪ APP: gọi 1 lần lúc khởi động client. */
     public static void setCache(ChunkCache cache) { STATIC_CACHE = cache; }
 
-    private final int N = ChunkPos.SIZE; // số tile mỗi chunk
+    // >>> thêm: cung cấp tileSize chính của game (vd net::tileSize)
+    private static IntSupplier PRIMARY_TILE_SIZE = () -> 32;
+    public static void setPrimaryTileSizeSupplier(IntSupplier s){ PRIMARY_TILE_SIZE = (s!=null? s: ()->32); }
 
-    // Giữ chữ ký cũ cho WorldMapOverlay.setWorldGenConfig(...)
-    public MapRenderer(rt.common.world.WorldGenConfig cfg) { }
+    private final int N = ChunkPos.SIZE;
 
-    /** Lấy cache – chỉnh nếu bạn để cache ở singleton khác. */
+    public MapRenderer(rt.common.world.WorldGenConfig cfg) {}
+
     private ChunkCache getCache() { return STATIC_CACHE; }
 
-    /**
-     * @param originX,originY gốc (tính theo TILE) của khung nhìn
-     * @param tpp             tilesPerPixel (ví dụ 1: 1px = 1 tile; 4: 1px = 4 tiles)
-     * @param w,h             kích thước ảnh xuất (pixel)
-     */
     public BufferedImage render(long originX, long originY, double tpp, int w, int h) {
         ChunkCache cache = getCache();
         if (cache == null || w <= 0 || h <= 0) {
@@ -48,7 +39,7 @@ public final class MapRenderer {
         g.setColor(new Color(0x121314));
         g.fillRect(0, 0, w, h);
 
-        // vẽ ở hệ toạ độ "tile-pixel" rồi scale về w,h bằng tpp
+        // vẽ ở hệ tọa độ tile-pixel rồi scale bằng tpp
         AffineTransform bak = g.getTransform();
         g.scale(1.0 / tpp, 1.0 / tpp);
 
@@ -60,20 +51,25 @@ public final class MapRenderer {
         int cx1 = Math.floorDiv((int) (originX + visTilesW), N) + 1;
         int cy1 = Math.floorDiv((int) (originY + visTilesH), N) + 1;
 
-        final int bakeTileSize = 1; // 1 tile = 1 "px" tạm
+        // >>> dùng ảnh đã bake cho game
+        final int gameTileSize = Math.max(8, PRIMARY_TILE_SIZE.getAsInt());
+
         for (int cy = cy0; cy <= cy1; cy++) {
             for (int cx = cx0; cx <= cx1; cx++) {
                 ChunkCache.Data d = cache.get(cx, cy);
                 if (d == null) continue;
 
-                ChunkBaker.bake(d, bakeTileSize);
+                // đảm bảo có ảnh ở kích thước của game (KHÔNG bake tileSize=1 nữa)
+                //ChunkBaker.bake(d, gameTileSize);
 
                 long chunkTileX = (long) cx * N;
                 long chunkTileY = (long) cy * N;
                 int dx = (int) (chunkTileX - originX);
                 int dy = (int) (chunkTileY - originY);
 
-                g.drawImage(d.img, dx, dy, null);
+                // Java2D tự scale ảnh chunk về kích thước hiển thị của bản đồ
+                java.awt.image.BufferedImage img = ChunkBaker.getImage(d, gameTileSize);
+                if (img != null) g.drawImage(img, dx, dy, null);
             }
         }
 

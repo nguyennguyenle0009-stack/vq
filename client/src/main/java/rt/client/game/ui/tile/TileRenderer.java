@@ -46,8 +46,10 @@ public class TileRenderer {
 //                chunkCache.bakeImage(d, tileSize);               // đảm bảo có ảnh
                 int dx = cx * Npx;
                 int dy = cy * Npx;
-                ChunkBaker.bake(d, tileSize);
-                g2.drawImage(d.img, dx, dy, null);               // BLIT 1 phát
+                //ChunkBaker.bake(d, tileSize);
+                java.awt.image.BufferedImage img = ChunkBaker.getImage(d, tileSize);
+                if (img != null) g2.drawImage(img, dx, dy, null);
+                g2.drawImage(img, dx, dy, null);               // BLIT 1 phát
             }
         }
     }

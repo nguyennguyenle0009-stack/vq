@@ -649,7 +649,11 @@ thế giới được sinh theo chunk từ seed
 
 	Thêm ảnh
 
+## 1.0.44
 
+	Gỉam lag
+		Sửa MapRenderer để KHÔNG bake tileSize=1 nữa
+		Cache nhiều kích cỡ bake
 
 
 

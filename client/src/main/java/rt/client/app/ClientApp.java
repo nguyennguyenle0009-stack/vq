@@ -33,6 +33,8 @@ public class ClientApp {
         WorldModel model = new WorldModel();
         NetClient net = new NetClient(url, model);
         GameCanvas panel = new GameCanvas(model); // GameCanvas đã setFocusable(true)
+        // map & minimap không còn ép bake lần 2; chúng chỉ scale ảnh đã có nên mượt hơn hẳn.
+        MapRenderer.setPrimaryTileSizeSupplier(net::tileSize);
         
         ChunkSkins.init();                    // đăng ký sprite (hoặc để trống dùng màu)
         MapRenderer.setCache(net.chunkCache());
