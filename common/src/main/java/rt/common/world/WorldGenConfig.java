@@ -2,21 +2,76 @@ package rt.common.world;
 
 public final class WorldGenConfig {
     public final long seed;
-    public final double plainRatio, forestRatio;   // phần còn lại là desert
-    public final int continentScaleTiles;          // ~ 6000 (điều chỉnh kích thước lục địa)
-    public final int biomeScaleTiles;              // ~ 800
-    public final int mountainScaleTiles;           // ~ 400
-    public final double landThreshold;             // ~ 0.35
-    public final double mountainThreshold;         // ~ 0.82
 
-    public WorldGenConfig(long seed, double plainRatio, double forestRatio) {
-        this(seed, plainRatio, forestRatio, 6000, 800, 400, 0.35, 0.82);
+    // Targets (giữ để cân bằng tổng quan; sub-biome không dùng nữa)
+    public final double targetPlainPct, targetForestPct, targetDesertPct;
+
+    // Features
+    public final double targetLakePct;      // dùng để tinh chỉnh nếu cần (tham khảo)
+    public final double targetMountainPct;  // núi thường (tham khảo)
+
+    // Scales / thresholds
+    public final int continentScaleTiles;   // ~6000
+    public final int biomeScaleTiles;       // ~800 (moisture macro)
+    public final int mountainScaleTiles;    // ~400
+    public final int lakeMacroTiles;        // ~256
+    public final int regionScaleTiles;      // ★ vùng lớn cho clumping (mặc định 64)
+    public final double landThreshold;      // ~0.35
+    public final double mountainThreshold;  // ~0.83
+
+    // ---- Constructors (tương thích chỗ gọi hiện tại) ----
+    public WorldGenConfig(long seed) {
+        this(seed, 39.5, 30.0,
+             6000, 800, 400, 256, 64,
+             0.35, 0.83);
     }
-    public WorldGenConfig(long seed, double pr, double fr,
-                          int cont, int bio, int mtn,
-                          double landTh, double mtnTh){
-        this.seed=seed; this.plainRatio=pr; this.forestRatio=fr;
-        this.continentScaleTiles=cont; this.biomeScaleTiles=bio; this.mountainScaleTiles=mtn;
-        this.landThreshold=landTh; this.mountainThreshold=mtnTh;
+    
+ // Legacy convenience for client: ratios in 0..1 (DESERT = 1 - plain - forest)
+    public WorldGenConfig(long seed, double plainRatio, double forestRatio) {
+        this(seed,
+             Math.max(0, plainRatio) * 100.0,
+             Math.max(0, forestRatio) * 100.0,
+             /* continentScaleTiles */ 6000,
+             /* biomeScaleTiles     */ 800,
+             /* mountainScaleTiles  */ 400,
+             /* lakeMacroTiles      */ 256,
+             /* regionScaleTiles    */ 64,
+             /* landThreshold       */ 0.35,
+             /* mountainThreshold   */ 0.83);
+    }
+
+
+    // Back-compat: (seed, plainRatio, forestRatio, cont, bio, mtnScale, landTh, mtnTh)
+    public WorldGenConfig(long seed, double plainRatio, double forestRatio,
+                          int continentScaleTiles, int biomeScaleTiles, int mountainScaleTiles,
+                          double landThreshold, double mountainThreshold) {
+        this(seed,
+             Math.max(0, plainRatio) * 100.0,
+             Math.max(0, forestRatio) * 100.0,
+             continentScaleTiles, biomeScaleTiles, mountainScaleTiles,
+             256, 64,
+             landThreshold, mountainThreshold);
+    }
+
+    public WorldGenConfig(long seed,
+                          double plainPct, double forestPct,
+                          int cont, int bio, int mtnScale,
+                          int lakeMacro, int regionScale,
+                          double landTh, double mtnTh) {
+        this.seed = seed;
+        this.targetPlainPct  = plainPct;
+        this.targetForestPct = forestPct;
+        this.targetDesertPct = Math.max(0.0, 100.0 - plainPct - forestPct);
+
+        this.targetLakePct      = 3.0;
+        this.targetMountainPct  = 14.0;
+
+        this.continentScaleTiles = cont;
+        this.biomeScaleTiles     = bio;
+        this.mountainScaleTiles  = mtnScale;
+        this.lakeMacroTiles      = lakeMacro;
+        this.regionScaleTiles    = Math.max(32, regionScale);
+        this.landThreshold       = landTh;
+        this.mountainThreshold   = mtnTh;
     }
 }

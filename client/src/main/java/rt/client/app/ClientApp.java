@@ -195,12 +195,17 @@ public class ClientApp {
         // Kết nối & seed
         net.connect(name);
         net.setOnSeedChanged(s -> {
-            var cfg = new WorldGenConfig(s, 0.50, 0.35);
+            // DÙNG CHUNG VỚI SERVER (MainServer)
+            var cfg = new rt.common.world.WorldGenConfig(
+                s,
+                0.55, 0.35,   // plainRatio, forestRatio (desert = 0.10)
+                6000, 800, 400,
+                0.35, 0.82    // landThreshold, mountainThreshold
+            );
             panel.setWorldGenConfig(cfg);
             wmOverlay.setWorldGenConfig(cfg);
             layoutOverlay.run();
         });
-
         // Admin hotkeys
         f.addKeyListener(new AdminHotkeys(net, model, panel, hud, ADMIN_TOKEN));
 

@@ -16,7 +16,7 @@ public final class MiniMapRenderer {
 
     // cấu hình: vùng phủ nhỏ để nhẹ (1px ~ 6 tiles)
     private int mmW = 220, mmH = 140;
-    private double tilesPerPixel = 6.0;
+    private double tilesPerPixel = 2.0;
 
     // cache ảnh + render nền
     private volatile BufferedImage last;

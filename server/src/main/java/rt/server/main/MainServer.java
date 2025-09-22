@@ -21,6 +21,7 @@ public class MainServer {
 		var inputs   = new InputQueue();
 		var world    = new World(sessions);
 		var cfg      = ServerConfig.load();
+		
 
 		var cfgGen = new rt.common.world.WorldGenConfig(
 		        cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L,
@@ -31,9 +32,12 @@ public class MainServer {
 		var gen  = new rt.common.world.WorldGenerator(cfgGen);
 		var svc  = new rt.server.world.chunk.ChunkService(gen);
 		var cont = new rt.server.world.geo.ContinentIndex(cfgGen);   // <-- thêm dòng này
+		var seas = new rt.server.world.geo.SeaIndex(cfgGen);    
 
 		world.enableChunkMode(svc);
-		var ws = new WsServer(cfg, sessions, inputs, world, svc, cont); // truyền thêm cont
+		var ws = new rt.server.websocket.WsServer(
+			    cfg, sessions, inputs, world, svc, cont, seas, cfgGen     // ★ NEW params
+			);
 	    
 	    //Log
 	    var base = DesktopDir.resolve().resolve("Vương quyền").resolve("server");

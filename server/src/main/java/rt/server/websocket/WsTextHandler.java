@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import rt.common.net.ErrorCodes;
 import rt.common.net.Jsons;
 import rt.common.net.dto.*;
+import rt.common.world.WorldGenConfig;
 
 public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private static final Logger log = LoggerFactory.getLogger(WsTextHandler.class);
@@ -46,13 +47,13 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     private final ServerConfig cfg;
     private ChunkService chunkservice;
     private final ContinentIndex continents;
+    private final SeaIndex seas;            // ★ NEW
+    private final GeoService geo;           // ★ keep field
+    private final WorldGenConfig cfgGen; 
 
 
     // ====== NEW: Overworld (chunk) foundation ======
     private static final int  TILE_SIZE  = 32;
-    
-    private final GeoService geo;
-    private final SeaIndex seas;
     
  // Geo RL
     private static final int  GEO_MAX_PER_SEC = 5;
@@ -63,18 +64,16 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
 
     
     public WsTextHandler(SessionRegistry sessions, InputQueue inputs, World world, ServerConfig cfg,
-            ChunkService chunkservice, ContinentIndex continents) {
-				this.sessions = sessions;
-				this.inputs   = inputs;
-				this.world    = world;
-				this.cfg      = cfg;
-				this.chunkservice = chunkservice;          // <<< dùng cái được truyền vào
-				this.continents   = continents;
-				
-				var wcfg = new rt.common.world.WorldGenConfig(cfg.worldSeed, 0.55, 0.35);
-				this.seas = new rt.server.world.geo.SeaIndex(wcfg); // hoặc truyền từ chỗ khởi tạo server
-				this.geo  = new rt.server.world.geo.GeoService(
-				   new rt.common.world.WorldGenerator(wcfg), continents, seas);
+            ChunkService chunkservice, ContinentIndex continents,
+            rt.server.world.geo.SeaIndex seas, rt.common.world.WorldGenConfig cfgGen) { // ★ NEW
+			this.sessions=sessions; this.inputs=inputs; this.world=world; this.cfg=cfg;
+			this.chunkservice=chunkservice; this.continents=continents;
+			this.seas = seas; this.cfgGen = cfgGen;                                                      // ★ NEW
+			
+			// DÙNG CHUNG CẤU HÌNH VỚI CHUNK
+			this.geo = new rt.server.world.geo.GeoService(
+			new rt.common.world.WorldGenerator(cfgGen), continents, seas
+			);
 	}
 
     @Override

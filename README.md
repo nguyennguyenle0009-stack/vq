@@ -637,7 +637,9 @@ thế giới được sinh theo chunk từ seed
 		Vấn đề: Khi teleport xa, client nhận nhiều chunk trong 1 đợt và bake ảnh ngay trong onMessage → bùng cấp phát BufferedImage.
 		Giải pháp: Không bake trong onMessage; để TileRenderer tự bake theo viewport (đã làm sẵn).
 
+## 1.0.41
 
+	Thay đổi kết cấu của thế giới
 
 
 
