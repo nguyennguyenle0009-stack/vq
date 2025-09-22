@@ -645,8 +645,9 @@ thế giới được sinh theo chunk từ seed
 
 	Hoàn thiện cấu trúc nền của thế giới
 
+## 1.0.43
 
-
+	Thêm ảnh
 
 
 

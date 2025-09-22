@@ -1,5 +1,6 @@
 package rt.client.game.ui.tile;
 
+import rt.client.world.ChunkBaker;
 import rt.common.world.ChunkPos;
 import java.awt.*;
 
@@ -42,9 +43,10 @@ public class TileRenderer {
             for (int cx=cx0; cx<=cx1; cx++){
                 var d = chunkCache.get(cx, cy);
                 if (d == null) continue;
-                chunkCache.bakeImage(d, tileSize);               // đảm bảo có ảnh
+//                chunkCache.bakeImage(d, tileSize);               // đảm bảo có ảnh
                 int dx = cx * Npx;
                 int dy = cy * Npx;
+                ChunkBaker.bake(d, tileSize);
                 g2.drawImage(d.img, dx, dy, null);               // BLIT 1 phát
             }
         }

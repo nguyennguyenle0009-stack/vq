@@ -1,57 +1,84 @@
-// rt/client/world/map/MapRenderer.java
 package rt.client.world.map;
 
-import rt.common.world.*;
+import rt.client.world.ChunkBaker;
+import rt.client.world.ChunkCache;
+import rt.common.world.ChunkPos;
+
+import java.awt.*;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
-import java.util.HashMap;
-import java.util.Map;
 
+/**
+ * Vẽ bản đồ (world map/minimap) từ ChunkCache có sẵn ở client.
+ * - Dùng ChunkBaker để đảm bảo có ảnh chunk (sprite nếu có; thiếu ảnh -> màu palette).
+ * - Không đụng tới server/common.
+ */
 public final class MapRenderer {
-    private final WorldGenerator gen;
-    private static final int[] PALETTE = new int[256];
-    static {
-        PALETTE[Terrain.OCEAN.id]    = 0xFF1E90FF;
-        PALETTE[Terrain.PLAIN.id]    = 0xFF9ACD32;
-        PALETTE[Terrain.FOREST.id]   = 0xFF2E8B57;
-        PALETTE[Terrain.DESERT.id]   = 0xFFDEB887;
-        PALETTE[Terrain.MOUNTAIN.id] = 0xFF8B8B83;
-    }
 
-    public MapRenderer(WorldGenConfig cfg){ this.gen = new WorldGenerator(cfg); }
+    /** Cache dùng để render. Phải gán một lần khi app khởi động. */
+    private static ChunkCache STATIC_CACHE;
 
-    public BufferedImage render(long originX, long originY, double tilesPerPixel, int w, int h){
-    	if (w <= 0 || h <= 0) return new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-        final int N = ChunkPos.SIZE;
-        BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
-        Map<Long, ChunkData> cache = new HashMap<>(256);
+    /** GÁN CACHE TỪ APP: gọi 1 lần lúc khởi động client. */
+    public static void setCache(ChunkCache cache) { STATIC_CACHE = cache; }
 
-        for (int py=0; py<h; py++){
-            long gy = originY + (long)Math.floor(py * tilesPerPixel);
-            int cgy = Math.floorDiv((int)gy, N);
-            int ty  = Math.floorMod((int)gy, N);
+    private final int N = ChunkPos.SIZE; // số tile mỗi chunk
 
-            int lastCgx = Integer.MIN_VALUE;
-            ChunkData cd = null;
+    // Giữ chữ ký cũ cho WorldMapOverlay.setWorldGenConfig(...)
+    public MapRenderer(rt.common.world.WorldGenConfig cfg) { }
 
-            for (int px=0; px<w; px++){
-                long gx = originX + (long)Math.floor(px * tilesPerPixel);
-                int cgx = Math.floorDiv((int)gx, N);
-                int tx  = Math.floorMod((int)gx, N);
+    /** Lấy cache – chỉnh nếu bạn để cache ở singleton khác. */
+    private ChunkCache getCache() { return STATIC_CACHE; }
 
-                if (cgx != lastCgx) {
-                    long key = (((long)cgx) << 32) ^ (cgy & 0xffffffffL);
-                    cd = cache.get(key);
-                    if (cd == null) { cd = gen.generate(cgx, cgy); cache.put(key, cd); }
-                    lastCgx = cgx;
-                }
-                
-                int id = cd.layer1[ty * N + tx] & 0xff;
-                img.setRGB(px, py, TerrainPalette.color(id));
+    /**
+     * @param originX,originY gốc (tính theo TILE) của khung nhìn
+     * @param tpp             tilesPerPixel (ví dụ 1: 1px = 1 tile; 4: 1px = 4 tiles)
+     * @param w,h             kích thước ảnh xuất (pixel)
+     */
+    public BufferedImage render(long originX, long originY, double tpp, int w, int h) {
+        ChunkCache cache = getCache();
+        if (cache == null || w <= 0 || h <= 0) {
+            return new BufferedImage(Math.max(1, w), Math.max(1, h), BufferedImage.TYPE_INT_ARGB);
+        }
 
-//                int id = cd.layer1[ty * N + tx] & 0xff;
-//                img.setRGB(px, py, PALETTE[id] != 0 ? PALETTE[id] : 0xFF808080);
+        BufferedImage out = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = out.createGraphics();
+        g.setComposite(AlphaComposite.SrcOver);
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+        g.setColor(new Color(0x121314));
+        g.fillRect(0, 0, w, h);
+
+        // vẽ ở hệ toạ độ "tile-pixel" rồi scale về w,h bằng tpp
+        AffineTransform bak = g.getTransform();
+        g.scale(1.0 / tpp, 1.0 / tpp);
+
+        long visTilesW = Math.round(w * tpp);
+        long visTilesH = Math.round(h * tpp);
+
+        int cx0 = Math.floorDiv((int) originX, N) - 1;
+        int cy0 = Math.floorDiv((int) originY, N) - 1;
+        int cx1 = Math.floorDiv((int) (originX + visTilesW), N) + 1;
+        int cy1 = Math.floorDiv((int) (originY + visTilesH), N) + 1;
+
+        final int bakeTileSize = 1; // 1 tile = 1 "px" tạm
+        for (int cy = cy0; cy <= cy1; cy++) {
+            for (int cx = cx0; cx <= cx1; cx++) {
+                ChunkCache.Data d = cache.get(cx, cy);
+                if (d == null) continue;
+
+                ChunkBaker.bake(d, bakeTileSize);
+
+                long chunkTileX = (long) cx * N;
+                long chunkTileY = (long) cy * N;
+                int dx = (int) (chunkTileX - originX);
+                int dy = (int) (chunkTileY - originY);
+
+                g.drawImage(d.img, dx, dy, null);
             }
         }
-        return img;
+
+        g.setTransform(bak);
+        g.dispose();
+        return out;
     }
 }

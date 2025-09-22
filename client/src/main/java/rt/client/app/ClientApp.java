@@ -2,10 +2,14 @@ package rt.client.app;
 
 import rt.client.model.WorldModel;
 import rt.client.net.NetClient;
+import rt.client.world.ChunkCache;
+import rt.client.world.map.MapRenderer;
 import rt.common.world.WorldGenConfig;
 import rt.client.game.ui.GameCanvas;
 import rt.client.game.ui.hud.HudOverlay;
 import rt.client.game.ui.map.WorldMapOverlay;
+import rt.client.gfx.TerrainTextures;
+import rt.client.gfx.skin.ChunkSkins;
 import rt.client.game.ui.RenderLoop;
 import rt.client.input.InputState;
 
@@ -21,11 +25,20 @@ import java.util.concurrent.TimeUnit;
 public class ClientApp {
 
     public static void main(String[] args) throws IOException {
-        final java.util.concurrent.atomic.AtomicBoolean mapOpen = new java.util.concurrent.atomic.AtomicBoolean(false);
-        final String ADMIN_TOKEN = "dev-secret-123";
-
+    	
         String url = "ws://localhost:8090/ws";
         String name = args.length > 0 ? args[0] : "Player";
+    	
+        // Model/Net/UI
+        WorldModel model = new WorldModel();
+        NetClient net = new NetClient(url, model);
+        GameCanvas panel = new GameCanvas(model); // GameCanvas đã setFocusable(true)
+        
+        ChunkSkins.init();                    // đăng ký sprite (hoặc để trống dùng màu)
+        MapRenderer.setCache(net.chunkCache());
+    	
+    	final java.util.concurrent.atomic.AtomicBoolean mapOpen = new java.util.concurrent.atomic.AtomicBoolean(false);
+        final String ADMIN_TOKEN = "dev-secret-123";
 
         // Thư mục log
         Path base = rt.common.util.DesktopDir.resolve().resolve("Vương quyền").resolve("client").resolve(name);
@@ -37,10 +50,7 @@ public class ClientApp {
             System.setProperty("LOG_STAMP", stamp);
         }
 
-        // Model/Net/UI
-        WorldModel model = new WorldModel();
-        NetClient net = new NetClient(url, model);
-        GameCanvas panel = new GameCanvas(model); // GameCanvas đã setFocusable(true)
+
 
         // Input state
         InputState input = new InputState();

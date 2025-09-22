@@ -1,5 +1,6 @@
 package rt.client.world;
 
+import java.awt.image.BufferedImage;
 import java.util.*; import java.util.concurrent.*; import java.util.BitSet;
 
 public final class ChunkCache {
@@ -10,6 +11,7 @@ public final class ChunkCache {
 
   public static final class Data {
     public volatile java.awt.image.BufferedImage img;   // ảnh baked của chunk
+    //public volatile java.util.concurrent.ConcurrentHashMap<Integer, BufferedImage> img = new ConcurrentHashMap<>();
     public volatile int bakedTileSize = 0;              // tileSize dùng để bake
     public final int cx,cy,size; public final byte[] l1,l2; public final BitSet coll;
     public Data(int cx,int cy,int size,byte[] l1,byte[] l2,BitSet coll){
