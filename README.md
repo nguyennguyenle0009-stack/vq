@@ -641,7 +641,9 @@ thế giới được sinh theo chunk từ seed
 
 	Thay đổi kết cấu của thế giới
 
+## 1.0.42
 
+	Hoàn thiện cấu trúc nền của thế giới
 
 
 

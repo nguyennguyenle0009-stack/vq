@@ -7,10 +7,10 @@ public final class WorldGenerator {
 
     public WorldGenerator(WorldGenConfig cfg) { this.cfg = cfg; }
 
-    // ===== API giữ nguyên cho GeoService/Overlay =====
-    public int idAt(int gx, int gy)            { return idAt((long)gx, (long)gy); }
-    public int idAt(long gx, long gy)          { return evalTileId(gx, gy); }
-    public int idAtTile(int gx, int gy)        { return idAt(gx, gy); }
+    // ===== API giữ nguyên =====
+    public int idAt(int gx, int gy)     { return idAt((long)gx, (long)gy); }
+    public int idAt(long gx, long gy)   { return evalTileId(gx, gy); }
+    public int idAtTile(int gx, int gy) { return idAt(gx, gy); }
 
     public ChunkData generate(int cx, int cy) {
         final int N = ChunkPos.SIZE;
@@ -27,114 +27,108 @@ public final class WorldGenerator {
         return new ChunkData(cx, cy, N, l1, l2, coll);
     }
 
-    // ===== CORE: không chồng lấn, vùng lớn, không RIVER/biển nội địa =====
+    // ===== CORE: không chồng lấn =====
     private int evalTileId(long gx, long gy) {
-        // 0) Lục địa/biển – GIỮ NGUYÊN
-        long cgx = Math.floorDiv(gx, cfg.continentScaleTiles);
-        long cgy = Math.floorDiv(gy, cfg.continentScaleTiles);
-        double cont = noise(cfg.seed*0x9E37L, cgx*0xA24BL, cgy*0x9FB2L);
-        if (cont < cfg.landThreshold) return Terrain.OCEAN.id; // biển khơi
-
-        // 1) Núi (chỉ M_ROCK) theo ridged
-        long mgx = Math.floorDiv(gx, cfg.mountainScaleTiles);
-        long mgy = Math.floorDiv(gy, cfg.mountainScaleTiles);
-        double ridged = ridgedNoise(cfg.seed*0xD6E8L, mgx*0xBF58L, mgy*0x94D0L);
-        if (ridged > cfg.mountainThreshold) return Terrain.M_ROCK.id;
-
-        // 2) Hồ nội địa (Poisson/elip) – thay thế mọi “biển lọt trong lục địa”
-        if (isLake(gx, gy)) return Terrain.LAKE.id;
-
-        // 3) Biome nền THEO VÙNG (region) – mỗi vùng 1 biome duy nhất
-        int baseId = regionBiomeId(gx, gy);
-
-        // Không có bước “bờ biển cát”, không overlay, không river
-        return baseId;
+        if (isOcean(gx, gy))    return Terrain.OCEAN.id;     // 0) biển
+        if (isMountain(gx, gy)) return Terrain.M_ROCK.id;    // 1) núi ~10%
+        if (isLakeProvince(gx, gy)) return Terrain.LAKE.id;  // 2) hồ ~10%
+        return regionBiomeId(gx, gy);                        // 3) còn lại: plain/forest/desert
     }
 
-    // ===== VÙNG LỚN: Voronoi jitter theo regionScaleTiles =====
+    // ===== Biome theo "tỉnh" & cụm =====
     private int regionBiomeId(long gx, long gy) {
-        final int S = cfg.regionScaleTiles;              // mặc định 64 → 4096 ô/vùng
+        final int S = Math.max(32, cfg.regionScaleTiles); // kích thước tỉnh
         long rx = Math.floorDiv(gx, S);
         long ry = Math.floorDiv(gy, S);
 
-        // chọn seed gần nhất trong 2x2 ô lân cận (jitter mỗi ô)
-        long bestIx = rx, bestIy = ry;
-        long bestDx = 0, bestDy = 0;
-        long bestD2 = Long.MAX_VALUE;
+        final int G  = provincesPerBlock();               // số tỉnh mỗi "block lục địa"
+        long bx = Math.floorDiv(rx, G);
+        long by = Math.floorDiv(ry, G);
 
-        for (long oy = 0; oy <= 1; oy++) {
-            for (long ox = 0; ox <= 1; ox++) {
-                long cx = rx + ox;
-                long cy = ry + oy;
-                long h = mix(cfg.seed*0xA5A5L, cx, cy);
-                int jx = (int)((h       & 0xFFFF) % S);   // jitter trong [0..S-1]
-                int jy = (int)(((h>>16) & 0xFFFF) % S);
-                long sx = cx*S + jx;
-                long sy = cy*S + jy;
-                long dx = gx - sx, dy = gy - sy;
-                long d2 = dx*dx + dy*dy;
-                if (d2 < bestD2) { bestD2 = d2; bestIx = cx; bestIy = cy; bestDx = dx; bestDy = dy; }
-            }
+        // Rừng đặc biệt: mỗi loại đúng 2 cụm / block
+        boolean inFog   = inCluster(rx, ry, bx, by, 0xF0F0L, 2, radiusForShare(G, 0.05, 2), G);
+        boolean inMagic = inCluster(rx, ry, bx, by, 0xA11CL, 2, radiusForShare(G, 0.05, 2), G);
+        boolean inDark  = inCluster(rx, ry, bx, by, 0xD4A7L, 2, radiusForShare(G, 0.05, 2), G);
+
+        // Sa mạc: 1–3 cụm rất to / block, tổng ~10%
+        int desertClusters = 1 + (int)((mix(cfg.seed*0xDE57L, bx, by) >>> 8) % 3); // 1..3
+        boolean allowDesert = inCluster(rx, ry, bx, by, 0xDE57L,
+                                        desertClusters, radiusForShare(G, 0.10, desertClusters), G);
+
+        // Trọng số sau khi đã claim núi & hồ:
+        final double wForestAll = 0.35;              // 20% ordinary + 3×5% special
+        final double wDesert    = allowDesert ? 0.10 : 0.0;
+        final double wPlain     = 1.0 - wForestAll - wDesert; // ≈ 0.55 hoặc 0.45 nếu có sa mạc
+
+        long   h = mix(cfg.seed*0xB4B4L, rx, ry);
+        double r = to01(h);
+
+        if (r < wForestAll) {
+            if (inFog)   return Terrain.F_FOG.id;
+            if (inMagic) return Terrain.F_MAGIC.id;
+            if (inDark)  return Terrain.F_DARK.id;
+            return Terrain.FOREST.id; // rừng thường
         }
+        r -= wForestAll;
 
-        // Chọn biome cho seed (ổn định) — dùng tỷ lệ toàn cục, tránh DESERT gần nước
-        long sh = mix(cfg.seed*0xB4B4L, bestIx, bestIy);
-        double r = to01(sh);
-        // moisture macro để giảm DESERT gần bờ (mượt, không tốn)
-        long bgx = Math.floorDiv(bestIx*S, cfg.biomeScaleTiles);
-        long bgy = Math.floorDiv(bestIy*S, cfg.biomeScaleTiles);
-        double moisture = noise(cfg.seed*0xB529L, bgx*0xC2B2L, bgy*0x1656L);
-
-        double total = cfg.targetPlainPct + cfg.targetForestPct + cfg.targetDesertPct;
-        double pPlain  = cfg.targetPlainPct  / total;
-        double pForest = cfg.targetForestPct / total;
-        double pDesert = 1.0 - pPlain - pForest;
-
-        // giảm DESERT nếu ẩm
-        pDesert = clamp01(pDesert - (moisture-0.5)*0.25);
-        pPlain  = clamp01(1.0 - (pForest + pDesert));
-
-        return (r < pPlain) ? Terrain.PLAIN.id
-             : (r < pPlain + pForest) ? Terrain.FOREST.id
-             : Terrain.DESERT.id;
+        if (r < wDesert) return Terrain.DESERT.id;
+        return Terrain.PLAIN.id;
     }
 
-    // ===== Hồ nội địa (Poisson-ish elip) =====
-    private boolean isLake(long gx, long gy) {
-        long cs = cfg.lakeMacroTiles; // ~256
-        long cx = Math.floorDiv(gx, cs);
-        long cy = Math.floorDiv(gy, cs);
-        long h  = mix(cfg.seed*0xA1B2C3DL, cx, cy);
+    // ===== Hồ nội địa theo "tỉnh": ~10% đất, 2 cụm rất to =====
+    private boolean isLakeProvince(long gx, long gy) {
+        final int S = Math.max(32, cfg.regionScaleTiles);
+        long px = Math.floorDiv(gx, S), py = Math.floorDiv(gy, S);
+        final int G = provincesPerBlock();
+        long bx = Math.floorDiv(px, G), by = Math.floorDiv(py, G);
 
-        // tâm elip
-        long ox = (h & 0xFFFF) % cs;
-        long oy = ((h>>>16) & 0xFFFF) % cs;
-        long sx = cx * cs + ox;
-        long sy = cy * cs + oy;
+        // 2 cụm hồ; bán kính tính để xấp xỉ 10%
+        int r = radiusForShare(G, 0.10, 2);
+        return inCluster(px, py, bx, by, 0x1A2E3L, 2, r, G);
+    }
 
-        // bán trục
-        int rx = 40 + (int)((((h>>>32) & 0xFF)/255.0) * 120); // 40..160
-        int ry = 30 + (int)((((h>>>40) & 0xFF)/255.0) * 170); // 30..200
-
-        // spacing: chỉ giữ “seed mạnh nhất” trong 3×3
-        long best = h;
-        for (long j=-1;j<=1;j++) for (long i=-1;i<=1;i++){
-            long hh = mix(cfg.seed*0xA1B2C3DL, cx+i, cy+j);
-            if (hh > best) best = hh;
-        }
-        if (h != best) return false;
-
-        // bên trong lục địa thì là lake; nếu lỡ mask cho OCEAN thì ép về lake
+    // ===== Ocean / Mountain =====
+    private boolean isOcean(long gx, long gy) {
         long cgx = Math.floorDiv(gx, cfg.continentScaleTiles);
         long cgy = Math.floorDiv(gy, cfg.continentScaleTiles);
-        if (noise(cfg.seed*0x9E37L, cgx*0xA24BL, cgy*0x9FB2L) < cfg.landThreshold) return false;
-
-        long dx = gx - sx, dy = gy - sy;
-        double v = (dx*dx)/(double)(rx*rx) + (dy*dy)/(double)(ry*ry);
-        return v <= 1.0;
+        double cont = noise(cfg.seed*0x9E37L, cgx*0xA24BL, cgy*0x9FB2L);
+        return cont < cfg.landThreshold;
     }
 
-    // ===== Helpers noise =====
+    private boolean isMountain(long gx, long gy) {
+        long mgx = Math.floorDiv(gx, cfg.mountainScaleTiles);
+        long mgy = Math.floorDiv(gy, cfg.mountainScaleTiles);
+        double ridged = ridgedNoise(cfg.seed*0xD6E8L, mgx*0xBF58L, mgy*0x94D0L);
+        return ridged > cfg.mountainThreshold;
+    }
+
+    // ====== Cluster utilities ======
+    private int provincesPerBlock() {
+        int S = Math.max(32, cfg.regionScaleTiles);
+        return Math.max(12, cfg.continentScaleTiles / S); // ~23–26 khi S≈256, cont≈6000
+    }
+
+    // bán kính (đơn vị tỉnh) để phủ fShare (0..1) với 'count' cụm trên lưới G×G tỉnh
+    private int radiusForShare(int G, double fShare, int count) {
+        double r = G * Math.sqrt(Math.max(0.0, fShare) / Math.max(1, count) / Math.PI);
+        return Math.max(1, (int)Math.round(r));
+    }
+
+    // kiểm tra (px,py) có nằm trong 1 trong các tâm cụm của block (bx,by) không
+    private boolean inCluster(long px, long py, long bx, long by,
+                              long salt, int count, int radius, int G) {
+        long h = mix(cfg.seed * salt, bx, by);
+        for (int i = 0; i < count; i++) {
+            int ox = (int)((h >>> (i*11)) & 0x7FF) % G;
+            int oy = (int)((h >>> (i*11+16)) & 0x7FF) % G;
+            long cx = bx * G + ox, cy = by * G + oy;
+            long dx = px - cx, dy = py - cy;
+            if (dx*dx + dy*dy <= (long)radius * radius) return true;
+        }
+        return false;
+    }
+
+    // ===== noise helpers =====
     private static double ridgedNoise(long a,long b,long c){
         double n = noise(a,b,c);
         return 1.0 - 2.0 * Math.abs(n - 0.5);
@@ -147,5 +141,4 @@ public final class WorldGenerator {
         x^=(x>>>33); x*=0xc4ceb9fe1a85ec53L;
         x^=(x>>>33); return x;
     }
-    private static double clamp01(double v){ return v<0?0:(v>1?1:v); }
 }

@@ -23,11 +23,15 @@ public class MainServer {
 		var cfg      = ServerConfig.load();
 		
 
+//		var cfgGen = new rt.common.world.WorldGenConfig(
+//		        cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L,
+//		        0.55, 0.35,        // plainRatio, forestRatio
+//		        6000, 800, 400,    // continentScaleTiles, biomeScaleTiles, mountainScaleTiles
+//		        0.35, 0.82         // landThreshold, mountainThreshold
+//		);
 		var cfgGen = new rt.common.world.WorldGenConfig(
-		        cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L,
-		        0.55, 0.35,        // plainRatio, forestRatio
-		        6000, 800, 400,    // continentScaleTiles, biomeScaleTiles, mountainScaleTiles
-		        0.35, 0.82         // landThreshold, mountainThreshold
+			    cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L,
+			    0.55, 0.35
 		);
 		var gen  = new rt.common.world.WorldGenerator(cfgGen);
 		var svc  = new rt.server.world.chunk.ChunkService(gen);
