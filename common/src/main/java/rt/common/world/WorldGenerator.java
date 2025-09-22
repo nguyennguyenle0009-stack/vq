@@ -45,7 +45,8 @@ public final class WorldGenerator {
         if (isLake(gx, gy)) return Terrain.LAKE.id;
 
         // 3) Biome nền THEO VÙNG (region) – mỗi vùng 1 biome duy nhất
-        int baseId = regionBiomeId(gx, gy);
+        //int baseId = regionBiomeId(gx, gy);
+        int baseId = provinceBiomeId(gx, gy);
 
         // Không có bước “bờ biển cát”, không overlay, không river
         return baseId;
@@ -133,6 +134,82 @@ public final class WorldGenerator {
         double v = (dx*dx)/(double)(rx*rx) + (dy*dy)/(double)(ry*ry);
         return v <= 1.0;
     }
+    
+ // Mỗi tỉnh (province) 1 biome, size ~ cfg.provinceScaleTiles^2
+    private int provinceBiomeId(long gx, long gy){
+        final int S = cfg.provinceScaleTiles;     // 224..256 → 30k–70k ô/tỉnh
+        long px = Math.floorDiv(gx, S);
+        long py = Math.floorDiv(gy, S);
+
+        // random ổn định cho tỉnh
+        long h = mix(cfg.seed*0xB4B4L, px, py);
+        double r = to01(h);
+
+        // Ẩm/khô ở tâm tỉnh
+        long cx = px*S + S/2, cy = py*S + S/2;
+        long bgx = Math.floorDiv(cx, cfg.biomeScaleTiles);
+        long bgy = Math.floorDiv(cy, cfg.biomeScaleTiles);
+        double moisture = noise(cfg.seed*0xB529L, bgx*0xC2B2L, bgy*0x1656L);
+
+        // Độ khô thô theo tỉnh + buffer xa bờ
+        double dryness = noise(cfg.seed*0xD00DL, px*0x9E37L, py*0x94D0L); // 0..1
+        int coastD = coastDistanceTiles(cx, cy, 256);
+        boolean farFromCoast = (coastD < 0) || (coastD > 96);            // ≥ ~100 ô cách bờ
+        boolean allowDesert  = dryness > 0.68 && moisture < 0.45 && farFromCoast;
+
+        // Trọng số theo mục tiêu, loại bỏ DESERT nếu không được phép
+        double pP = cfg.targetPlainPct;
+        double pF = cfg.targetForestPct;
+        double pD = allowDesert ? cfg.targetDesertPct : 0.0;
+
+        double total = pP + pF + pD;
+        double wF = pF / total;
+        double wD = pD / total;
+
+        // Ưu tiên rừng một chút để tăng xác suất tỉnh rừng
+        wF = Math.min(0.95, wF + 0.05);
+        double wP = 1.0 - wF - wD;
+
+        if (r < wF) return Terrain.FOREST.id;
+        if (r < wF + wD) return Terrain.DESERT.id;
+        return Terrain.PLAIN.id;
+    }
+
+
+    // ---- Helpers ----
+    private int coastDistanceTiles(long gx, long gy, int max){
+        // BFS-lite: check rings up to max tiles to see if touches ocean
+        if (max <= 0) return -1;
+        for (int d=0; d<=max; d++){
+            for (int dx=-d; dx<=d; dx++){
+                int dy = d - Math.abs(dx);
+                if (isOcean(gx+dx, gy+dy) || isOcean(gx+dx, gy-dy)){
+                    return d;
+                }
+            }
+        }
+        return -1;
+    }
+    private boolean isOcean(long gx, long gy){
+        long cgx = Math.floorDiv(gx, cfg.continentScaleTiles);
+        long cgy = Math.floorDiv(gy, cfg.continentScaleTiles);
+        double cont = noise(cfg.seed*0x9E37L, cgx*0xA24BL, cgy*0x9FB2L);
+        return cont < cfg.landThreshold;
+    }
+
+    private static double latFactor(long gy){
+        // normalize latitude to 0..1 over large band
+        double t = (Math.sin(gy * 2e-5) + 1.0) * 0.5;
+        return t;
+    }
+    private static double edgeFactor(long bx,long by){
+        // cheap gradient magnitude of biome noise
+        double c = noise(0x12345678L, bx, by);
+        double dx = Math.abs(noise(0x12345678L, bx+1, by) - c);
+        double dy = Math.abs(noise(0x12345678L, bx, by+1) - c);
+        return Math.min(1.0, (dx+dy)*4.0);
+    }
+
 
     // ===== Helpers noise =====
     private static double ridgedNoise(long a,long b,long c){

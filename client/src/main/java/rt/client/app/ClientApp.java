@@ -196,14 +196,14 @@ public class ClientApp {
         net.connect(name);
         net.setOnSeedChanged(s -> {
             // DÙNG CHUNG VỚI SERVER (MainServer)
-            var cfg = new rt.common.world.WorldGenConfig(
-                s,
-                0.55, 0.35,   // plainRatio, forestRatio (desert = 0.10)
-                6000, 800, 400,
-                0.35, 0.82    // landThreshold, mountainThreshold
-            );
-            panel.setWorldGenConfig(cfg);
-            wmOverlay.setWorldGenConfig(cfg);
+            var cfg = new WorldGenConfig(
+        	    s, 0.60, 0.38,
+        	    6000, 800, 400,
+        	    256, /*province*/224,
+        	    0.35, 0.82
+        	);
+        	panel.setWorldGenConfig(cfg);
+        	wmOverlay.setWorldGenConfig(cfg);
             layoutOverlay.run();
         });
         // Admin hotkeys
