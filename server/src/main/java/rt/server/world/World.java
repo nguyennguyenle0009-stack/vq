@@ -41,6 +41,18 @@ public class World {
     }
     public void setOverworldParams(long seed, int tileSize){}
 
+    public void prewarmSpawnArea(int radiusChunks) {
+        if (chunkService == null || radiusChunks < 0) return;
+        ensureSpawnComputed();
+        int baseCx = (int) Math.floor(spawnX / CHUNK_SIZE);
+        int baseCy = (int) Math.floor(spawnY / CHUNK_SIZE);
+        for (int dy = -radiusChunks; dy <= radiusChunks; dy++) {
+            for (int dx = -radiusChunks; dx <= radiusChunks; dx++) {
+                chunkService.get(baseCx + dx, baseCy + dy);
+            }
+        }
+    }
+
     private void computeDefaultSpawn() {
         if (spawnReady || chunkService == null) return;
 

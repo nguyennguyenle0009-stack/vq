@@ -33,13 +33,14 @@ public class MainServer {
 		var svc  = new rt.server.world.chunk.ChunkService(gen);
 		var cont = new rt.server.world.geo.ContinentIndex(cfgGen);   // <-- thêm dòng này
 		var seas = new rt.server.world.geo.SeaIndex(cfgGen);    
-		WorldGenerator.configure(cfgGen);
-		WorldPipeline.createDefault(cfgGen);
-		
-		world.enableChunkMode(svc);
-		var ws = new rt.server.websocket.WsServer(
-			    cfg, sessions, inputs, world, svc, cont, seas, cfgGen     // ★ NEW params
-			);
+                WorldGenerator.configure(cfgGen);
+                WorldPipeline.createDefault(cfgGen);
+
+                world.enableChunkMode(svc);
+                world.prewarmSpawnArea(2);
+                var ws = new rt.server.websocket.WsServer(
+                            cfg, sessions, inputs, world, svc, cont, seas, cfgGen     // ★ NEW params
+                        );
 	    
 	    //Log
 	    var base = DesktopDir.resolve().resolve("Vương quyền").resolve("server");
