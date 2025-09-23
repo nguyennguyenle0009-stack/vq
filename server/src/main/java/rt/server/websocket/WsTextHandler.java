@@ -3,6 +3,7 @@ package rt.server.websocket;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
@@ -22,6 +23,9 @@ import rt.server.world.geo.SeaIndex;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import rt.common.net.ErrorCodes;
 import rt.common.net.Jsons;
@@ -49,7 +53,17 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     private final ContinentIndex continents;
     private final SeaIndex seas;            // ★ NEW
     private final GeoService geo;           // ★ keep field
-    private final WorldGenConfig cfgGen; 
+    private final WorldGenConfig cfgGen;
+
+    private static final AtomicInteger WORKER_ID = new AtomicInteger();
+    private static final ExecutorService WORLD_EXEC = Executors.newFixedThreadPool(
+            Math.max(2, Runtime.getRuntime().availableProcessors()),
+            r -> {
+                Thread t = new Thread(r, "ws-world-" + WORKER_ID.incrementAndGet());
+                t.setDaemon(true);
+                return t;
+            }
+    );
 
 
     // ====== NEW: Overworld (chunk) foundation ======
@@ -78,12 +92,7 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) {
-        String id = ctx.channel().id().asShortText();
-        Session s = new Session(ctx.channel(), id);
-        sessions.attach(s);
-        log.info("channel added {}", id);
-        log.info("Use ChunkService {}", System.identityHashCode(this.chunkservice));
-        s.send(Map.of("type", "hello", "you", id));
+        log.info("channel added {}", ctx.channel().id().asShortText());
     }
 
     @Override
@@ -103,15 +112,14 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                 s.send(new HelloS2C(s.playerId));
 
                 // === PHASE 1: bật chế độ chunk ở client bằng seed ===
-                s.send(new SeedS2C(ServerConfig.worldSeed, rt.common.world.ChunkPos.SIZE, TILE_SIZE));
+                s.send(new SeedS2C(cfgGen.seed, rt.common.world.ChunkPos.SIZE, TILE_SIZE));
             }
 
             // === PHASE 1: client xin chunk (cx,cy) ===
             case "chunk_req" -> {
                 int cx = node.get("cx").asInt();
                 int cy = node.get("cy").asInt();
-                var cd = this.chunkservice.get(cx, cy);
-                s.send(new ChunkS2C(cd.cx, cd.cy, cd.size, cd.layer1, cd.layer2, cd.collision.toByteArray()));
+                submitChunkTask(ctx.channel(), cx, cy);
             }
 
             case "input" -> {
@@ -187,7 +195,7 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                     long ts = ((Number) root.getOrDefault("ts", System.currentTimeMillis())).longValue();
                     s.send(Map.of("type", "cpong", "ts", ts));
                 }
-            }case "geo_reqA" -> {
+            }case "geo_req" -> {
                 long gx = node.path("gx").asLong();
                 long gy = node.path("gy").asLong();
 
@@ -197,23 +205,48 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                 if (now - r.winStart >= GEO_WINDOW_MS) { r.winStart = now; r.count = 0; }
                 if (++r.count > GEO_MAX_PER_SEC) {
                     // lặng lẽ bỏ qua để không nghẽn (không gửi error/pending)
-                    break;
+                    return;
                 }
 
-                // Truy vấn nhẹ (GeoService nên cache nội bộ)
-                var info = geo.at(gx, gy); // trả GeoInfo: terrainId/name + continent/sea
-                s.send(java.util.Map.of(
-                        "type","geo",
-                        "gx", gx, "gy", gy,
-                        "terrainId", info.terrainId, "terrainName", info.terrainName,
-                        "continentId", info.continentId, "continentName", info.continentName,
-                        "seaId", info.seaId, "seaName", info.seaName
-                    ));
+                submitGeoTask(ctx.channel(), gx, gy);
             }
 
 
             default -> log.warn("unknown type {}", type);
         }
+    }
+
+    private void submitChunkTask(Channel channel, int cx, int cy) {
+        WORLD_EXEC.execute(() -> {
+            try {
+                Session session = sessions.byChannel(channel);
+                if (session == null || !channel.isActive()) {
+                    return;
+                }
+                var cd = chunkservice.get(cx, cy);
+                session.send(new ChunkS2C(cd.cx, cd.cy, cd.size, cd.layer1, cd.layer2, cd.collision.toByteArray()));
+            } catch (Exception ex) {
+                log.warn("chunk_req failed cx={} cy={}", cx, cy, ex);
+            }
+        });
+    }
+
+    private void submitGeoTask(Channel channel, long gx, long gy) {
+        WORLD_EXEC.execute(() -> {
+            try {
+                Session session = sessions.byChannel(channel);
+                if (session == null || !channel.isActive()) {
+                    return;
+                }
+                var info = geo.at(gx, gy);
+                session.send(new GeoS2C("geo", gx, gy,
+                        info.terrainId, info.terrainName,
+                        info.continentId, info.continentName,
+                        info.seaId, info.seaName));
+            } catch (Exception ex) {
+                log.warn("geo_req failed gx={} gy={}", gx, gy, ex);
+            }
+        });
     }
 
     @Override
@@ -234,7 +267,13 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     public void channelInactive(ChannelHandlerContext ctx) {
         String id = ctx.channel().id().asShortText();
         Session s = sessions.byChannel(ctx.channel());
-        if (s != null) { world.removePlayer(s.playerId); inputs.remove(s.playerId); }
+        if (s != null) {
+            world.removePlayer(s.playerId);
+            inputs.remove(s.playerId);
+            rl.remove(s.playerId);
+            geoRl.remove(s.playerId);
+            lastPong.remove(s.playerId);
+        }
         sessions.detach(ctx.channel());
         log.info("channel inactive {}", id);
     }
@@ -242,7 +281,13 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) {
         Session s = sessions.byChannel(ctx.channel());
-        if (s != null) { world.removePlayer(s.playerId); inputs.remove(s.playerId); }
+        if (s != null) {
+            world.removePlayer(s.playerId);
+            inputs.remove(s.playerId);
+            rl.remove(s.playerId);
+            geoRl.remove(s.playerId);
+            lastPong.remove(s.playerId);
+        }
         sessions.detach(ctx.channel());
         log.info("channel removed {}", ctx.channel().id().asShortText());
     }
@@ -277,12 +322,7 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
 
-        // Tạo & đăng ký session từ channel hiện tại
-        var s = sessions.attach(ctx.channel());
-        s.send(new HelloS2C(s.playerId));
-
-        // Gửi seed cho client (lấy từ cfg instance, không dùng field static)
-        long seed = (cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L);
-        s.send(new SeedS2C(seed, rt.common.world.ChunkPos.SIZE, 32)); // tileSize tùy bạn
+        // Đăng ký session cho channel mới; phản hồi hello/seed sẽ gửi khi client gửi "hello"
+        sessions.attach(ctx.channel());
     }
 }
