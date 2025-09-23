@@ -2,6 +2,8 @@ package rt.server.main;
 
 import rt.common.util.DesktopDir;
 import rt.common.util.LogDirs;
+import rt.common.world.WorldGenerator;
+import rt.common.world.gen.WorldPipeline;
 
 import java.nio.file.*;
 import java.time.LocalDateTime;
@@ -31,7 +33,8 @@ public class MainServer {
 		var svc  = new rt.server.world.chunk.ChunkService(gen);
 		var cont = new rt.server.world.geo.ContinentIndex(cfgGen);   // <-- thêm dòng này
 		var seas = new rt.server.world.geo.SeaIndex(cfgGen);    
-		rt.common.world.WorldGenerator.configure(cfgGen);
+		WorldGenerator.configure(cfgGen);
+		WorldPipeline.createDefault(cfgGen);
 		
 		world.enableChunkMode(svc);
 		var ws = new rt.server.websocket.WsServer(

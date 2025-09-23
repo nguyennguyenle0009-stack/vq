@@ -10,9 +10,9 @@ public final class ChunkSkins {
         // Giai đoạn 2 (bật sprite) ví dụ:
         // TerrainTextures.register(Terrain.M_ROCK.id, "nui");
         // TerrainTextures.register(Terrain.PLAIN.id, "plain");
-    	TerrainTextures.register(Terrain.PLAIN.id, "plain_bg");
-    	TerrainTextures.register(Terrain.LAKE.id, "lake_bg");
-    	TerrainTextures.register(Terrain.DESERT.id, "DESERT");
-    	TerrainTextures.register(Terrain.FOREST.id, "FOREST");
+//    	TerrainTextures.register(Terrain.PLAIN.id, "plain_bg");
+//    	TerrainTextures.register(Terrain.LAKE.id, "lake_bg");
+//    	TerrainTextures.register(Terrain.DESERT.id, "DESERT");
+//    	TerrainTextures.register(Terrain.FOREST.id, "FOREST");
     }
 }

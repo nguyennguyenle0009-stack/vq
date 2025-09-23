@@ -223,7 +223,7 @@ public class ClientApp {
         ses.scheduleAtFixedRate(() -> {
             if (mapOpen.get()) net.sendInput(false,false,false,false);
             else               net.sendInput(input.up, input.down, input.left, input.right);
-        }, 0, 33, TimeUnit.MILLISECONDS);
+        }, 0, 50, TimeUnit.MILLISECONDS);
 
         // client-ping 1s
         ses.scheduleAtFixedRate(() -> net.sendClientPing(System.nanoTime()), 1000, 1000, TimeUnit.MILLISECONDS);

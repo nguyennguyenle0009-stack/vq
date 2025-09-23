@@ -23,7 +23,7 @@ public final class MiniMapRenderer {
     private volatile boolean busy = false;
     private long lastCenterX = Long.MIN_VALUE, lastCenterY = Long.MIN_VALUE;
     private long lastAtNs = 0L;
-    private static final long COOL_DOWN_NS = 200_000_000L; // 200ms
+    private static final long COOL_DOWN_NS = 350_000_000L; // 350ms
 
     private final ExecutorService exec = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "minimap-render"); t.setDaemon(true); return t;

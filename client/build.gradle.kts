@@ -16,4 +16,10 @@ dependencies {
 
 application {
     mainClass.set("rt.client.app.ClientApp")
+    
+    // JVM flags khi chạy :client:run
+    applicationDefaultJvmArgs = listOf(
+        "-Xms1g", "-Xmx1g",
+        "-XX:+UseG1GC", "-XX:MaxGCPauseMillis=20"
+    )
 }

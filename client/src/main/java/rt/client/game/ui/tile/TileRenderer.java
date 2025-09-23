@@ -49,7 +49,7 @@ public class TileRenderer {
                 //ChunkBaker.bake(d, tileSize);
                 java.awt.image.BufferedImage img = ChunkBaker.getImage(d, tileSize);
                 if (img != null) g2.drawImage(img, dx, dy, null);
-                g2.drawImage(img, dx, dy, null);               // BLIT 1 phát
+                //g2.drawImage(img, dx, dy, null);               // BLIT 1 phát
             }
         }
     }

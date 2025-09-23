@@ -22,6 +22,11 @@ dependencies {
 
 application {
     mainClass.set("rt.server.main.MainServer")
+    
+    applicationDefaultJvmArgs = listOf(
+        "-Xms1g", "-Xmx1g",
+        "-XX:+UseG1GC", "-XX:MaxGCPauseMillis=20"
+    )
 }
 
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {

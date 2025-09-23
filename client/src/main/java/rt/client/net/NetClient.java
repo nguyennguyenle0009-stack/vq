@@ -92,6 +92,9 @@ public class NetClient {
         } catch (Exception ignore) {}
     }
     
+    private volatile long lastInputNs = 0L;
+    private volatile int lastMask = -1;
+    
     public NetClient(String url, WorldModel model) {
         this.url = url;
         this.model = model;
@@ -237,8 +240,24 @@ public class NetClient {
             }
         });
     }
+    
+    public void sendInput(boolean up, boolean down, boolean left, boolean right){
+        // 1) Không gửi nếu trạng thái không đổi
+        int mask = (up?1:0) | (down?2:0) | (left?4:0) | (right?8:0);
+        if (mask == lastMask) return;
 
-    public void sendInput(boolean up, boolean down, boolean left, boolean right) {
+        // 2) Throttle tối thiểu 25ms (≈40/s) – an toàn dưới 60/s
+        long now = System.nanoTime();
+        if (now - lastInputNs < 25_000_000L) return;
+
+        lastMask = mask;
+        lastInputNs = now;
+
+        // 3) Gửi thật sự
+        doSendInput(up, down, left, right); // phần cũ gọi WS
+    }
+
+    public void doSendInput(boolean up, boolean down, boolean left, boolean right) {
         try {
             int s = seq.incrementAndGet();
             // báo cho model biết input đã gửi (đúng chữ ký bạn đang dùng)
