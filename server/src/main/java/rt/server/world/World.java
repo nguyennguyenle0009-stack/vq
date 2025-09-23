@@ -23,7 +23,7 @@ public class World {
 
     // spawn mặc định (tìm 1 lần trên đất liền, cache lại)
     private volatile boolean spawnReady = false;
-    private volatile double spawnX = 3, spawnY = 3;
+    private volatile double spawnX = -9247, spawnY = -631;
 
     // ==== tham số tìm spawn theo ô macro của lục địa ====
     private static final int CONT_CELL_TILES   = 12_000;                                  // khớp WorldGenerator

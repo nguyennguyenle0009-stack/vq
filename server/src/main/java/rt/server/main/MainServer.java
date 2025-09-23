@@ -23,12 +23,6 @@ public class MainServer {
 		var cfg      = ServerConfig.load();
 		
 
-//		var cfgGen = new rt.common.world.WorldGenConfig(
-//		        cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L,
-//		        0.55, 0.35,        // plainRatio, forestRatio
-//		        6000, 800, 400,    // continentScaleTiles, biomeScaleTiles, mountainScaleTiles
-//		        0.35, 0.82         // landThreshold, mountainThreshold
-//		);
 		var cfgGen = new rt.common.world.WorldGenConfig(
 			    cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L,
 			    0.55, 0.35
@@ -37,7 +31,8 @@ public class MainServer {
 		var svc  = new rt.server.world.chunk.ChunkService(gen);
 		var cont = new rt.server.world.geo.ContinentIndex(cfgGen);   // <-- thêm dòng này
 		var seas = new rt.server.world.geo.SeaIndex(cfgGen);    
-
+		rt.common.world.WorldGenerator.configure(cfgGen);
+		
 		world.enableChunkMode(svc);
 		var ws = new rt.server.websocket.WsServer(
 			    cfg, sessions, inputs, world, svc, cont, seas, cfgGen     // ★ NEW params

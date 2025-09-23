@@ -655,7 +655,9 @@ thế giới được sinh theo chunk từ seed
 		Sửa MapRenderer để KHÔNG bake tileSize=1 nữa
 		Cache nhiều kích cỡ bake
 
+## 1.0.44
 
+	thiết kế lại tạo chunk -> địa hình bị thay đổi
 
 
 

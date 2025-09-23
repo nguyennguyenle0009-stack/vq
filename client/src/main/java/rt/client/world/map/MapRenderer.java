@@ -40,39 +40,36 @@ public final class MapRenderer {
         g.fillRect(0, 0, w, h);
 
         // vẽ ở hệ tọa độ tile-pixel rồi scale bằng tpp
+        final int gameTileSize = Math.max(8, PRIMARY_TILE_SIZE.getAsInt());
         AffineTransform bak = g.getTransform();
-        g.scale(1.0 / tpp, 1.0 / tpp);
+        g.scale(1.0 / (tpp * gameTileSize), 1.0 / (tpp * gameTileSize));
 
         long visTilesW = Math.round(w * tpp);
         long visTilesH = Math.round(h * tpp);
 
-        int cx0 = Math.floorDiv((int) originX, N) - 1;
-        int cy0 = Math.floorDiv((int) originY, N) - 1;
-        int cx1 = Math.floorDiv((int) (originX + visTilesW), N) + 1;
-        int cy1 = Math.floorDiv((int) (originY + visTilesH), N) + 1;
-
-        // >>> dùng ảnh đã bake cho game
-        final int gameTileSize = Math.max(8, PRIMARY_TILE_SIZE.getAsInt());
+        int cx0 = Math.floorDiv((int)originX, N) - 1;
+        int cy0 = Math.floorDiv((int)originY, N) - 1;
+        int cx1 = Math.floorDiv((int)(originX + visTilesW), N) + 1;
+        int cy1 = Math.floorDiv((int)(originY + visTilesH), N) + 1;
 
         for (int cy = cy0; cy <= cy1; cy++) {
-            for (int cx = cx0; cx <= cx1; cx++) {
-                ChunkCache.Data d = cache.get(cx, cy);
-                if (d == null) continue;
+          for (int cx = cx0; cx <= cx1; cx++) {
+            var d = cache.get(cx, cy);
+            if (d == null) continue;
 
-                // đảm bảo có ảnh ở kích thước của game (KHÔNG bake tileSize=1 nữa)
-                //ChunkBaker.bake(d, gameTileSize);
+            // bảo đảm có ảnh theo tileSize của game
+            BufferedImage img = ChunkBaker.getImage(d, gameTileSize);
 
-                long chunkTileX = (long) cx * N;
-                long chunkTileY = (long) cy * N;
-                int dx = (int) (chunkTileX - originX);
-                int dy = (int) (chunkTileY - originY);
+            long chunkTileX = (long) cx * N;
+            long chunkTileY = (long) cy * N;
 
-                // Java2D tự scale ảnh chunk về kích thước hiển thị của bản đồ
-                java.awt.image.BufferedImage img = ChunkBaker.getImage(d, gameTileSize);
-                if (img != null) g.drawImage(img, dx, dy, null);
-            }
+            // chuyển dx,dy sang PIXEL (tile * tileSize)
+            int dx = (int) ((chunkTileX - originX) * (long)gameTileSize);
+            int dy = (int) ((chunkTileY - originY) * (long)gameTileSize);
+
+            g.drawImage(img, dx, dy, null);
+          }
         }
-
         g.setTransform(bak);
         g.dispose();
         return out;
