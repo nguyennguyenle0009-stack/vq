@@ -15,7 +15,6 @@ import rt.server.game.input.InputQueue;
 import rt.server.session.SessionRegistry;
 import rt.server.session.SessionRegistry.Session;
 import rt.server.world.World;
-import rt.server.world.chunk.ChunkService;
 import rt.server.world.geo.ContinentIndex;
 import rt.server.world.geo.GeoService;
 import rt.server.world.geo.SeaIndex;
@@ -45,7 +44,6 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     private final InputQueue inputs;
     private final World world;
     private final ServerConfig cfg;
-    private ChunkService chunkservice;
     private final ContinentIndex continents;
     private final SeaIndex seas;            // ★ NEW
     private final GeoService geo;           // ★ keep field
@@ -64,11 +62,10 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
 
     
     public WsTextHandler(SessionRegistry sessions, InputQueue inputs, World world, ServerConfig cfg,
-            ChunkService chunkservice, ContinentIndex continents,
-            rt.server.world.geo.SeaIndex seas, rt.common.world.WorldGenConfig cfgGen) { // ★ NEW
-			this.sessions=sessions; this.inputs=inputs; this.world=world; this.cfg=cfg;
-			this.chunkservice=chunkservice; this.continents=continents;
-			this.seas = seas; this.cfgGen = cfgGen;                                                      // ★ NEW
+            ContinentIndex continents, rt.server.world.geo.SeaIndex seas, rt.common.world.WorldGenConfig cfgGen) {
+                        this.sessions=sessions; this.inputs=inputs; this.world=world; this.cfg=cfg;
+                        this.continents=continents;
+                        this.seas = seas; this.cfgGen = cfgGen;
 			
 			// DÙNG CHUNG CẤU HÌNH VỚI CHUNK
 			this.geo = new rt.server.world.geo.GeoService(
@@ -82,7 +79,6 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
         Session s = new Session(ctx.channel(), id);
         sessions.attach(s);
         log.info("channel added {}", id);
-        log.info("Use ChunkService {}", System.identityHashCode(this.chunkservice));
         s.send(Map.of("type", "hello", "you", id));
     }
 
@@ -102,16 +98,8 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                 log.info("hello from {} name={}", s.playerId, msg.name());
                 s.send(new HelloS2C(s.playerId));
 
-                // === PHASE 1: bật chế độ chunk ở client bằng seed ===
-                s.send(new SeedS2C(ServerConfig.worldSeed, rt.common.world.ChunkPos.SIZE, TILE_SIZE));
-            }
-
-            // === PHASE 1: client xin chunk (cx,cy) ===
-            case "chunk_req" -> {
-                int cx = node.get("cx").asInt();
-                int cy = node.get("cy").asInt();
-                var cd = this.chunkservice.get(cx, cy);
-                s.send(new ChunkS2C(cd.cx, cd.cy, cd.size, cd.layer1, cd.layer2, cd.collision.toByteArray()));
+                // gửi seed cho client để client tự sinh thế giới
+                s.send(new SeedS2C(cfgGen.seed, rt.common.world.ChunkPos.SIZE, TILE_SIZE));
             }
 
             case "input" -> {
@@ -282,7 +270,7 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
         s.send(new HelloS2C(s.playerId));
 
         // Gửi seed cho client (lấy từ cfg instance, không dùng field static)
-        long seed = (cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L);
-        s.send(new SeedS2C(seed, rt.common.world.ChunkPos.SIZE, 32)); // tileSize tùy bạn
+        long seed = cfgGen.seed;
+        s.send(new SeedS2C(seed, rt.common.world.ChunkPos.SIZE, TILE_SIZE));
     }
 }

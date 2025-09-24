@@ -16,8 +16,6 @@ import rt.client.input.InputState;
 import javax.swing.*;
 import java.awt.event.KeyEvent;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -42,18 +40,7 @@ public class ClientApp {
     	final java.util.concurrent.atomic.AtomicBoolean mapOpen = new java.util.concurrent.atomic.AtomicBoolean(false);
         final String ADMIN_TOKEN = "dev-secret-123";
 
-        // Thư mục log
-        Path base = rt.common.util.DesktopDir.resolve().resolve("Vương quyền").resolve("client").resolve(name);
-        try { Files.createDirectories(base); } catch (Exception ignored) {}
-        System.setProperty("VQ_LOG_DIR", base.toString());
         System.setProperty("playerName", name);
-        if (System.getProperty("LOG_STAMP") == null) {
-            String stamp = new java.text.SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new java.util.Date());
-            System.setProperty("LOG_STAMP", stamp);
-        }
-
-
-
         // Input state
         InputState input = new InputState();
 
