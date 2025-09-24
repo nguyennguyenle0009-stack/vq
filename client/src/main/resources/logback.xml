@@ -1,21 +1,9 @@
 <configuration>
   <!-- <statusListener class="ch.qos.logback.core.status.OnConsoleStatusListener"/> -->
 
-  <timestamp key="LOG_STAMP" datePattern="yyyy-MM-dd_HH-mm-ss"/>
-  <property name="VQ_LOG_DIR" value="${VQ_LOG_DIR:-${user.home}/Desktop/Vương quyền/client}"/>
-
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
       <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
-    </encoder>
-  </appender>
-
-  <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-    <file>${VQ_LOG_DIR}/client log ${LOG_STAMP:-LOG_STAMP_IS_UNDEFINED}.txt</file>
-    <append>true</append>
-    <encoder>
-      <charset>UTF-8</charset>
-      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
     </encoder>
   </appender>
 

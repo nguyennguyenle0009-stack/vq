@@ -1,13 +1,8 @@
 package rt.server.main;
 
-import rt.common.util.DesktopDir;
-import rt.common.util.LogDirs;
 import rt.common.world.WorldGenerator;
 import rt.common.world.gen.WorldPipeline;
 
-import java.nio.file.*;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import rt.server.config.ServerConfig;
 import rt.server.game.input.InputQueue;
 import rt.server.game.loop.GameLoop;
@@ -37,18 +32,12 @@ public class MainServer {
 		WorldPipeline.createDefault(cfgGen);
 		
 		world.enableChunkMode(svc);
-		var ws = new rt.server.websocket.WsServer(
-			    cfg, sessions, inputs, world, svc, cont, seas, cfgGen     // ★ NEW params
-			);
+                var ws = new rt.server.websocket.WsServer(
+                            cfg, sessions, inputs, world, cont, seas, cfgGen
+                        );
 	    
 	    //Log
-	    var base = DesktopDir.resolve().resolve("Vương quyền").resolve("server");
-	    Files.createDirectories(base);
-	    System.setProperty("VQ_LOG_DIR", base.toString());
-	    System.setProperty("LOG_STAMP",
-        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss")));
-	    
-	    org.slf4j.LoggerFactory.getLogger("rt.server").info("ChunkService {}", System.identityHashCode(svc));
+            org.slf4j.LoggerFactory.getLogger("rt.server").info("ChunkService {}", System.identityHashCode(svc));
 	    
 	    ws.start();
 

@@ -15,7 +15,6 @@ import rt.server.config.ServerConfig;
 import rt.server.game.input.InputQueue;
 import rt.server.session.SessionRegistry;
 import rt.server.world.World;
-import rt.server.world.chunk.ChunkService;
 import rt.server.world.geo.ContinentIndex;
 import rt.server.world.geo.SeaIndex;
 
@@ -28,9 +27,8 @@ public class WsServer {
 	private final ServerConfig cfg;
   	private final SessionRegistry sessions; // Quản lý danh sách phiên (session) của các client kết nối.
   	private final InputQueue inputs; // Hàng đợi input từ client gửi lên (để game loop xử lý).
-  	private final World world;
-  	private final ChunkService chunkservice;
-  	private final ContinentIndex continents;
+        private final World world;
+        private final ContinentIndex continents;
     private final SeaIndex seas;        
     private final WorldGenConfig cfgGen; 
   	private EventLoopGroup bossGroup; // Nhóm thread quản lý kết nối "chấp nhận socket" (boss).
@@ -39,15 +37,13 @@ public class WsServer {
 
   	// Constructor: khởi tạo server với cổng, registry quản lý session và input queue.
     public WsServer(ServerConfig cfg, SessionRegistry sessions, InputQueue inputs, World world,
-    		ChunkService chunkservice, ContinentIndex continents,
-    		SeaIndex seas, WorldGenConfig cfgGen) {
-        this.cfg = cfg; 
-        this.sessions = sessions; 
+                ContinentIndex continents, SeaIndex seas, WorldGenConfig cfgGen) {
+        this.cfg = cfg;
+        this.sessions = sessions;
         this.inputs = inputs;
         this.world = world;
-        this.chunkservice = chunkservice;
         this.continents = continents;
-        this.seas = seas; this.cfgGen = cfgGen; 
+        this.seas = seas; this.cfgGen = cfgGen;
     }
 
 	// Bắt đầu chạy server WebSocket.
@@ -62,8 +58,8 @@ public class WsServer {
             .childOption(ChannelOption.SO_KEEPALIVE, cfg.soKeepAlive)
 	        .childOption(ChannelOption.WRITE_BUFFER_WATER_MARK,
 	        		 new WriteBufferWaterMark(cfg.writeBufferLowKB * 1024, cfg.writeBufferHighKB * 1024))
-	        .childHandler(new WsChannelInitializer(sessions, inputs, cfg, world,
-                    chunkservice, continents, seas, cfgGen));     
+                .childHandler(new WsChannelInitializer(sessions, inputs, cfg, world,
+                    continents, seas, cfgGen));
 	    serverChannel = b.bind(cfg.port).sync().channel();	// Bind server vào cổng và chạy đồng bộ (sync để block đến khi bind xong).
 	    log.info("Server started at ws://localhost:{}/ws", cfg.port);
 	}

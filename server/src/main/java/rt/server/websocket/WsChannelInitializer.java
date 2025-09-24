@@ -12,7 +12,6 @@ import rt.server.config.ServerConfig;
 import rt.server.game.input.InputQueue;
 import rt.server.session.SessionRegistry;
 import rt.server.world.World;
-import rt.server.world.chunk.ChunkService;
 import rt.server.world.geo.ContinentIndex;
 import rt.server.world.geo.SeaIndex;
 
@@ -24,21 +23,18 @@ public class WsChannelInitializer extends ChannelInitializer<SocketChannel> {
     private final InputQueue inputs;
     private final World world;
     private final ServerConfig cfg;
-    private final ChunkService chunkservice;
     private final ContinentIndex continents;
-    private final SeaIndex seas;        
-    private final WorldGenConfig cfgGen; 
+    private final SeaIndex seas;
+    private final WorldGenConfig cfgGen;
 
-    public WsChannelInitializer(SessionRegistry sessions, InputQueue inputs, ServerConfig cfg, World world, 
-    		ChunkService chunkservice, ContinentIndex continents,
-    		SeaIndex seas, WorldGenConfig cfgGen) {
+    public WsChannelInitializer(SessionRegistry sessions, InputQueue inputs, ServerConfig cfg, World world,
+                ContinentIndex continents, SeaIndex seas, WorldGenConfig cfgGen) {
         this.sessions = sessions;
         this.inputs = inputs;
         this.cfg = cfg;
         this.world = world;
-        this.chunkservice = chunkservice;
         this.continents = continents;
-        this.seas = seas; this.cfgGen = cfgGen; 
+        this.seas = seas; this.cfgGen = cfgGen;
     }
 
     @Override
@@ -73,6 +69,6 @@ public class WsChannelInitializer extends ChannelInitializer<SocketChannel> {
         p.addLast(new WsExceptionHandler());
 
         // Handler nghiệp vụ
-        p.addLast(new WsTextHandler(sessions, inputs, world, cfg, chunkservice, continents, seas, cfgGen));
+        p.addLast(new WsTextHandler(sessions, inputs, world, cfg, continents, seas, cfgGen));
     }
 }
