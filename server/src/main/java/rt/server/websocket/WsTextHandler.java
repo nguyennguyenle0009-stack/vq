@@ -105,7 +105,6 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                 // === PHASE 1: bật chế độ chunk ở client bằng seed ===
                 s.send(new SeedS2C(ServerConfig.worldSeed, rt.common.world.ChunkPos.SIZE, TILE_SIZE));
             }
-
             case "input" -> {
                 var in = Jsons.OM.treeToValue(node, InputC2S.class);
                 if (!allowInputAndMaybeWarn(s.playerId, s)) return;
@@ -114,7 +113,6 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                         Map.of("up",k.up(),"down",k.down(),"left",k.left(),"right",k.right()));
                 s.send(new AckS2C(in.seq()));
             }
-
             case "admin" -> {
                 var ad = Jsons.OM.treeToValue(node, AdminC2S.class);
                 if (ad.token() == null || !ad.token().equals(cfg.adminToken)) {
@@ -161,13 +159,11 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                     s.send(new AdminResultS2C(false, "error: " + ex.getMessage()));
                 }
             }
-
             case "ping" -> {
                 PongC2S pg = Jsons.OM.treeToValue(node, PongC2S.class);
                 long rtt = System.currentTimeMillis() - pg.ts();
                 log.debug("server RTT {} = {} ms", s.playerId, rtt);
             }
-
             case "cpong" -> { /* ignore */ }
             case "cping" -> {
                 Map<String,Object> root = OM.readValue(text,
@@ -179,30 +175,8 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                     long ts = ((Number) root.getOrDefault("ts", System.currentTimeMillis())).longValue();
                     s.send(Map.of("type", "cpong", "ts", ts));
                 }
-            }case "geo_reqA" -> {
-                long gx = node.path("gx").asLong();
-                long gy = node.path("gy").asLong();
-
-                // rate-limit per session
-                GeoRL r = geoRl.computeIfAbsent(s.playerId, k -> new GeoRL());
-                long now = System.currentTimeMillis();
-                if (now - r.winStart >= GEO_WINDOW_MS) { r.winStart = now; r.count = 0; }
-                if (++r.count > GEO_MAX_PER_SEC) {
-                    // lặng lẽ bỏ qua để không nghẽn (không gửi error/pending)
-                    break;
-                }
-
-                // Truy vấn nhẹ (GeoService nên cache nội bộ)
-                var info = geo.at(gx, gy); // trả GeoInfo: terrainId/name + continent/sea
-                s.send(java.util.Map.of(
-                        "type","geo",
-                        "gx", gx, "gy", gy,
-                        "terrainId", info.terrainId, "terrainName", info.terrainName,
-                        "continentId", info.continentId, "continentName", info.continentName,
-                        "seaId", info.seaId, "seaName", info.seaName
-                    ));
             }
-
+            case "geo_reqA" -> { }
 
             default -> log.warn("unknown type {}", type);
         }

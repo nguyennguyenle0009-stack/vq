@@ -210,15 +210,25 @@ public class ClientApp {
             panel.setPing(rttMs);
         });
 
-        // Kết nối & seed
-        net.setOnSeedChanged(s -> {
-        	var cfg = new rt.common.world.WorldGenConfig(
-    		    s, 0.55, 0.35   // desert = 1 - 0.55 - 0.35 = 0.10
-    		);
-    		panel.setWorldGenConfig(cfg);
-    		wmOverlay.setWorldGenConfig(cfg);
-    		layoutOverlay.run();
+     // 1) seed mặc định cho OFFLINE
+        final long OFFLINE_SEED = 2000231L;
+        var offlineCfg = new rt.common.world.WorldGenConfig(OFFLINE_SEED, 0.55, 0.35);
+
+        // cấu hình trước để client có thể tự sinh chunk ngay cả khi chưa có server
+        rt.common.world.WorldGenerator.configure(offlineCfg);
+        panel.setWorldGenConfig(offlineCfg);
+        wmOverlay.setWorldGenConfig(offlineCfg);
+
+        // 2) Khi server gửi seed -> dùng seed server (ghi đè)
+        net.setOnSeedChanged(seed -> {
+            var cfg = new rt.common.world.WorldGenConfig(seed, 0.55, 0.35);
+            // cấu hình lại generator + UI
+            rt.common.world.WorldGenerator.configure(cfg);
+            panel.setWorldGenConfig(cfg);
+            wmOverlay.setWorldGenConfig(cfg);
+            layoutOverlay.run();
         });
+        
         net.connect(name);
         // Admin hotkeys
         f.addKeyListener(new AdminHotkeys(net, model, panel, hud, ADMIN_TOKEN));
@@ -234,7 +244,7 @@ public class ClientApp {
         ses.scheduleAtFixedRate(net::tickStreamSafe, 0, 100, java.util.concurrent.TimeUnit.MILLISECONDS);
 
         // client-ping 1s
-        ses.scheduleAtFixedRate(() -> net.sendClientPing(System.nanoTime()), 1000, 1000, TimeUnit.MILLISECONDS);
+        ses.scheduleAtFixedRate(() -> net.sendClientPing(System.nanoTime()), 2000, 2000, TimeUnit.MILLISECONDS);
 
         // Render loop 60 FPS
         RenderLoop render = new RenderLoop(f, panel);
@@ -249,7 +259,7 @@ public class ClientApp {
 
     /** Bind WASD/Arrows vào InputState qua RootPane để không phụ thuộc focus con. */
     private static void bindMove(JRootPane root,
-                                 java.util.concurrent.atomic.AtomicBoolean mapOpen,
+                                 AtomicBoolean mapOpen,
                                  InputState input,
                                  KeyStroke upPress, KeyStroke upRelease,
                                  KeyStroke downPress, KeyStroke downRelease,

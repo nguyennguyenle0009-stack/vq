@@ -18,7 +18,9 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.LongConsumer;
 
 public class NetClient {
@@ -28,6 +30,8 @@ public class NetClient {
     private final String url;
     private final WorldModel model;
     private WebSocket ws;
+    
+    private volatile boolean worldGenReady = false;
 
     private final AtomicInteger seq = new AtomicInteger();
     private volatile int lastAck = 0;
@@ -58,10 +62,11 @@ public class NetClient {
 		return this;
 	}
 
-	private java.util.function.LongConsumer onSeedChanged = s -> {};
-    public void setOnSeedChanged(java.util.function.LongConsumer cb){ this.onSeedChanged = (cb!=null?cb:s->{}); }
+	private LongConsumer onSeedChanged = s -> {};
+    
 
-
+    private final AtomicBoolean seedReady = new AtomicBoolean(false);
+    
     
  // ==== GEO throttle ====
     private final java.util.concurrent.atomic.AtomicBoolean geoInFlight = new java.util.concurrent.atomic.AtomicBoolean(false);
@@ -69,33 +74,23 @@ public class NetClient {
     private volatile long lastGeoNs = 0L;
     private static final long GEO_MIN_INTERVAL_NS = 150_000_000L; // 150ms
 
-    private java.util.function.Consumer<rt.common.net.dto.GeoS2C> onGeoInfo = gi -> {};
+    private Consumer<GeoS2C> onGeoInfo = gi -> {};
+    
+    public boolean hasSeed() { return seedReady.get(); }
+    public void setOnSeedChanged(LongConsumer cb){ this.onSeedChanged = (cb!=null?cb:s->{}); }
     public void setOnGeoInfo(java.util.function.Consumer<rt.common.net.dto.GeoS2C> cb){
         this.onGeoInfo = (cb!=null?cb:gi->{}); 
     }
     
     /** Gửi geo_req nhưng: (1) chỉ 1 in-flight, (2) throttle 150ms, (3) coalesce điểm mới nhất. */
     public void sendGeoReq(long gx, long gy) {
-        long now = System.nanoTime();
-        // throttle trùng điểm trong 150ms
-        if (now - lastGeoNs < GEO_MIN_INTERVAL_NS && gx == queuedGx && gy == queuedGy) return;
-
-        if (geoInFlight.get()) {
-            // đang bay: chỉ nhớ điểm cuối cùng (coalesce)
-            queuedGx = gx; queuedGy = gy;
-            return;
-        }
-        lastGeoNs = now; queuedGx = gx; queuedGy = gy;
-        geoInFlight.set(true);
-        try {
-            ws.send(OM.writeValueAsString(java.util.Map.of("type","geo_req","gx", gx, "gy", gy)));
-        } catch (Exception ignore) {}
+    	return;
     }
+    
+    public void tickStreamSafe() { try { maybeRequestAround(); } catch (Throwable ignore) {} }
     
     private volatile long lastInputNs = 0L;
     private volatile int lastMask = -1;
-    
-    public void tickStreamSafe() { try { maybeRequestAround(); } catch (Throwable ignore) {} }
     
     public NetClient(String url, WorldModel model) {
         this.url = url;
@@ -156,7 +151,7 @@ public class NetClient {
                             }
 
                             // xin chunk ở vùng mới nếu đã qua ranh giới
-                            // maybeRequestAround();
+                            if (worldGenReady) { maybeRequestAround(); }                            
                             if (seed == 0L) return;
                         }
                         case "dev_stats" -> {
@@ -178,30 +173,38 @@ public class NetClient {
                             }
                             if (rttMs >= 0 && rttMs <= 5000) model.setPingMs(rttMs);
                             if (onClientPong != null && rttMs >= 0) onClientPong.accept(System.nanoTime());
-                        }
-                        case "ping" -> {
+                        } case "ping" -> {
                             ws.send(Jsons.OM.writeValueAsString(
                                 java.util.Map.of("type", "pong", "ts", System.currentTimeMillis())
                             ));
-                        } case "seed" -> {
-                            seed = node.get("seed").asLong();
+                        }  case "seed" -> {
+                            seed      = node.get("seed").asLong();
                             chunkSize = node.get("chunkSize").asInt();
                             tileSize  = node.get("tileSize").asInt();
 
-                            setWorldSeed(seed);               // <<< QUAN TRỌNG
-                            onSeedChanged.accept(worldSeed);       // <<< QUAN TRỌNG
+                            // cấu hình generator trước:
+                            rt.common.world.WorldGenerator.configure(new rt.common.world.WorldGenConfig(seed, 0.55, 0.35));
+                            seedReady.set(true);
 
-                            model.setMap(null);
-                            if (onTileSizeChanged!=null) onTileSizeChanged.accept(tileSize);
+                            chunkCache.clear();
+                            lastCenterCx = Integer.MIN_VALUE; lastCenterCy = Integer.MIN_VALUE;
 
-                            // xin 3×3 quanh (0,0) lần đầu
-                            for (int dy=-rt.client.world.ChunkCache.R; dy<=rt.client.world.ChunkCache.R; dy++)
-                                for (int dx=-rt.client.world.ChunkCache.R; dx<=rt.client.world.ChunkCache.R; dx++) {
-                                    if (chunkCache.markRequested(dx,dy)) {
-                                        ws.send(Jsons.OM.writeValueAsString(new rt.common.net.dto.ChunkReqC2S(dx,dy)));
-                                    }
-                                }
-                        } case "geo" -> {
+                            // prefetch 3×3 để map/mini-map có ảnh ngay
+                            int cx = 0, cy = 0;
+                            if (model.you() != null) {
+                                int px = (int)Math.round(model.youX() * tileSize);
+                                int py = (int)Math.round(model.youY() * tileSize);
+                                int Npx = chunkSize * tileSize;
+                                cx = Math.floorDiv(px, Npx); cy = Math.floorDiv(py, Npx);
+                            }
+                            ensureAround(cx, cy);
+                            lastCenterCx = cx; lastCenterCy = cy;
+
+                            // callback UI
+                            onSeedChanged.accept(seed);
+                        }
+
+                        case "geo" -> {
                             rt.common.net.dto.GeoS2C gi = Jsons.OM.treeToValue(node, rt.common.net.dto.GeoS2C.class);
                             geoInFlight.set(false);
                             // callback UI
@@ -275,22 +278,29 @@ public class NetClient {
         } catch (Exception e) { e.printStackTrace(); }
     }
 
-    private void maybeRequestAround() throws Exception {
+    private void maybeRequestAround() {
+        if (!seedReady.get() || model.you() == null) return;
+
         int px = (int)Math.round(model.youX() * tileSize);
         int py = (int)Math.round(model.youY() * tileSize);
         int Npx = chunkSize * tileSize;
         int cx = Math.floorDiv(px, Npx), cy = Math.floorDiv(py, Npx);
+
         if (cx == lastCenterCx && cy == lastCenterCy) return;
-        lastCenterCx = cx; lastCenterCy = cy;
 
         for (int dy=-rt.client.world.ChunkCache.R; dy<=rt.client.world.ChunkCache.R; dy++)
-            for (int dx=-rt.client.world.ChunkCache.R; dx<=rt.client.world.ChunkCache.R; dx++){
-                int qx = cx+dx, qy = cy+dy;
-                if (!chunkCache.has(qx,qy) && chunkCache.markRequested(qx,qy)) {
-                    ws.send(rt.common.net.Jsons.OM.writeValueAsString(new rt.common.net.dto.ChunkReqC2S(qx,qy)));
-                }
-            }
+            for (int dx=-rt.client.world.ChunkCache.R; dx<=rt.client.world.ChunkCache.R; dx++)
+                chunkCache.getOrGenerateLocal(cx + dx, cy + dy); // ✅ qx,qy
+
+        lastCenterCx = cx; lastCenterCy = cy;
     }
+
     
+    // helper: nạp 3×3 quanh 1 tâm chunk
+    private void ensureAround(int cx, int cy){
+        for (int dy = -rt.client.world.ChunkCache.R; dy <= rt.client.world.ChunkCache.R; dy++)
+            for (int dx = -rt.client.world.ChunkCache.R; dx <= rt.client.world.ChunkCache.R; dx++)
+                chunkCache.getOrGenerateLocal(cx + dx, cy + dy);
+    }
 
 }

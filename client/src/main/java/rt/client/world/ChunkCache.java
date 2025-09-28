@@ -53,29 +53,23 @@ public final class ChunkCache {
     map.put(new Key(d.cx,d.cy), d);
   }
 
-//  public void bakeImage(Data d, int tileSize) {
-//    if (d.img != null && d.bakedTileSize == tileSize) return;
-//
-//    final int N = d.size, W = N * tileSize, H = W;
-//    var img = new java.awt.image.BufferedImage(W, H, java.awt.image.BufferedImage.TYPE_INT_ARGB);
-//    int[] buf = ((java.awt.image.DataBufferInt) img.getRaster().getDataBuffer()).getData();
-//
-//    // ===== Dùng chung palette với bản đồ =====
-//    final rt.common.world.TerrainPalette palette = null; // chỉ để rõ import
-//    for (int ty=0; ty<N; ty++) {
-//      int y0 = ty * tileSize;
-//      for (int tx=0; tx<N; tx++) {
-//        int id = d.l1[ty*N + tx] & 0xFF;
-//        int c  = rt.common.world.TerrainPalette.color(id);
-//
-//        int x0 = tx * tileSize;
-//        for (int sy=0; sy<tileSize; sy++) {
-//          int row = (y0+sy) * W + x0;
-//          for (int sx=0; sx<tileSize; sx++) buf[row + sx] = c;
-//        }
-//      }
-//    }
-//    d.img = img;
-//    d.bakedTileSize = tileSize;
-//  }
+  /**
+   * Trả về chunk nếu đã có trong cache, nếu chưa thì tự sinh cục bộ bằng WorldGenerator.
+   */
+  public ChunkCache.Data getOrGenerateLocal(int cx, int cy) {
+	    Data d = get(cx, cy);
+	    if (d != null) return d;
+
+	    final int N = rt.common.world.ChunkPos.SIZE;
+	    byte[] l1 = new byte[N*N], l2 = new byte[N*N];
+	    java.util.BitSet coll = new java.util.BitSet(N*N);
+	    rt.common.world.WorldGenerator.generateChunk(cx, cy, N, l1, l2, coll);
+
+	    d = new Data(cx, cy, N, l1, l2, coll);
+	    map.put(new Key(cx, cy), d);
+	    return d;
+	}
+
+
+
 }

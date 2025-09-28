@@ -668,7 +668,8 @@ thế giới được sinh theo chunk từ seed
 	
 	Tắt gửi chunk từ server
 	
-
-
+## 1.0.48
+	
+	sửa map
 
 
