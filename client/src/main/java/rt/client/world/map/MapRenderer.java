@@ -57,17 +57,31 @@ public final class MapRenderer {
             var d = cache.get(cx, cy);
             if (d == null) continue;
 
-            // bảo đảm có ảnh theo tileSize của game
-            BufferedImage img = ChunkBaker.getImage(d, gameTileSize);
+         // Nếu khung (M) thấy quá nhiều chunk ⇒ hạ kích cỡ bake để an toàn
+            int chunksX = cx1 - cx0 + 1, chunksY = cy1 - cy0 + 1;
+            int chunksCount = chunksX * chunksY;
+            int bakeTs = 16;
+            if (chunksCount > 225) bakeTs = 8;
+            if (chunksCount > 400) bakeTs = 4;
 
-            long chunkTileX = (long) cx * N;
-            long chunkTileY = (long) cy * N;
+            // ❶ lấy ảnh TẠM (không cache)
+            BufferedImage img = ChunkBaker.getImageTemp(d, bakeTs);
 
-            // chuyển dx,dy sang PIXEL (tile * tileSize)
+            // ❷ toạ độ đích theo “pixel thế giới”
+            long chunkTileX = (long) cx * N, chunkTileY = (long) cy * N;
             int dx = (int) ((chunkTileX - originX) * (long)gameTileSize);
             int dy = (int) ((chunkTileY - originY) * (long)gameTileSize);
+            int destW = d.size * gameTileSize;
+            int destH = d.size * gameTileSize;
 
-            g.drawImage(img, dx, dy, null);
+            // ❸ vẽ SCALE: nguồn (bakeTs) → đích (gameTileSize)
+            g.drawImage(img,
+                dx, dy, dx + destW, dy + destH,        // dest rect
+                0, 0, img.getWidth(), img.getHeight(), // src rect
+                null);
+            System.out.println("[MapRender] bakeTs=" + bakeTs +
+                    " gameTile=" + gameTileSize +
+                    " chunkSize=" + d.size);
           }
         }
         g.setTransform(bak);

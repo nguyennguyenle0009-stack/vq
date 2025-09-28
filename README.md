@@ -672,4 +672,8 @@ thế giới được sinh theo chunk từ seed
 	
 	sửa map
 
+## 1.0.49
+	
+	fix OOM
+
 

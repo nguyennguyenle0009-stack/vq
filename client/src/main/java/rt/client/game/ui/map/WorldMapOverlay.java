@@ -33,6 +33,12 @@ public final class WorldMapOverlay extends JComponent {
 
     // lưu vị trí click để popup dùng
     private int lastClickX = -1, lastClickY = -1;
+    
+    private final java.util.concurrent.ExecutorService renderExec =
+    	    java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+    	        Thread t = new Thread(r, "WorldMapRender"); t.setDaemon(true); return t;
+    	    });
+	private final java.util.concurrent.atomic.AtomicInteger renderToken = new java.util.concurrent.atomic.AtomicInteger();
 
     public WorldMapOverlay(WorldModel model, NetClient net) {
         this.model = model;
@@ -224,9 +230,21 @@ public final class WorldMapOverlay extends JComponent {
         int wR=w, hR=h; double tpp=tilesPerPixel;
         while ((long)wR*hR > MAX_PIXELS) { wR=Math.max(1,wR/2); hR=Math.max(1,hR/2); tpp *= 2.0; }
 
-        lastImg = mapRenderer.render(originX, originY, tpp, wR, hR);
-        lastRenderW = wR; lastRenderH = hR; lastRenderTpp = tpp;
-        repaint();
+        final int token = renderToken.incrementAndGet();
+        final int wR0 = wR, hR0 = hR; final double tpp0 = tpp;
+        final long ox0 = originX, oy0 = originY;
+
+        renderExec.submit(() -> {
+            BufferedImage img = mapRenderer.render(ox0, oy0, tpp0, wR0, hR0); // nặng -> nền
+            if (renderToken.get() != token) return; // bỏ nếu có render mới hơn
+            SwingUtilities.invokeLater(() -> {
+                if (renderToken.get() != token) return;
+                lastImg = img;
+                lastRenderW = wR0; lastRenderH = hR0; lastRenderTpp = tpp0;
+                repaint();
+            });
+        });
+
     }
 
     private long[] toGlobalTile(int cx, int cy){
