@@ -677,3 +677,6 @@ thế giới được sinh theo chunk từ seed
 	fix OOM
 
 
+## 1.0.50
+	
+	Chỉnh mini map

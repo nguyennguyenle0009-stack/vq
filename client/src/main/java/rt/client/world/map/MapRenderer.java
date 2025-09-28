@@ -79,9 +79,6 @@ public final class MapRenderer {
                 dx, dy, dx + destW, dy + destH,        // dest rect
                 0, 0, img.getWidth(), img.getHeight(), // src rect
                 null);
-            System.out.println("[MapRender] bakeTs=" + bakeTs +
-                    " gameTile=" + gameTileSize +
-                    " chunkSize=" + d.size);
           }
         }
         g.setTransform(bak);
