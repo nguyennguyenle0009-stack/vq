@@ -4,10 +4,12 @@ import rt.client.model.WorldModel;
 import rt.client.net.NetClient;
 import rt.client.world.ChunkCache;
 import rt.client.world.map.MapRenderer;
+import rt.common.util.DesktopDir;
 import rt.common.world.WorldGenConfig;
 import rt.client.game.ui.GameCanvas;
 import rt.client.game.ui.hud.HudOverlay;
 import rt.client.game.ui.map.WorldMapOverlay;
+import rt.client.game.ui.render.MiniMapRenderer;
 import rt.client.gfx.TerrainTextures;
 import rt.client.gfx.skin.ChunkSkins;
 import rt.client.game.ui.RenderLoop;
@@ -18,9 +20,12 @@ import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ClientApp {
 
@@ -33,22 +38,23 @@ public class ClientApp {
         WorldModel model = new WorldModel();
         NetClient net = new NetClient(url, model);
         GameCanvas panel = new GameCanvas(model); // GameCanvas đã setFocusable(true)
-        // map & minimap không còn ép bake lần 2; chúng chỉ scale ảnh đã có nên mượt hơn hẳn.
-        MapRenderer.setPrimaryTileSizeSupplier(net::tileSize);
         
         ChunkSkins.init();                    // đăng ký sprite (hoặc để trống dùng màu)
         MapRenderer.setCache(net.chunkCache());
+        MiniMapRenderer.setCache(net.chunkCache());
+        // map & minimap không còn ép bake lần 2; chúng chỉ scale ảnh đã có nên mượt hơn hẳn.
+        MapRenderer.setPrimaryTileSizeSupplier(net::tileSize);
     	
-    	final java.util.concurrent.atomic.AtomicBoolean mapOpen = new java.util.concurrent.atomic.AtomicBoolean(false);
+    	final AtomicBoolean mapOpen = new AtomicBoolean(false);
         final String ADMIN_TOKEN = "dev-secret-123";
 
         // Thư mục log
-        Path base = rt.common.util.DesktopDir.resolve().resolve("Vương quyền").resolve("client").resolve(name);
+        Path base = DesktopDir.resolve().resolve("Vương quyền").resolve("client").resolve(name);
         try { Files.createDirectories(base); } catch (Exception ignored) {}
         System.setProperty("VQ_LOG_DIR", base.toString());
         System.setProperty("playerName", name);
         if (System.getProperty("LOG_STAMP") == null) {
-            String stamp = new java.text.SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new java.util.Date());
+            String stamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date());
             System.setProperty("LOG_STAMP", stamp);
         }
 
@@ -205,9 +211,7 @@ public class ClientApp {
         });
 
         // Kết nối & seed
-        net.connect(name);
         net.setOnSeedChanged(s -> {
-            // DÙNG CHUNG VỚI SERVER (MainServer)
         	var cfg = new rt.common.world.WorldGenConfig(
     		    s, 0.55, 0.35   // desert = 1 - 0.55 - 0.35 = 0.10
     		);
@@ -215,15 +219,19 @@ public class ClientApp {
     		wmOverlay.setWorldGenConfig(cfg);
     		layoutOverlay.run();
         });
+        net.connect(name);
         // Admin hotkeys
         f.addKeyListener(new AdminHotkeys(net, model, panel, hud, ADMIN_TOKEN));
 
         // Gửi input định kỳ
         ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
+        // ses.scheduleAtFixedRate();
         ses.scheduleAtFixedRate(() -> {
             if (mapOpen.get()) net.sendInput(false,false,false,false);
             else               net.sendInput(input.up, input.down, input.left, input.right);
         }, 0, 50, TimeUnit.MILLISECONDS);
+        
+        ses.scheduleAtFixedRate(net::tickStreamSafe, 0, 100, java.util.concurrent.TimeUnit.MILLISECONDS);
 
         // client-ping 1s
         ses.scheduleAtFixedRate(() -> net.sendClientPing(System.nanoTime()), 1000, 1000, TimeUnit.MILLISECONDS);

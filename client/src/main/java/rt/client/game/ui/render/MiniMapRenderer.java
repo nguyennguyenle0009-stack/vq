@@ -2,6 +2,7 @@
 package rt.client.game.ui.render;
 
 import rt.client.model.WorldModel;
+import rt.client.world.ChunkCache;
 import rt.client.world.map.MapRenderer;
 import rt.common.world.WorldGenConfig;
 
@@ -11,6 +12,9 @@ import java.awt.image.BufferedImage;
 import java.util.concurrent.*;
 
 public final class MiniMapRenderer {
+	private static ChunkCache STATIC_CACHE;
+	public static void setCache(ChunkCache cache) { STATIC_CACHE = cache; }
+	
     private WorldGenConfig cfg;
     private MapRenderer renderer;
 

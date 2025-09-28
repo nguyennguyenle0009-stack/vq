@@ -95,6 +95,8 @@ public class NetClient {
     private volatile long lastInputNs = 0L;
     private volatile int lastMask = -1;
     
+    public void tickStreamSafe() { try { maybeRequestAround(); } catch (Throwable ignore) {} }
+    
     public NetClient(String url, WorldModel model) {
         this.url = url;
         this.model = model;
@@ -154,7 +156,8 @@ public class NetClient {
                             }
 
                             // xin chunk ở vùng mới nếu đã qua ranh giới
-                            maybeRequestAround();
+                            // maybeRequestAround();
+                            if (seed == 0L) return;
                         }
                         case "dev_stats" -> {
                             DevStatsS2C ds = Jsons.OM.treeToValue(node, DevStatsS2C.class);
@@ -198,15 +201,7 @@ public class NetClient {
                                         ws.send(Jsons.OM.writeValueAsString(new rt.common.net.dto.ChunkReqC2S(dx,dy)));
                                     }
                                 }
-                        }case "chunk" -> {
-                            int cx = node.get("cx").asInt(), cy = node.get("cy").asInt(), size = node.get("size").asInt();
-                            byte[] l1 = node.get("layer1").binaryValue(), l2 = node.get("layer2").binaryValue();
-                            java.util.BitSet coll = java.util.BitSet.valueOf(node.get("collisionBits").binaryValue());
-
-                            var data = new rt.client.world.ChunkCache.Data(cx,cy,size,l1,l2,coll);
-                            chunkCache.onArrive(data);               // giữ 1 lần
-                            //chunkCache.bakeImage(data, tileSize);
-                        }case "geo" -> {
+                        } case "geo" -> {
                             rt.common.net.dto.GeoS2C gi = Jsons.OM.treeToValue(node, rt.common.net.dto.GeoS2C.class);
                             geoInFlight.set(false);
                             // callback UI
@@ -246,9 +241,9 @@ public class NetClient {
         int mask = (up?1:0) | (down?2:0) | (left?4:0) | (right?8:0);
         if (mask == lastMask) return;
 
-        // 2) Throttle tối thiểu 25ms (≈40/s) – an toàn dưới 60/s
+        // 2) Throttle tối thiểu 30ms (≈40/s) – an toàn dưới 60/s
         long now = System.nanoTime();
-        if (now - lastInputNs < 25_000_000L) return;
+        if (now - lastInputNs < 33_000_000L) return;
 
         lastMask = mask;
         lastInputNs = now;

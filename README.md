@@ -664,7 +664,10 @@ thế giới được sinh theo chunk từ seed
 	map mới.
 	Đang trong giai đoạn fix lag
 
-
+## 1.0.47 
+	
+	Tắt gửi chunk từ server
+	
 
 
 

@@ -106,14 +106,6 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                 s.send(new SeedS2C(ServerConfig.worldSeed, rt.common.world.ChunkPos.SIZE, TILE_SIZE));
             }
 
-            // === PHASE 1: client xin chunk (cx,cy) ===
-            case "chunk_req" -> {
-                int cx = node.get("cx").asInt();
-                int cy = node.get("cy").asInt();
-                var cd = this.chunkservice.get(cx, cy);
-                s.send(new ChunkS2C(cd.cx, cd.cy, cd.size, cd.layer1, cd.layer2, cd.collision.toByteArray()));
-            }
-
             case "input" -> {
                 var in = Jsons.OM.treeToValue(node, InputC2S.class);
                 if (!allowInputAndMaybeWarn(s.playerId, s)) return;
