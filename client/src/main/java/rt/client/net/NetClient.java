@@ -33,7 +33,7 @@ public class NetClient {
 
     private final String url;
     private final WorldModel model;
-    private WebSocket ws;
+    private volatile WebSocket ws;
 
     private final AtomicInteger seq = new AtomicInteger();
     private volatile int lastAck = 0;
@@ -86,8 +86,13 @@ public class NetClient {
     }
 
     private void doSendGeo(long gx, long gy) {
+        WebSocket socket = ws;
+        if (socket == null) {
+            geoThrottle.cancelInFlight();
+            return;
+        }
         try {
-            ws.send(Jsons.OM.writeValueAsString(new GeoReqC2S(gx, gy)));
+            socket.send(Jsons.OM.writeValueAsString(new GeoReqC2S(gx, gy)));
         } catch (Exception e) {
             geoThrottle.cancelInFlight();
             log.warn("failed to send geo_req", e);
@@ -116,11 +121,14 @@ public class NetClient {
             @Override
             public void onOpen(WebSocket webSocket, Response response) {
                 try {
-                    ws.send(OM.writeValueAsString(Map.of("type", "hello", "name", playerName)));
+                    webSocket.send(OM.writeValueAsString(Map.of("type", "hello", "name", playerName)));
                     pingSes.scheduleAtFixedRate(() -> {
                         try {
                             long ns = System.nanoTime();
-                            ws.send(OM.writeValueAsString(Map.of("type", "cping", "ns", ns)));
+                            WebSocket socket = ws;
+                            if (socket != null) {
+                                socket.send(OM.writeValueAsString(Map.of("type", "cping", "ns", ns)));
+                            }
                         } catch (Exception ignore) {}
                     }, 1000, 1000, TimeUnit.MILLISECONDS);
                 } catch (Exception e) {
@@ -166,6 +174,13 @@ public class NetClient {
                 if (response != null) {
                     log.error("handshake response: code={} message={}", response.code(), response.message());
                 }
+                ws = null;
+            }
+
+            @Override
+            public void onClosed(WebSocket webSocket, int code, String reason) {
+                log.info("websocket closed: {} / {}", code, reason);
+                ws = null;
             }
         });
     }
@@ -220,16 +235,7 @@ public class NetClient {
             model.setPingMs(rttMs);
         }
         if (onClientPong != null && rttMs >= 0) {
-            onClientPong.accept(System.nanoTime());
-        }
-    }
-
-    private void sendPong() {
-        try {
-            ws.send(Jsons.OM.writeValueAsString(
-                    Map.of("type", "pong", "ts", System.currentTimeMillis())));
-        } catch (Exception e) {
-            log.warn("failed to send pong", e);
+            onClientPong.accept(rttMs);
         }
     }
 
@@ -260,6 +266,10 @@ public class NetClient {
     }
 
     public void sendInput(boolean up, boolean down, boolean left, boolean right) {
+        WebSocket socket = ws;
+        if (socket == null) {
+            return;
+        }
         int mask = (up ? 1 : 0) | (down ? 2 : 0) | (left ? 4 : 0) | (right ? 8 : 0);
         if (mask == lastMask) {
             return;
@@ -270,37 +280,68 @@ public class NetClient {
             return;
         }
 
-        lastMask = mask;
-        lastInputNs = now;
-        doSendInput(up, down, left, right);
+        if (doSendInput(socket, up, down, left, right)) {
+            lastMask = mask;
+            lastInputNs = now;
+        }
     }
 
-    public void doSendInput(boolean up, boolean down, boolean left, boolean right) {
+    public boolean doSendInput(WebSocket socket, boolean up, boolean down, boolean left, boolean right) {
+        if (socket == null) {
+            return false;
+        }
         try {
             int s = seq.incrementAndGet();
             model.onInputSent(s, up, down, left, right, System.currentTimeMillis());
             var msg = new InputC2S("input", s, new Keys(up, down, left, right));
-            ws.send(Jsons.OM.writeValueAsString(msg));
+            socket.send(Jsons.OM.writeValueAsString(msg));
+            return true;
         } catch (Exception e) {
             log.warn("failed to send input", e);
+            return false;
         }
     }
 
+    public void doSendInput(boolean up, boolean down, boolean left, boolean right) {
+        doSendInput(ws, up, down, left, right);
+    }
+
     public void sendClientPing(long ns) {
+        WebSocket socket = ws;
+        if (socket == null) {
+            return;
+        }
         try {
-            ws.send(Jsons.OM.writeValueAsString(new ClientPingC2S(ns)));
+            socket.send(Jsons.OM.writeValueAsString(new ClientPingC2S(ns)));
         } catch (Exception e) {
             log.warn("failed to send client ping", e);
         }
     }
 
     public void sendAdmin(String token, String cmd) {
+        WebSocket socket = ws;
+        if (socket == null) {
+            return;
+        }
         try {
-            ws.send(OM.writeValueAsString(Map.of(
+            socket.send(OM.writeValueAsString(Map.of(
                     "type", "admin", "token", token, "cmd", cmd
             )));
         } catch (Exception e) {
             log.warn("failed to send admin command", e);
+        }
+    }
+
+    private void sendPong() {
+        WebSocket socket = ws;
+        if (socket == null) {
+            return;
+        }
+        try {
+            socket.send(Jsons.OM.writeValueAsString(
+                    Map.of("type", "pong", "ts", System.currentTimeMillis())));
+        } catch (Exception e) {
+            log.warn("failed to send pong", e);
         }
     }
 }

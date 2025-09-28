@@ -39,8 +39,8 @@ public final class ClientLifecycle {
         ui = uiBuilder.buildUi();
 
         wireNetworking(ui.canvas(), ui.hudOverlay(), ui.worldMapOverlay());
-        startSchedulers(ui.canvas());
         net.connect(config.playerName());
+        startSchedulers(ui.canvas());
     }
 
     private void configureSystemProperties() {
@@ -63,8 +63,7 @@ public final class ClientLifecycle {
         canvas.bindChunk(net.chunkCache(), net.tileSize());
         net.setOnTileSizeChanged(ts -> canvas.bindChunk(net.chunkCache(), ts));
 
-        net.setOnClientPong(ns -> {
-            long rttMs = (System.nanoTime() - ns) / 1_000_000L;
+        net.setOnClientPong(rttMs -> {
             canvas.setPingMs(rttMs);
             hud.setPing(rttMs);
             canvas.setPing(rttMs);
