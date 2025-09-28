@@ -5,7 +5,7 @@ import java.util.*; import java.util.concurrent.*; import java.util.BitSet;
 
 public final class ChunkCache {
   public static final int R = 2;           // bán kính tải
-  private static final int MAX = 512;      // tối đa cache chunk
+  private static final int MAX = 256;      // tối đa cache chunk (giảm để đỡ tràn bộ nhớ khi di chuyển lâu)
 
   private static record Key(int cx,int cy){}
 

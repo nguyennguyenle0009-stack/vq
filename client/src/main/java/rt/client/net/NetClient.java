@@ -72,7 +72,10 @@ public class NetClient {
     private final java.util.concurrent.atomic.AtomicBoolean geoInFlight = new java.util.concurrent.atomic.AtomicBoolean(false);
     private volatile long queuedGx = Long.MIN_VALUE, queuedGy = Long.MIN_VALUE;
     private volatile long lastGeoNs = 0L;
-    private static final long GEO_MIN_INTERVAL_NS = 150_000_000L; // 150ms
+    private volatile long lastGeoResultNs = 0L;
+    private volatile long lastGeoResultGx = Long.MIN_VALUE, lastGeoResultGy = Long.MIN_VALUE;
+    private static final long GEO_MIN_INTERVAL_NS = java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(500); // 500ms
+    private static final long GEO_DUPLICATE_SUPPRESS_NS = java.util.concurrent.TimeUnit.SECONDS.toNanos(2); // bỏ qua trùng trong 2s
 
     private Consumer<GeoS2C> onGeoInfo = gi -> {};
     
@@ -82,12 +85,25 @@ public class NetClient {
         this.onGeoInfo = (cb!=null?cb:gi->{}); 
     }
     
-    /** Gửi geo_req nhưng: (1) chỉ 1 in-flight, (2) throttle 150ms, (3) coalesce điểm mới nhất. */
+    /** Gửi geo_req nhưng: (1) chỉ 1 in-flight, (2) throttle 500ms, (3) coalesce điểm mới nhất. */
     public void sendGeoReq(long gx, long gy) {
-    	return;
+        long now = System.nanoTime();
+        if (gx == lastGeoResultGx && gy == lastGeoResultGy
+                && now - lastGeoResultNs < GEO_DUPLICATE_SUPPRESS_NS) {
+            return; // đã có thông tin mới đây → khỏi gửi lại
+        }
+
+        queuedGx = gx;
+        queuedGy = gy;
+        maybeFlushGeoReq();
     }
-    
-    public void tickStreamSafe() { try { maybeRequestAround(); } catch (Throwable ignore) {} }
+
+    public void tickStreamSafe() {
+        try {
+            maybeRequestAround();
+            maybeFlushGeoReq();
+        } catch (Throwable ignore) {}
+    }
     
     private volatile long lastInputNs = 0L;
     private volatile int lastMask = -1;
@@ -204,20 +220,17 @@ public class NetClient {
                             onSeedChanged.accept(seed);
                         }
 
-                        case "geo" -> {
+                        case "geo", "geo_info" -> {
                             rt.common.net.dto.GeoS2C gi = Jsons.OM.treeToValue(node, rt.common.net.dto.GeoS2C.class);
                             geoInFlight.set(false);
+                            lastGeoResultNs = System.nanoTime();
+                            lastGeoResultGx = gi.gx();
+                            lastGeoResultGy = gi.gy();
                             // callback UI
                             try { onGeoInfo.accept(gi); } catch (Exception ignore) {}
 
                             // nếu trong lúc bay có điểm mới → gửi tiếp đúng 1 gói
-                            long gx = queuedGx, gy = queuedGy;
-                            if (gx != Long.MIN_VALUE && gy != Long.MIN_VALUE) {
-                                // reset flag & bắn lại (sẽ lại set geoInFlight true trong send)
-                                sendGeoReq(gx, gy);
-                                // xoá dấu (tránh lặp)
-                                queuedGx = Long.MIN_VALUE; queuedGy = Long.MIN_VALUE;
-                            }
+                            maybeFlushGeoReq();
                         }
 
                         default -> {
@@ -301,6 +314,26 @@ public class NetClient {
         for (int dy = -rt.client.world.ChunkCache.R; dy <= rt.client.world.ChunkCache.R; dy++)
             for (int dx = -rt.client.world.ChunkCache.R; dx <= rt.client.world.ChunkCache.R; dx++)
                 chunkCache.getOrGenerateLocal(cx + dx, cy + dy);
+    }
+
+    private void maybeFlushGeoReq() {
+        if (ws == null) return;
+        long gx = queuedGx, gy = queuedGy;
+        if (gx == Long.MIN_VALUE || gy == Long.MIN_VALUE) return;
+        if (geoInFlight.get()) return;
+
+        long now = System.nanoTime();
+        if (now - lastGeoNs < GEO_MIN_INTERVAL_NS) return;
+        if (!geoInFlight.compareAndSet(false, true)) return;
+
+        queuedGx = Long.MIN_VALUE;
+        queuedGy = Long.MIN_VALUE;
+        lastGeoNs = now;
+        try {
+            ws.send(Jsons.OM.writeValueAsString(new rt.common.net.dto.GeoReqC2S(gx, gy)));
+        } catch (Exception e) {
+            geoInFlight.set(false);
+        }
     }
 
 }
