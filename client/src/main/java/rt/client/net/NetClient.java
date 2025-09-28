@@ -33,7 +33,7 @@ public class NetClient {
 
     private final String url;
     private final WorldModel model;
-    private WebSocket ws;
+    private volatile WebSocket ws;
 
     private final AtomicInteger seq = new AtomicInteger();
     private volatile int lastAck = 0;
@@ -86,8 +86,13 @@ public class NetClient {
     }
 
     private void doSendGeo(long gx, long gy) {
+        WebSocket socket = this.ws;
+        if (socket == null) {
+            log.debug("skipping geo_req before websocket ready");
+            return;
+        }
         try {
-            ws.send(Jsons.OM.writeValueAsString(new GeoReqC2S(gx, gy)));
+            socket.send(Jsons.OM.writeValueAsString(new GeoReqC2S(gx, gy)));
         } catch (Exception e) {
             geoThrottle.cancelInFlight();
             log.warn("failed to send geo_req", e);
@@ -225,8 +230,12 @@ public class NetClient {
     }
 
     private void sendPong() {
+        WebSocket socket = this.ws;
+        if (socket == null) {
+            return;
+        }
         try {
-            ws.send(Jsons.OM.writeValueAsString(
+            socket.send(Jsons.OM.writeValueAsString(
                     Map.of("type", "pong", "ts", System.currentTimeMillis())));
         } catch (Exception e) {
             log.warn("failed to send pong", e);
@@ -276,27 +285,39 @@ public class NetClient {
     }
 
     public void doSendInput(boolean up, boolean down, boolean left, boolean right) {
+        WebSocket socket = this.ws;
+        if (socket == null) {
+            return;
+        }
         try {
             int s = seq.incrementAndGet();
             model.onInputSent(s, up, down, left, right, System.currentTimeMillis());
             var msg = new InputC2S("input", s, new Keys(up, down, left, right));
-            ws.send(Jsons.OM.writeValueAsString(msg));
+            socket.send(Jsons.OM.writeValueAsString(msg));
         } catch (Exception e) {
             log.warn("failed to send input", e);
         }
     }
 
     public void sendClientPing(long ns) {
+        WebSocket socket = this.ws;
+        if (socket == null) {
+            return;
+        }
         try {
-            ws.send(Jsons.OM.writeValueAsString(new ClientPingC2S(ns)));
+            socket.send(Jsons.OM.writeValueAsString(new ClientPingC2S(ns)));
         } catch (Exception e) {
             log.warn("failed to send client ping", e);
         }
     }
 
     public void sendAdmin(String token, String cmd) {
+        WebSocket socket = this.ws;
+        if (socket == null) {
+            return;
+        }
         try {
-            ws.send(OM.writeValueAsString(Map.of(
+            socket.send(OM.writeValueAsString(Map.of(
                     "type", "admin", "token", token, "cmd", cmd
             )));
         } catch (Exception e) {

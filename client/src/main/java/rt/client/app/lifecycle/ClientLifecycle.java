@@ -25,7 +25,9 @@ public final class ClientLifecycle {
 
     private ClientUiContext ui;
     private RenderLoop renderLoop;
-    private ScheduledExecutorService scheduler;
+    private ScheduledExecutorService inputScheduler;
+    private ScheduledExecutorService streamScheduler;
+    private ScheduledExecutorService pingScheduler;
 
     public ClientLifecycle(ClientConfiguration config) {
         this.config = config;
@@ -39,8 +41,8 @@ public final class ClientLifecycle {
         ui = uiBuilder.buildUi();
 
         wireNetworking(ui.canvas(), ui.hudOverlay(), ui.worldMapOverlay());
-        startSchedulers(ui.canvas());
         net.connect(config.playerName());
+        startSchedulers(ui.canvas());
     }
 
     private void configureSystemProperties() {
@@ -84,9 +86,17 @@ public final class ClientLifecycle {
         });
     }
 
+    private static ScheduledExecutorService daemonScheduler(String name) {
+        return Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, name);
+            t.setDaemon(true);
+            return t;
+        });
+    }
+
     private void startSchedulers(GameCanvas canvas) {
-        scheduler = Executors.newSingleThreadScheduledExecutor();
-        scheduler.scheduleAtFixedRate(() -> {
+        inputScheduler = daemonScheduler("input-loop");
+        inputScheduler.scheduleAtFixedRate(() -> {
             if (ui.mapOpenFlag().get()) {
                 net.sendInput(false, false, false, false);
             } else {
@@ -95,8 +105,11 @@ public final class ClientLifecycle {
             }
         }, 0, 50, TimeUnit.MILLISECONDS);
 
-        scheduler.scheduleAtFixedRate(net::tickStreamSafe, 0, 100, TimeUnit.MILLISECONDS);
-        scheduler.scheduleAtFixedRate(() -> net.sendClientPing(System.nanoTime()), 2000, 2000, TimeUnit.MILLISECONDS);
+        streamScheduler = daemonScheduler("stream-loop");
+        streamScheduler.scheduleAtFixedRate(net::tickStreamSafe, 0, 100, TimeUnit.MILLISECONDS);
+
+        pingScheduler = daemonScheduler("ping-loop");
+        pingScheduler.scheduleAtFixedRate(() -> net.sendClientPing(System.nanoTime()), 2000, 2000, TimeUnit.MILLISECONDS);
 
         renderLoop = new RenderLoop(ui.frame(), canvas);
         renderLoop.start();
@@ -110,8 +123,14 @@ public final class ClientLifecycle {
         if (renderLoop != null) {
             try { renderLoop.stop(); } catch (Exception ignored) {}
         }
-        if (scheduler != null) {
-            scheduler.shutdownNow();
+        if (inputScheduler != null) {
+            inputScheduler.shutdownNow();
+        }
+        if (streamScheduler != null) {
+            streamScheduler.shutdownNow();
+        }
+        if (pingScheduler != null) {
+            pingScheduler.shutdownNow();
         }
     }
 }
