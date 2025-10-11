@@ -16,6 +16,9 @@ public final class TerrainPalette {
 	  ARGB[Terrain.DESERT.id]  = 0xFFE7C388; // sa mạc (cát)
 	  ARGB[Terrain.M_ROCK.id]  = 0xFF8C8C8C; // núi (xám)
 	  ARGB[Terrain.LAKE.id]    = 0xFF1E6AA8; // hồ
+	  
+	  ARGB[Terrain.VILLAGE_MARK.id] = 0xFF9C27B0; // tím nổi bật, bạn thích màu khác thì đổi
+
 
         // các id khác: để cùng màu fallback tối giản
         int fallback = 0xFF808080;

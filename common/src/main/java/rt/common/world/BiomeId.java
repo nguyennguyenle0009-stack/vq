@@ -29,6 +29,9 @@ public final class BiomeId {
     public static final int M_VOLCANO    = 10;
     public static final int M_FOREST     = 11;
     public static final int M_ROCK       = 12;
+    
+    // Village
+    public static final int VILLAGE_MARK = 24;
 
     private BiomeId() {}
 }

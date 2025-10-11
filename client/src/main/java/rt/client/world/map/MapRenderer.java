@@ -79,6 +79,12 @@ public final class MapRenderer {
                 dx, dy, dx + destW, dy + destH,        // dest rect
                 0, 0, img.getWidth(), img.getHeight(), // src rect
                 null);
+            
+            g.setColor(new java.awt.Color(255, 255, 255, 60)); // nhạt
+            g.drawRect(dx, dy, destW - 1, destH - 1);
+            // (tuỳ thích) in nhãn (cx,cy) ở góc:
+            g.setFont(g.getFont().deriveFont(10f));
+            g.drawString(cx + "," + cy, dx + 4, dy + 12);
           }
         }
         g.setTransform(bak);

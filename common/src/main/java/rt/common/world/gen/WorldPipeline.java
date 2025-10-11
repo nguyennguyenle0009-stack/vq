@@ -34,6 +34,9 @@ public final class WorldPipeline {
 		    new RareForestStage(cfg, Terrain.F_DARK),      // ~5%
 		    new MountainStage(cfg),    // núi cụm/dãy
 		    new DesertStage(cfg),      // sa mạc
+		    
+		    new VillageStage(cfg),
+		    
 		    new CollisionStage()       // coll theo Terrain.blocked
 		));
   }

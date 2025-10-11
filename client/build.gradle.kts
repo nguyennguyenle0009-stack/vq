@@ -15,7 +15,8 @@ dependencies {
 }
 
 application {
-    mainClass.set("rt.client.app.ClientApp")
+    // mainClass.set("rt.client.app.ClientApp")
+    mainClass.set("rt.client.tools.StaticMapExporter")
     
     // JVM flags khi chạy :client:run
     applicationDefaultJvmArgs = listOf(

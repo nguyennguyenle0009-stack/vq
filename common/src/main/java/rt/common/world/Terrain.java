@@ -17,6 +17,9 @@ public enum Terrain {
     DESERT     (BiomeId.DESERT,    "Sa mạc",            false,  3),
     M_ROCK     (BiomeId.M_ROCK,    "Núi",               true,  4),
     LAKE       (BiomeId.LAKE,      "Hồ",       			true,  4),
+    
+    // Village
+    VILLAGE_MARK (BiomeId.VILLAGE_MARK, "Làng (đánh dấu)", false, 1),
 
     // Các id còn lại giữ làm tương thích nhưng sẽ không được sinh ra
     PLAIN_WEIRD(BiomeId.PLAIN_WEIRD,"Plain* ", false, 3),
