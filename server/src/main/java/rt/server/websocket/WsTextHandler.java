@@ -56,9 +56,9 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     private static final int  TILE_SIZE  = 32;
     
  // Geo RL
-    private static final int  GEO_MAX_PER_SEC = 5;
+    private static final int  GEO_MAX_PER_SEC = 2; // giảm tần suất để tránh ping cao
     private static final long GEO_WINDOW_MS   = 1000L;
-    private static final class GeoRL { long winStart; int count; }
+    private static final class GeoRL { long winStart; int count; long lastNotify; }
     private final java.util.concurrent.ConcurrentHashMap<String, GeoRL> geoRl = new java.util.concurrent.ConcurrentHashMap<>();
 
 
@@ -176,7 +176,17 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
                     s.send(Map.of("type", "cpong", "ts", ts));
                 }
             }
-            case "geo_reqA" -> { }
+            case "geo_req" -> {
+                if (!allowGeoAndMaybeWarn(s.playerId, s)) break;
+                rt.common.net.dto.GeoReqC2S req = Jsons.OM.treeToValue(node, rt.common.net.dto.GeoReqC2S.class);
+                long gx = req.gx();
+                long gy = req.gy();
+                var info = geo.at(gx, gy);
+                s.send(new GeoS2C("geo", gx, gy,
+                        info.terrainId, info.terrainName,
+                        info.continentId, info.continentName,
+                        info.seaId, info.seaName));
+            }
 
             default -> log.warn("unknown type {}", type);
         }
@@ -202,6 +212,7 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
         Session s = sessions.byChannel(ctx.channel());
         if (s != null) { world.removePlayer(s.playerId); inputs.remove(s.playerId); }
         sessions.detach(ctx.channel());
+        if (s != null) geoRl.remove(s.playerId);
         log.info("channel inactive {}", id);
     }
 
@@ -210,6 +221,7 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
         Session s = sessions.byChannel(ctx.channel());
         if (s != null) { world.removePlayer(s.playerId); inputs.remove(s.playerId); }
         sessions.detach(ctx.channel());
+        if (s != null) geoRl.remove(s.playerId);
         log.info("channel removed {}", ctx.channel().id().asShortText());
     }
 
@@ -250,5 +262,23 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
         // Gửi seed cho client (lấy từ cfg instance, không dùng field static)
         long seed = (cfg.worldSeed != 0 ? cfg.worldSeed : 20250917L);
         s.send(new SeedS2C(seed, rt.common.world.ChunkPos.SIZE, 32)); // tileSize tùy bạn
+    }
+
+    private boolean allowGeoAndMaybeWarn(String playerId, Session s) {
+        long now = System.currentTimeMillis();
+        GeoRL r = geoRl.computeIfAbsent(playerId, k -> new GeoRL());
+        if (now - r.winStart >= GEO_WINDOW_MS) {
+            r.winStart = now;
+            r.count = 0;
+        }
+        r.count++;
+        if (r.count <= GEO_MAX_PER_SEC) return true;
+
+        if (now - r.lastNotify >= 1000L) {
+            r.lastNotify = now;
+            s.send(new ErrorS2C(rt.common.net.ErrorCodes.RATE_LIMIT_GEO,
+                    "Too many geo lookups (> " + GEO_MAX_PER_SEC + "/s). Slow down."));
+        }
+        return false;
     }
 }

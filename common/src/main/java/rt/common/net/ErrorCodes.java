@@ -9,4 +9,5 @@ public final class ErrorCodes {
     public static final String ADMIN_UNAUTHORIZED = "ADMIN_UNAUTHORIZED";
     public static final String UNKNOWN_TYPE       = "UNKNOWN_TYPE";
     public static final String RATE_LIMIT_INPUT   = "RATE_LIMIT_INPUT";
+    public static final String RATE_LIMIT_GEO     = "RATE_LIMIT_GEO";
 }
