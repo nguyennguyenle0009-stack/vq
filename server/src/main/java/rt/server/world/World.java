@@ -4,7 +4,10 @@ import rt.common.net.dto.EntityState;
 import rt.common.net.dto.StateS2C;
 import rt.server.session.SessionRegistry;
 
-import java.util.*;
+import rt.server.world.spawn.SpawnLocator;
+
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** World CHUNK-ONLY: không còn TileMap. Collision đọc từ ChunkService. */
@@ -17,85 +20,21 @@ public class World {
     private final Map<String,Dir> lastInput = new ConcurrentHashMap<>();
     private static final double SPEED = rt.common.game.Units.SPEED_TILES_PER_SEC;
 
-    // ===== CHUNK =====
     private static final int CHUNK_SIZE = rt.common.world.ChunkPos.SIZE;
     private rt.server.world.chunk.ChunkService chunkService;
-
-    // spawn mặc định (tìm 1 lần trên đất liền, cache lại)
-    private volatile boolean spawnReady = false;
-    private volatile double spawnX = -9247, spawnY = -631;
-
-    // ==== tham số tìm spawn theo ô macro của lục địa ====
-    private static final int CONT_CELL_TILES   = 12_000;                                  // khớp WorldGenerator
-    private static final int MACRO_STEP_CHUNKS = Math.max(2, CONT_CELL_TILES / CHUNK_SIZE);
-    private static final int FINE_STEP_CHUNKS  = 8;                                       // quét tinh
-    private static final int MAX_MACRO_RINGS   = 64;                                      // 64*12000 ~ 768k tiles
-    private static final int MAX_FINE_RADIUS   = 2048;                                    // 2048*64 ~ 131k tiles
+    private final SpawnLocator spawnLocator = new SpawnLocator();
 
     public World(SessionRegistry sessions){ this.sessions = sessions; }
 
     /** Bật chế độ chunk, gọi khi server khởi động. */
     public void enableChunkMode(rt.server.world.chunk.ChunkService svc){
         this.chunkService = Objects.requireNonNull(svc, "chunkService");
-        try { computeDefaultSpawn(); } catch (Exception ignore) {}
-    }
-    public void setOverworldParams(long seed, int tileSize){}
-
-    private void computeDefaultSpawn() {
-        if (spawnReady || chunkService == null) return;
-
-        // 1) Quét theo "ô macro" – đi từng vành
-        for (int ring = 0; ring <= MAX_MACRO_RINGS; ring++) {
-            int r = ring * MACRO_STEP_CHUNKS;
-            if (probeRing(r, MACRO_STEP_CHUNKS)) { spawnReady = true; return; }
-        }
-
-        // 2) Rơi về quét tinh STEP=8 chunk
-        for (int r = FINE_STEP_CHUNKS; r <= MAX_FINE_RADIUS; r += FINE_STEP_CHUNKS) {
-            if (probeRing(r, FINE_STEP_CHUNKS)) { spawnReady = true; return; }
-        }
-
-        // 3) Không thấy thì giữ (3,3) (rất khó xảy ra nếu generator OK)
-        spawnReady = true;
-    }
-
-    /** Dò “vành” hình vuông ở bán kính r (chunk), chỉ đi trên 4 cạnh. */
-    private boolean probeRing(int r, int step) {
-        if (r == 0) return scanChunkForFree(0, 0);
-        for (int cy = -r; cy <= r; cy += step) {
-            if (scanChunkForFree(-r, cy)) return true;
-            if (scanChunkForFree( r, cy)) return true;
-        }
-        for (int cx = -r + step; cx <= r - step; cx += step) {
-            if (scanChunkForFree(cx, -r)) return true;
-            if (scanChunkForFree(cx,  r)) return true;
-        }
-        return false;
-    }
-
-    private boolean scanChunkForFree(int cx, int cy){
-        var cd = chunkService.get(cx, cy); // sinh/gỡ từ cache
-        int N = cd.size;
-        for (int ty = 0; ty < N; ty++) {
-            for (int tx = 0; tx < N; tx++) {
-                int idx = ty * N + tx;
-                if (!cd.collision.get(idx)) {
-                    // chọn tâm ô cho đẹp
-                    spawnX = cx * (double)N + tx + 0.5;
-                    spawnY = cy * (double)N + ty + 0.5;
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private void ensureSpawnComputed() {
-        if (!spawnReady) computeDefaultSpawn();
+        spawnLocator.initialize(svc);
     }
 
     private P ensure(String id){
-        ensureSpawnComputed();
+        double spawnX = spawnLocator.spawnX();
+        double spawnY = spawnLocator.spawnY();
         return players.computeIfAbsent(id, k -> { P p=new P(); p.x=spawnX; p.y=spawnY; return p; });
     }
 
