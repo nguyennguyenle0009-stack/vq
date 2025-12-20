@@ -27,6 +27,7 @@ public class WsServer {
   	private final InputQueue inputs; // Hàng đợi input từ client gửi lên (để game loop xử lý).
   	private final World world;
   	private final ChunkService chunkservice;
+    private final java.util.concurrent.ExecutorService chunkExecutor;
   	private EventLoopGroup bossGroup; // Nhóm thread quản lý kết nối "chấp nhận socket" (boss).
   	private EventLoopGroup workerGroup; // Nhóm thread xử lý I/O cho từng kết nối (worker).
   	private Channel serverChannel; // Channel đại diện cho server socket (cổng WebSocket).
@@ -39,6 +40,13 @@ public class WsServer {
         this.inputs = inputs;
         this.world = world;
         this.chunkservice = chunkservice;
+        this.chunkExecutor = java.util.concurrent.Executors.newFixedThreadPool(
+                Math.max(2, Runtime.getRuntime().availableProcessors() / 2),
+                r -> {
+                    Thread t = new Thread(r, "chunk-gen");
+                    t.setDaemon(true);
+                    return t;
+                });
     }
 
 	// Bắt đầu chạy server WebSocket.
@@ -53,7 +61,7 @@ public class WsServer {
             .childOption(ChannelOption.SO_KEEPALIVE, cfg.soKeepAlive)
 	        .childOption(ChannelOption.WRITE_BUFFER_WATER_MARK,
 	        		 new WriteBufferWaterMark(cfg.writeBufferLowKB * 1024, cfg.writeBufferHighKB * 1024))
-	        .childHandler(new WsChannelInitializer(sessions, inputs, cfg, world, chunkservice));
+	        .childHandler(new WsChannelInitializer(sessions, inputs, cfg, world, chunkservice, chunkExecutor));
 	    serverChannel = b.bind(cfg.port).sync().channel();	// Bind server vào cổng và chạy đồng bộ (sync để block đến khi bind xong).
 	    log.info("Server started at ws://localhost:{}/ws", cfg.port);
 	}
@@ -66,6 +74,7 @@ public class WsServer {
 	catch (InterruptedException ignored) {}
 	    if (bossGroup != null) bossGroup.shutdownGracefully(); // tắt thread boss
 	    if (workerGroup != null) workerGroup.shutdownGracefully();	// tắt thread worker
+        if (chunkExecutor != null) chunkExecutor.shutdownNow();
 	}
 }
 
