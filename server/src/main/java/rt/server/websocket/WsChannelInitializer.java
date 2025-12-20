@@ -22,14 +22,16 @@ public class WsChannelInitializer extends ChannelInitializer<SocketChannel> {
     private final World world;
     private final ServerConfig cfg;
     private final ChunkService chunkservice;
+    private final java.util.concurrent.ExecutorService chunkExecutor;
 
     public WsChannelInitializer(SessionRegistry sessions, InputQueue inputs, ServerConfig cfg, World world, 
-    		ChunkService chunkservice) {
+    		ChunkService chunkservice, java.util.concurrent.ExecutorService chunkExecutor) {
         this.sessions = sessions;
         this.inputs = inputs;
         this.cfg = cfg;
         this.world = world;
         this.chunkservice = chunkservice;
+        this.chunkExecutor = chunkExecutor;
     }
 
     @Override
@@ -64,6 +66,6 @@ public class WsChannelInitializer extends ChannelInitializer<SocketChannel> {
         p.addLast(new WsExceptionHandler());
 
         // Handler nghiệp vụ
-        p.addLast(new WsTextHandler(sessions, inputs, world, cfg, chunkservice));
+        p.addLast(new WsTextHandler(sessions, inputs, world, cfg, chunkservice, chunkExecutor));
     }
 }

@@ -42,6 +42,7 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     private final World world;
     private final ServerConfig cfg;
     private final ChunkService chunkservice;
+    private final java.util.concurrent.ExecutorService chunkExecutor;
 
 
     // ====== NEW: Overworld (chunk) foundation ======
@@ -52,12 +53,14 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
     		InputQueue inputs, 
     		World world, 
     		ServerConfig cfg, 
-                ChunkService chunkservice) {
+                ChunkService chunkservice,
+                java.util.concurrent.ExecutorService chunkExecutor) {
         this.sessions = sessions;
         this.inputs   = inputs;
         this.world    = world;
         this.cfg      = cfg;
         this.chunkservice = chunkservice;
+        this.chunkExecutor = chunkExecutor;
     }
 
     @Override
@@ -94,8 +97,14 @@ public class WsTextHandler extends SimpleChannelInboundHandler<TextWebSocketFram
             case "chunk_req" -> {
                 int cx = node.get("cx").asInt();
                 int cy = node.get("cy").asInt();
-                var cd = this.chunkservice.get(cx, cy);
-                s.send(new ChunkS2C(cd.cx, cd.cy, cd.size, cd.layer1, cd.layer2, cd.collision.toByteArray()));
+                chunkExecutor.execute(() -> {
+                    var cd = this.chunkservice.get(cx, cy);
+                    var msg = new ChunkS2C(cd.cx, cd.cy, cd.size, cd.layer1, cd.layer2, cd.collision.toByteArray());
+                    ctx.channel().eventLoop().execute(() -> {
+                        if (!ctx.channel().isActive()) return;
+                        s.send(msg);
+                    });
+                });
             }
 
             case "input" -> {
